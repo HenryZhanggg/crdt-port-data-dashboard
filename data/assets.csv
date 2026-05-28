@@ -1,0 +1,7 @@
+asset_id,asset_type,name,lat,lon,status,owner,notes
+port_liverpool,Port,Port of Liverpool,53.4437,-3.0172,Watch,Port authority,Main port area used for MVP map context
+terminal_a,Terminal,Terminal A,53.4453,-3.0124,Normal,Terminal operator,Example terminal operating area
+gate_north,Gate,North gate,53.4491,-3.0055,Warning,Terminal operator,HGV pressure elevated in sample data
+road_a5036,Road segment,A5036 access corridor,53.4590,-2.9990,Warning,Local authority,Primary road corridor in sample view
+rail_link,Rail link,Port rail connection,53.4380,-3.0280,Normal,Rail partner,Example rail/hinterland connection
+water_context,Water-level context area,Low-lying access area,53.4525,-3.0248,Watch,Local authority,Sample water-level monitoring context
