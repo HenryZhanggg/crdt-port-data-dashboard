@@ -1,0 +1,6 @@
+event_id,event_type,location,lat,lon,severity,status,reported_at,owner,impact
+T001,Congestion,A5036 approach,53.4590,-2.9990,High,Active,2026-05-26 08:15,Local authority,HGV delay likely to affect port access
+T002,Roadworks,North access route,53.4652,-3.0102,Medium,Planned,2026-05-26 07:30,Local authority,Lane restriction; monitor peak periods
+T003,Gate queue,North gate,53.4491,-3.0055,High,Active,2026-05-26 08:40,Terminal operator,Queue pressure above normal operating threshold
+T004,Rail status,Port rail connection,53.4380,-3.0280,Low,Normal,2026-05-26 08:10,Rail partner,No current rail disruption
+T005,Incident,Local junction,53.4540,-3.0030,Medium,Clearing,2026-05-26 08:05,Local authority,Short-term diversion may increase access time
