@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample service area",
+        "category": "service_boundary"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-3.045, 53.430],
+          [-2.985, 53.430],
+          [-2.985, 53.470],
+          [-3.045, 53.470],
+          [-3.045, 53.430]
+        ]]
+      }
+    }
+  ]
+}
