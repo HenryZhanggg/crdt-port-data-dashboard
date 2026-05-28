@@ -1,0 +1,7 @@
+partner_id,partner_name,role,access_level,can_view
+internal_admin,Internal coordination team,Administrator,L2,"overview,gis,weather,transport,dataset_catalog,raw_data,data_status,partner_tasks"
+port_authority,Port authority,Port operator,L2,"overview,gis,weather,transport,dataset_catalog,raw_data,data_status,partner_tasks"
+terminal_operator,Terminal operator,Operational partner,L2,"overview,gis,transport,dataset_catalog,raw_data,partner_tasks"
+local_authority,Local authority,Public-sector partner,L1,"overview,gis,weather,transport,dataset_catalog,raw_data,partner_tasks"
+emergency_service,Emergency service,Emergency response,L2,"overview,gis,weather,transport,dataset_catalog,raw_data,partner_tasks"
+research_partner,Research partner,Research and analysis,L1,"overview,gis,weather,transport,dataset_catalog,raw_data,data_status"
