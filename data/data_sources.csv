@@ -1,0 +1,6 @@
+source_id,source_name,source_type,owner,update_cadence,last_update,status,access_level,connection_mode
+DB001,Existing operational database,Database,Internal coordination team,15 min,2026-05-26 08:45,Online,L2,SQL view placeholder
+GIS001,Service area GIS layers,GIS,Internal coordination team,Daily,2026-05-26 08:00,Online,L1,GeoJSON/PostGIS placeholder
+WX001,Weather observations/API,Weather,Weather data provider,Hourly,2026-05-26 10:00,Online,L1,CSV/API placeholder
+TR001,Transport events feed,Transport,Local authority,15 min,2026-05-26 08:40,Delayed,L1,CSV/API placeholder
+PORT001,Gate and terminal status,Port operations,Terminal operator,5 min,2026-05-26 08:42,Online,L2,SQL/API placeholder
