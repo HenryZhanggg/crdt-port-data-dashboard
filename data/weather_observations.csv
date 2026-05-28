@@ -1,0 +1,7 @@
+timestamp,temperature_c,wind_speed_mph,rainfall_mm,tide_risk,flood_alert,source
+2026-05-26 05:00,12.8,17,0.3,Low,False,Sample weather feed
+2026-05-26 06:00,13.1,20,0.6,Low,False,Sample weather feed
+2026-05-26 07:00,13.4,24,1.2,Watch,False,Sample weather feed
+2026-05-26 08:00,13.6,29,2.8,Watch,True,Sample weather feed
+2026-05-26 09:00,14.0,31,3.4,Watch,True,Sample weather feed
+2026-05-26 10:00,14.2,28,2.1,Watch,True,Sample weather feed
