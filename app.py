@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hmac
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -164,6 +166,44 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto",
 )
+
+
+def get_dashboard_password() -> str:
+    try:
+        secret_password = st.secrets.get("DASHBOARD_PASSWORD")
+    except Exception:
+        secret_password = None
+
+    return str(secret_password or os.getenv("DASHBOARD_PASSWORD", "")).strip()
+
+
+def require_dashboard_authorisation() -> bool:
+    if st.session_state.get("dashboard_authorised"):
+        return True
+
+    configured_password = get_dashboard_password()
+    auth_panel = st.empty()
+    with auth_panel.container():
+        st.title("CRDT-Port Data Visualisation Dashboard")
+        st.subheader("Authorised access")
+        st.caption("Enter the dashboard password to continue.")
+
+        if not configured_password:
+            st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
+            return False
+
+        with st.form("dashboard_password_form"):
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Unlock dashboard")
+
+        if submitted:
+            if hmac.compare_digest(password, configured_password):
+                st.session_state["dashboard_authorised"] = True
+                auth_panel.empty()
+                return True
+            st.error("Incorrect password.")
+
+    return False
 
 
 def apply_professional_theme() -> None:
@@ -1197,6 +1237,9 @@ def render_raw_data() -> None:
 
 def main() -> None:
     apply_professional_theme()
+    if not require_dashboard_authorisation():
+        st.stop()
+
     partners = load_csv("partners.csv")
     assets = load_csv("assets.csv")
     weather = load_csv("weather_observations.csv", parse_dates=["timestamp"])
@@ -1206,6 +1249,10 @@ def main() -> None:
     service_area = load_service_area()
 
     st.sidebar.title("CRDT-Port")
+    if st.sidebar.button("Lock dashboard"):
+        st.session_state["dashboard_authorised"] = False
+        st.rerun()
+
     partner_name = st.sidebar.selectbox("Partner", partners["partner_name"].tolist(), index=0)
     partner = partners[partners["partner_name"].eq(partner_name)].iloc[0]
     render_access_banner(partner)

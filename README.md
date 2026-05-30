@@ -38,6 +38,20 @@ Then open:
 http://127.0.0.1:8501/
 ```
 
+The prototype dashboard asks for an access password before loading data or
+showing the partner sidebar. Configure the password through Streamlit secrets
+or an environment variable named `DASHBOARD_PASSWORD`.
+
+For local development, create `.streamlit/secrets.toml`:
+
+```toml
+DASHBOARD_PASSWORD = "your-password"
+```
+
+The local secrets file is ignored by git. For Streamlit Community Cloud, add
+the same `DASHBOARD_PASSWORD` entry in the app's Secrets settings, then reboot
+or redeploy the app.
+
 ## Connected open-data sources
 
 The dashboard currently connects to:
