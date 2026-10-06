@@ -19,7 +19,7 @@ To rebuild the public aggregate research snapshot from the original workbook:
 .\.venv\Scripts\python scripts\extract_research_evidence.py C:\path\to\16_final_context_physics_signature.xlsx
 ```
 
-The extractor validates summary means against per-fold rows. Full workbooks, row-level predictions, secrets and captured QA observations are not deployment inputs. No additional runtime dependency is required for this update.
+The extractor validates summary means against per-fold rows. Full workbooks, row-level predictions, secrets and captured QA observations are not deployment inputs. No additional runtime dependency is required for this update. Streamlit is pinned to the locally verified 1.57.0 runtime so deployment does not depend on an older UI API; changing the dependency file also requests a fresh cloud build.
 
 ## Monitoring update (6 October 2026)
 
