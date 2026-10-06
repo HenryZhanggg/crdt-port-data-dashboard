@@ -1,0 +1,15 @@
+@prefix port: <https://example.org/crdt-port/> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+port:MonitoringOntology a owl:Ontology ;
+    rdfs:comment "Local monitoring schema reusing SOSA. Validation covers observation structure, not flood prediction." .
+port:WaterLevelObservation a owl:Class ; rdfs:subClassOf sosa:Observation .
+port:WaterLevel a sosa:ObservableProperty ; rdfs:label "Water level" .
+port:unit a owl:DatatypeProperty ; rdfs:domain port:WaterLevelObservation .
+port:verticalDatum a owl:ObjectProperty ; rdfs:domain port:WaterLevelObservation .
+port:sourceEndpoint a owl:ObjectProperty ; rdfs:domain sosa:Observation .
+port:stationReference a owl:DatatypeProperty ; rdfs:domain sosa:Sensor .
+port:latitude a owl:DatatypeProperty ; rdfs:domain sosa:FeatureOfInterest .
+port:longitude a owl:DatatypeProperty ; rdfs:domain sosa:FeatureOfInterest .

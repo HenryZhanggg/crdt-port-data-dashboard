@@ -11,6 +11,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+from data_quality import measure_datum
+
 
 PORT_LAT = 53.448
 PORT_LON = -3.015
@@ -279,7 +281,7 @@ def fetch_environment_agency(session: requests.Session) -> tuple[dict[str, pd.Da
     return frames, statuses
 
 
-def fetch_liverpool_tide_water_levels(session: requests.Session) -> tuple[pd.DataFrame, dict[str, object]]:
+def fetch_liverpool_tide_water_levels(session: requests.Session, start_date=None, end_date=None) -> tuple[pd.DataFrame, dict[str, object]]:
     stations_response = session.get(EA_TIDE_GAUGE_STATIONS_URL, timeout=45)
     stations_response.raise_for_status()
     stations_payload = stations_response.json()
@@ -291,21 +293,40 @@ def fetch_liverpool_tide_water_levels(session: requests.Session) -> tuple[pd.Dat
             continue
         lat = item.get("lat")
         lon = item.get("long")
+        measures = item.get("measures", [])
+        measures = [measures] if isinstance(measures, dict) else measures
+        for measure in measures:
+            if isinstance(measure, dict) and measure.get("@id") and not measure.get("datumType"):
+                try:
+                    definition = session.get(str(measure["@id"]).replace("http://", "https://", 1), timeout=20)
+                    definition.raise_for_status()
+                    measure.update(definition.json().get("items", {}))
+                except requests.RequestException:
+                    pass  # Missing datum metadata remains visible as a validation failure.
         station_lookup[station_reference] = {
             "station_label": item.get("label", "Liverpool"),
             "lat": lat,
             "lon": lon,
             "distance_km": distance_km(float(lat), float(lon)) if lat is not None and lon is not None else None,
+            "measures": {m.get("@id", ""): m for m in measures if isinstance(m, dict)},
         }
 
     rows: list[dict[str, object]] = []
     for station_reference, station in station_lookup.items():
-        readings_url = f"{EA_ROOT}/data/readings?stationReference={station_reference}&_sorted&_view=full&_limit=96"
-        response = session.get(readings_url, timeout=45)
+        readings_url = f"{EA_ROOT}/data/readings"
+        params = {"stationReference": station_reference, "_sorted": "", "_view": "full", "_limit": 20000 if start_date else 96}
+        if start_date and end_date:
+            params.update(startdate=str(start_date), enddate=str(end_date))
+        response = session.get(readings_url, params=params, timeout=45)
         response.raise_for_status()
         for reading in response.json().get("items", []):
             measure = reading.get("measure", {}) or {}
+            if isinstance(measure, str):
+                measure = station["measures"].get(measure, {})
+            else:
+                measure = {**station["measures"].get(measure.get("@id", ""), {}), **measure}
             unit = measure.get("unitName", "")
+            datum, datum_uri = measure_datum(measure)
             rows.append(
                 {
                     "station_reference": station_reference,
@@ -314,12 +335,15 @@ def fetch_liverpool_tide_water_levels(session: requests.Session) -> tuple[pd.Dat
                     "parameter": measure.get("parameter", ""),
                     "qualifier": measure.get("qualifier", ""),
                     "unit": unit,
-                    "datum": "Ordnance Datum Newlyn" if unit == "mAOD" else "Local tide gauge datum",
+                    "datum": datum,
+                    "datum_uri": datum_uri,
+                    "site_key": f"{station.get('lat')},{station.get('lon')}" if station.get("lat") is not None and station.get("lon") is not None else "",
+                    "retrieved_at_utc": now_utc(),
                     "value": reading.get("value", None),
                     "lat": station.get("lat"),
                     "lon": station.get("lon"),
                     "distance_km": station.get("distance_km"),
-                    "api_endpoint": readings_url,
+                    "api_endpoint": getattr(response, "url", readings_url),
                 }
             )
 
@@ -385,7 +409,7 @@ def fetch_naptan(session: requests.Session) -> tuple[pd.DataFrame, dict[str, obj
     )
 
 
-def fetch_webtris(session: requests.Session) -> tuple[dict[str, pd.DataFrame], list[dict[str, object]]]:
+def fetch_webtris(session: requests.Session, start_date=None, end_date=None) -> tuple[dict[str, pd.DataFrame], list[dict[str, object]]]:
     sites_response = session.get(WEBTRIS_SITES_URL, timeout=60)
     sites_response.raise_for_status()
     sites_payload = sites_response.json()
@@ -402,10 +426,12 @@ def fetch_webtris(session: requests.Session) -> tuple[dict[str, pd.DataFrame], l
     local_sites = sites[sites["distance_km"].le(20)].sort_values("distance_km").copy()
 
     selected_site_ids = ["6806", "6807", "6980", "6981"]
+    end_date = pd.Timestamp(end_date or datetime.now(timezone.utc).date())
+    start_date = pd.Timestamp(start_date or (end_date - pd.Timedelta(days=1)))
     params = {
         "sites": ",".join(selected_site_ids),
-        "start_date": "01052024",
-        "end_date": "07052024",
+        "start_date": start_date.strftime("%d%m%Y"),
+        "end_date": end_date.strftime("%d%m%Y"),
         "page": 1,
         "page_size": 5000,
     }
@@ -443,7 +469,7 @@ def fetch_webtris(session: requests.Session) -> tuple[dict[str, pd.DataFrame], l
             "Hinterland Transport",
             "api_connected",
             len(rows),
-            f"{WEBTRIS_REPORT_URL}?sites={','.join(selected_site_ids)}&start_date=01052024&end_date=07052024&page=1&page_size=5000",
+            f"{WEBTRIS_REPORT_URL}?sites={','.join(selected_site_ids)}&start_date={params['start_date']}&end_date={params['end_date']}&page=1&page_size=5000",
             "Direct REST API report call for selected Liverpool access-road sensors",
         ),
     ]
@@ -517,7 +543,7 @@ def deferred_connector_rows() -> list[dict[str, object]]:
     ]
 
 
-def fetch_raw_data_bundle() -> dict[str, pd.DataFrame]:
+def fetch_raw_data_bundle(start_date=None, end_date=None) -> dict[str, pd.DataFrame]:
     session = request_session()
     bundle = empty_bundle()
     statuses: list[dict[str, object]] = []
@@ -526,9 +552,9 @@ def fetch_raw_data_bundle() -> dict[str, pd.DataFrame]:
         ("dft", lambda: fetch_dft_port_statistics(session)),
         ("ons", lambda: fetch_ons_weekly_shipping(session)),
         ("ea", lambda: fetch_environment_agency(session)),
-        ("water_level", lambda: fetch_liverpool_tide_water_levels(session)),
+        ("water_level", lambda: fetch_liverpool_tide_water_levels(session, start_date, end_date)),
         ("naptan", lambda: fetch_naptan(session)),
-        ("webtris", lambda: fetch_webtris(session)),
+        ("webtris", lambda: fetch_webtris(session, start_date, end_date)),
     ]
 
     for connector_name, call in connector_calls:

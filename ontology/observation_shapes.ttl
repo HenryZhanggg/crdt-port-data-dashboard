@@ -1,0 +1,29 @@
+@prefix port: <https://example.org/crdt-port/> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+port:SensorShape a sh:NodeShape ; sh:targetClass sosa:Sensor ;
+    sh:property [ sh:path port:stationReference ; sh:minCount 1 ; sh:minLength 1 ; sh:message "Sensor needs a source station reference." ] .
+port:SiteShape a sh:NodeShape ; sh:targetClass sosa:FeatureOfInterest ;
+    sh:property [ sh:path port:latitude ; sh:minCount 1 ; sh:datatype xsd:double ; sh:minInclusive -90 ; sh:maxInclusive 90 ; sh:message "Monitoring site needs valid latitude." ] ;
+    sh:property [ sh:path port:longitude ; sh:minCount 1 ; sh:datatype xsd:double ; sh:minInclusive -180 ; sh:maxInclusive 180 ; sh:message "Monitoring site needs valid longitude." ] .
+
+port:WaterObservationShape a sh:NodeShape ;
+    sh:targetClass port:WaterLevelObservation ;
+    sh:property [ sh:path sosa:madeBySensor ; sh:minCount 1 ; sh:maxCount 1 ; sh:class sosa:Sensor ; sh:message "Observation needs a sensor." ] ;
+    sh:property [ sh:path sosa:hasFeatureOfInterest ; sh:minCount 1 ; sh:class sosa:FeatureOfInterest ; sh:message "Observation needs a monitoring site." ] ;
+    sh:property [ sh:path sosa:phenomenonTime ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:dateTime ; sh:message "Observation needs a valid UTC timestamp." ] ;
+    sh:property [ sh:path sosa:hasSimpleResult ; sh:minCount 1 ; sh:datatype xsd:double ; sh:message "Observation needs a numeric result." ] ;
+    sh:property [ sh:path port:unit ; sh:minCount 1 ; sh:in ( "m" "mAOD" ) ; sh:message "Water-level unit must be m or mAOD." ] ;
+    sh:property [ sh:path port:verticalDatum ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:message "Vertical datum must be verified from source metadata." ] ;
+    sh:sparql [
+        sh:message "EA mAOD reporting requires the Ordnance Datum reference." ;
+        sh:select """
+            SELECT $this WHERE {
+                $this <https://example.org/crdt-port/unit> "mAOD" ;
+                      <https://example.org/crdt-port/verticalDatum> ?datum .
+                FILTER (?datum != <http://environment.data.gov.uk/flood-monitoring/def/core/datumAOD>)
+            }
+        """
+    ] .

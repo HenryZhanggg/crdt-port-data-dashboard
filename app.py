@@ -11,6 +11,13 @@ import pydeck as pdk
 import streamlit as st
 
 from api_connectors import fetch_raw_data_bundle
+from monitoring_views import (
+    render_data_quality,
+    render_monitoring_map,
+    render_monitoring_overview,
+    render_monitoring_transport,
+    render_monitoring_weather,
+)
 
 
 BASE_DIR = Path(__file__).parent
@@ -162,7 +169,7 @@ PROCESS_STATE_COLORS = {
 
 
 st.set_page_config(
-    page_title="CRDT-Port Data Visualisation",
+    page_title="CRDT-Port Monitoring",
     layout="wide",
     initial_sidebar_state="auto",
 )
@@ -210,6 +217,24 @@ def apply_professional_theme() -> None:
     st.markdown(
         """
         <style>
+        :root { --port-ink: #203847; --port-teal: #168879; }
+        [data-testid="stAppViewContainer"] {
+            background: linear-gradient(135deg, #edf5f3 0%, #f7f9fb 42%, #f3f6fa 100%);
+        }
+        .monitor-hero {
+            padding: 1.4rem 1.7rem;
+            border-left: 5px solid var(--port-teal);
+            border-radius: 8px;
+            background: linear-gradient(110deg, #e3f1ed, #ffffff);
+            margin: 0.6rem 0 1.1rem;
+        }
+        .monitor-hero h2 { color: var(--port-ink); margin: 0.35rem 0; }
+        .monitor-hero p { color: #4e6874; margin-bottom: 0; }
+        .eyebrow { font-size: 0.72rem; letter-spacing: 0.12rem; font-weight: 650; color: #346b65; }
+        .quality-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem;
+            padding: 0.7rem 1rem; background: #ffffff; border: 1px solid #dce7e8;
+            border-radius: 6px; margin: 0.7rem 0 1rem; color: #49616c; font-size: 0.9rem; }
+        .quality-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
         .block-container {
             padding-top: 0.8rem;
             padding-bottom: 2rem;
@@ -297,6 +322,10 @@ def apply_professional_theme() -> None:
             white-space: nowrap;
         }
         @media (max-width: 700px) {
+            .block-container { padding-top: 3rem; }
+            [data-testid="stAppViewContainer"] h1 { font-size: 1.6rem !important; line-height: 1.95rem !important; }
+            .monitor-hero { padding: 1rem; }
+            .monitor-hero h2 { font-size: 1.35rem !important; line-height: 1.7rem !important; }
             .block-container {
                 padding-left: 0.85rem;
                 padding-right: 0.85rem;
@@ -383,9 +412,13 @@ def load_high_score_catalog() -> pd.DataFrame:
     return catalog
 
 
-@st.cache_data(ttl=900, show_spinner=False)
 def load_api_raw_bundle() -> dict[str, pd.DataFrame]:
-    return fetch_raw_data_bundle()
+    return load_selected_api_bundle(st.session_state.get("monitor_start"), st.session_state.get("monitor_end"))
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_selected_api_bundle(start_date, end_date) -> dict[str, pd.DataFrame]:
+    return fetch_raw_data_bundle(start_date, end_date)
 
 
 def format_optional_number(value: object, suffix: str = "", decimals: int = 0) -> str:
@@ -1258,7 +1291,23 @@ def main() -> None:
     render_access_banner(partner)
     views = allowed_views(partner)
 
-    st.title("CRDT-Port Data Visualisation Dashboard")
+    st.sidebar.divider()
+    mode = st.sidebar.radio("Time mode", ["Live monitoring", "Historical browsing"], key="monitor_mode")
+    today = pd.Timestamp.now(tz="UTC").date()
+    first = (pd.Timestamp(today) - pd.Timedelta(days=1 if mode == "Live monitoring" else 6)).date()
+    dates = st.sidebar.date_input("Observation dates", value=(first, today), max_value=today,
+        disabled=mode == "Live monitoring", key=f"monitor_dates_{mode}")
+    st.sidebar.caption("UTC calendar dates for water; source calendar dates for traffic. Browse up to seven days per request.")
+    if len(dates) != 2:
+        st.info("Select both a start date and an end date.")
+        st.stop()
+    if (dates[1] - dates[0]).days > 6:
+        st.info("Choose a period of up to seven days to keep monitoring charts responsive.")
+        st.stop()
+    st.session_state["monitor_start"] = dates[0].isoformat()
+    st.session_state["monitor_end"] = dates[1].isoformat()
+
+    st.title("CRDT-Port Dashboard")
 
     available_pages = []
     if "overview" in views:
@@ -1275,24 +1324,34 @@ def main() -> None:
         available_pages.append("Raw Data")
     if "data_status" in views:
         available_pages.append("Data Status")
+    if "data_status" in views or "raw_data" in views:
+        available_pages.append("Data Quality")
 
     st.sidebar.divider()
     page = st.sidebar.radio("View", available_pages, index=0, label_visibility="collapsed")
 
+    bundle = None
+    if page in {"Overview", "GIS", "Weather", "Transport", "Data Quality"}:
+        with st.spinner("Loading observations for the selected period"):
+            bundle = load_api_raw_bundle()
+
     if page == "Overview":
-        render_overview(assets, weather, transport, sources, catalog)
+        render_monitoring_overview(bundle, weather, transport, catalog, assets, service_area)
     elif page == "GIS":
-        render_gis(assets, service_area)
+        render_monitoring_map(bundle, assets, service_area)
     elif page == "Weather":
-        render_weather(weather)
+        render_monitoring_weather(bundle, weather)
     elif page == "Transport":
-        render_transport(transport)
+        render_monitoring_transport(bundle, transport)
     elif page == "Dataset Catalogue":
         render_dataset_catalog(catalog)
     elif page == "Raw Data":
+        st.caption("Selected dates apply to water and traffic observations. Published port statistics and current official warnings keep their own time scope.")
         render_raw_data()
     elif page == "Data Status":
         render_data_status(sources, catalog)
+    elif page == "Data Quality":
+        render_data_quality(bundle, weather, transport)
 
     st.sidebar.divider()
     if st.sidebar.button("Refresh data"):
