@@ -10,7 +10,7 @@ import plotly.express as px
 import pydeck as pdk
 import streamlit as st
 
-from api_connectors import fetch_raw_data_bundle
+from api_connectors import empty_bundle, fetch_raw_data_bundle
 from monitoring_views import (
     render_data_quality,
     render_monitoring_map,
@@ -18,6 +18,7 @@ from monitoring_views import (
     render_monitoring_transport,
     render_monitoring_weather,
 )
+from research_views import render_report_centre, render_research_workspace
 
 
 BASE_DIR = Path(__file__).parent
@@ -218,18 +219,27 @@ def apply_professional_theme() -> None:
         """
         <style>
         :root { --port-ink: #203847; --port-teal: #168879; }
+        .workspace-meta { display:flex; flex-wrap:wrap; justify-content:space-between; gap:0.4rem;
+            border-bottom:1px solid #d5e3e5; padding:0.2rem 0 0.9rem; margin-bottom:1rem;
+            color:#55717b; font-size:0.78rem; letter-spacing:0.03rem; }
+        .stream-card { border:1px solid #dce7e8; border-top:3px solid var(--port-teal); border-radius:6px;
+            background:white; padding:0.9rem 1rem; margin:0.4rem 0; }
+        .stream-card h3 { font-size:0.85rem !important; padding:0 !important; margin:0 0 0.4rem; }
+        .stream-card .reading { font-size:1.8rem; font-weight:600; line-height:2.1rem; }
+        .stream-card small { color:#55717b; }
         [data-testid="stAppViewContainer"] {
             background: linear-gradient(135deg, #edf5f3 0%, #f7f9fb 42%, #f3f6fa 100%);
         }
         .monitor-hero {
-            padding: 1.4rem 1.7rem;
+            padding: 1rem 1.3rem;
             border-left: 5px solid var(--port-teal);
             border-radius: 8px;
             background: linear-gradient(110deg, #e3f1ed, #ffffff);
             margin: 0.6rem 0 1.1rem;
         }
-        .monitor-hero h2 { color: var(--port-ink); margin: 0.35rem 0; }
-        .monitor-hero p { color: #4e6874; margin-bottom: 0; }
+        .monitor-hero h2 { color: var(--port-ink); font-size:1.35rem !important; padding:0 !important; margin:0.45rem 0; }
+        .monitor-hero p { color: #4e6874; margin-bottom:0; padding:0; font-size:0.9rem; }
+        [data-testid="stAppViewContainer"] h1 { font-size:1.9rem !important; padding-bottom:0.4rem; }
         .eyebrow { font-size: 0.72rem; letter-spacing: 0.12rem; font-weight: 650; color: #346b65; }
         .quality-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem;
             padding: 0.7rem 1rem; background: #ffffff; border: 1px solid #dce7e8;
@@ -413,12 +423,33 @@ def load_high_score_catalog() -> pd.DataFrame:
 
 
 def load_api_raw_bundle() -> dict[str, pd.DataFrame]:
-    return load_selected_api_bundle(st.session_state.get("monitor_start"), st.session_state.get("monitor_end"))
+    return load_selected_api_bundle(st.session_state.get("monitor_start"), st.session_state.get("monitor_end"),
+        tuple(st.session_state.get("monitor_sources", ("dft", "ons", "ea", "water_level", "naptan", "webtris"))))
 
 
-@st.cache_data(ttl=900, show_spinner=False)
-def load_selected_api_bundle(start_date, end_date) -> dict[str, pd.DataFrame]:
-    return fetch_raw_data_bundle(start_date, end_date)
+@st.cache_data(ttl=300, show_spinner=False)
+def load_observation_source(source, start_date, end_date):
+    return fetch_raw_data_bundle(start_date, end_date, sources=(source,))
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def load_reference_source(source):
+    return fetch_raw_data_bundle(sources=(source,))
+
+
+def load_selected_api_bundle(start_date, end_date, sources) -> dict[str, pd.DataFrame]:
+    bundle = empty_bundle()
+    statuses = []
+    for source in sources:
+        result = load_observation_source(source, start_date, end_date) if source in {"ea", "water_level", "webtris"} else load_reference_source(source)
+        for name, frame in result.items():
+            if name == "status":
+                statuses.append(frame)
+            elif not frame.empty:
+                bundle[name] = frame
+    if statuses:
+        bundle["status"] = pd.concat(statuses, ignore_index=True).drop_duplicates("connector_id", keep="last")
+    return bundle
 
 
 def format_optional_number(value: object, suffix: str = "", decimals: int = 0) -> str:
@@ -1315,7 +1346,7 @@ def main() -> None:
     if "gis" in views:
         available_pages.append("GIS")
     if "weather" in views:
-        available_pages.append("Weather")
+        available_pages.append("Observation Explorer")
     if "transport" in views:
         available_pages.append("Transport")
     if "dataset_catalog" in views:
@@ -1326,20 +1357,35 @@ def main() -> None:
         available_pages.append("Data Status")
     if "data_status" in views or "raw_data" in views:
         available_pages.append("Data Quality")
+        available_pages.append("Report Centre")
+    if "weather" in views:
+        available_pages.append("Research & Replay")
 
     st.sidebar.divider()
-    page = st.sidebar.radio("View", available_pages, index=0, label_visibility="collapsed")
+    monitoring = [name for name in ["Overview", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
+    research = [name for name in ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"] if name in available_pages]
+    sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Data & Research", research)] if pages}
+    section = st.sidebar.radio("Workspace", list(sections), key="workspace_section")
+    page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
+    st.markdown(f'<div class="workspace-meta"><span>{section.upper()} / LIVERPOOL</span>'
+        f'<span>{dates[0].strftime("%d %b %Y")} - {dates[1].strftime("%d %b %Y")} | {mode}</span></div>', unsafe_allow_html=True)
+    st.session_state["monitor_sources"] = {
+        "Overview": ("water_level", "webtris"), "GIS": ("water_level", "webtris"),
+        "Observation Explorer": ("water_level",), "Transport": ("webtris",),
+        "Data Quality": ("water_level", "webtris"), "Research & Replay": ("water_level",),
+        "Report Centre": ("water_level", "webtris"),
+    }.get(page, ("dft", "ons", "ea", "water_level", "naptan", "webtris"))
 
     bundle = None
-    if page in {"Overview", "GIS", "Weather", "Transport", "Data Quality"}:
-        with st.spinner("Loading observations for the selected period"):
+    if page in {"Overview", "GIS", "Observation Explorer", "Transport", "Data Quality", "Research & Replay", "Report Centre"}:
+        with st.spinner("Retrieving the feeds used by this view"):
             bundle = load_api_raw_bundle()
 
     if page == "Overview":
         render_monitoring_overview(bundle, weather, transport, catalog, assets, service_area)
     elif page == "GIS":
         render_monitoring_map(bundle, assets, service_area)
-    elif page == "Weather":
+    elif page == "Observation Explorer":
         render_monitoring_weather(bundle, weather)
     elif page == "Transport":
         render_monitoring_transport(bundle, transport)
@@ -1352,6 +1398,10 @@ def main() -> None:
         render_data_status(sources, catalog)
     elif page == "Data Quality":
         render_data_quality(bundle, weather, transport)
+    elif page == "Research & Replay":
+        render_research_workspace(bundle)
+    elif page == "Report Centre":
+        render_report_centre(bundle, weather, transport)
 
     st.sidebar.divider()
     if st.sidebar.button("Refresh data"):

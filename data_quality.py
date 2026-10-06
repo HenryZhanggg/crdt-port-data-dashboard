@@ -46,7 +46,8 @@ def assess_series(name, frame, time_column, kind, now=None, stale_minutes=60, va
         gaps = int(intervals.sub(1).clip(lower=0).fillna(0).apply(lambda v: int(v)).sum())
     invalid_values = 0
     if value_column and value_column in frame:
-        invalid_values = int(pd.to_numeric(frame[value_column], errors="coerce").isna().sum())
+        numeric = pd.to_numeric(frame[value_column], errors="coerce")
+        invalid_values = int((numeric.isna() | numeric.isin([float("inf"), float("-inf")])).sum())
     source_first = str(frame.loc[times.idxmin(), time_column]) if times.notna().any() else ""
     source_latest = str(frame.loc[times.idxmax(), time_column]) if times.notna().any() else ""
     result = {
@@ -109,7 +110,10 @@ def quality_table(bundle, weather, transport, now=None):
     rows.append(assess_series("Weather demonstration", weather, "timestamp", "Sample", now))
     rows.append(assess_series("Transport demonstration", transport, "reported_at", "Sample", now))
     shipping = bundle.get("weekly_shipping", pd.DataFrame())
-    rows.append(assess_series("ONS shipping", shipping, "week_ending", "Statistics", now))
+    status = bundle.get("status", pd.DataFrame())
+    queried_shipping = "connector_id" in status and status["connector_id"].astype(str).str.startswith("ons").any()
+    if not shipping.empty or queried_shipping:
+        rows.append(assess_series("ONS shipping", shipping, "week_ending", "Statistics", now))
     return pd.DataFrame(rows)
 
 

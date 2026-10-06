@@ -2,6 +2,25 @@
 
 This repository contains a Streamlit monitoring demonstrator for the CRDT-Port project. It displays observations, source coverage and data-quality evidence, and maps water observations into a small SOSA ontology validated with SHACL. It does not yet run pre-warning model inference, asset-impact reasoning or production authentication.
 
+## Monitoring and Research Workspace
+
+- **Monitoring** is the home section: Overview, GIS, Observation Explorer, Transport and Data Quality. **Data & Research** holds Research & Replay, Report Centre and the original catalogue/status/raw-data views. Existing partner-view filters remain prototype navigation rules, not institutional access control.
+- The map-led overview supports selecting a gauge on the map; GIS also has a location selector as a WebGL fallback. Fresh/stale observations, traffic reference locations and demonstration assets remain distinct. A stale observation is not labelled absent, and neither data-health state implies flood severity.
+- Observation Explorer filters one measurement reference and time interval, shows gaps and change rates, and exports the selected records. Rates are calculated only between consecutive 15-minute observations; no interpolation or datum conversion is applied. Plot zoom does not alter CSV export scope.
+- Data Quality adds a prioritized review queue for stale, missing, invalid or unverifiable observations while preserving the full register, SOSA/SHACL checks and Turtle export.
+- Research & Replay separates selected-gauge window inspection/animated history from archived experimental evidence, and follows Observation Explorer's partner-view restriction. An eight-point complete diagnostic window spans 105 minutes at a 15-minute cadence. Replay does not reconstruct the archived training samples, apply a model or produce warnings. Conflicting duplicates are withheld from diagnostics; raw report CSVs preserve source rows. Off-cadence observations remain visible rather than being discarded by plotting.
+- Research charts reproduce `Summary_By_Group` and `PerFold_Metrics` from `16_final_context_physics_signature.xlsx`: eight feature families and 32 fold records. `data/research_provenance.json` records the source hash and metric definitions. Error bars are four-fold SD, not confidence intervals; false-positive windows are not alert episodes. The result tables do not change with the monitoring date selector.
+- Report Centre exports a self-contained HTML snapshot, selected observation CSVs, quality/source registers and JSON metadata in one ZIP. Water references are charted separately; collection, observation and export times are explicitly distinguished.
+- Feed requests are view-specific. Observation feeds have independent five-minute caches; statistical/reference feeds have one-day caches. Explorer and Replay request only water; Overview/GIS/Data Quality/Report Centre request water and traffic. The original full-feed pages still request all connected sources. The home feed count describes feeds retrieved by that view, not global service availability.
+
+To rebuild the public aggregate research snapshot from the original workbook:
+
+```powershell
+.\.venv\Scripts\python scripts\extract_research_evidence.py C:\path\to\16_final_context_physics_signature.xlsx
+```
+
+The extractor validates summary means against per-fold rows. Full workbooks, row-level predictions, secrets and captured QA observations are not deployment inputs. No additional runtime dependency is required for this update.
+
 ## Monitoring update (6 October 2026)
 
 - Live monitoring selects yesterday and today; historical browsing accepts a selected period of up to seven calendar days. EA water and WebTRIS traffic requests use the selected dates rather than a fixed 2024 traffic example.

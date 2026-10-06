@@ -1,0 +1,15 @@
+{
+  "source_workbook": "16_final_context_physics_signature.xlsx",
+  "source_sha256": "47abfd5d73093940d75ea2cb81db285c09ad12ed40e149c3cf1a55a648266aac",
+  "sheets": [
+    "Summary_By_Group",
+    "PerFold_Metrics"
+  ],
+  "study": "Liverpool 12-hour warning-aligned sparse learning",
+  "validation": "Four incident-cluster folds; validation-selected alert threshold",
+  "independent_clusters": 4,
+  "model": "FinalSignature-SparseLogistic",
+  "spread": "Sample standard deviation across folds, not a confidence interval",
+  "false_alarm_unit": "False-positive windows per represented day, not alert episodes per day",
+  "scope": "Archived offline experiments, not predictions from the current dashboard gauges"
+}

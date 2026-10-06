@@ -11,8 +11,10 @@ BASE = Path(__file__).resolve().parents[1]
 OUTPUT = BASE / "outputs" / "2026-10-06"
 OUTPUT.mkdir(parents=True, exist_ok=True)
 extra = ["tests/test_data_quality.py", "tests/test_connector_dates.py", "tests/test_dashboard_views.py",
+         "tests/test_workspace_data.py", "tests/test_research_evidence.py",
          "tests/capture_dashboard.py", "scripts/preview_dashboard.py", "scripts/build_release.py",
-         "scripts/check_deployment_access.py", "docs/superpowers/plans/2026-10-06-monitoring-quality-visuals.md"]
+         "scripts/check_deployment_access.py", "docs/superpowers/plans/2026-10-06-monitoring-quality-visuals.md",
+         "docs/superpowers/plans/2026-10-06-monitoring-research-workspace.md"]
 files = sorted(set(FILES_TO_UPLOAD + extra))
 missing = [name for name in files if not (BASE / name).is_file()]
 if missing:

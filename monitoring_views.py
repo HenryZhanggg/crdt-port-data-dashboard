@@ -10,6 +10,7 @@ import pydeck as pdk
 import streamlit as st
 
 from data_quality import compatibility, filter_dates, observation_graph, quality_table, validate_observations
+from workspace_data import clean_water_series, quality_findings, water_chart_series
 
 
 COLORS = {"Current": "#168879", "Stale": "#c07822", "Sample": "#78879a", "Unavailable": "#b84f51", "Unknown time": "#b84f51", "Timezone unverified": "#c07822", "Future timestamp": "#b84f51", "Historical statistics": "#466887", "Reference": "#466887"}
@@ -38,6 +39,33 @@ def selected_dates():
     return st.session_state.get("monitor_start"), st.session_state.get("monitor_end")
 
 
+def select_water_series(water, label="Gauge and vertical reference", key="water_series"):
+    water = water.copy()
+    water["_series_key"] = water["station_reference"].astype(str) + "|" + water["unit"].astype(str) + "|" + water["datum_uri"].fillna("").astype(str)
+    options = water["_series_key"].unique().tolist()
+    labels = {name: f"{group.iloc[0]['station_reference']} | {group.iloc[0]['unit']} | {group.iloc[0]['datum']}" for name, group in water.groupby("_series_key", sort=False)}
+    if st.session_state.get(key) not in options:
+        st.session_state[key] = options[0]
+    selected = st.selectbox(label, options, format_func=labels.get, key=key)
+    return clean_water_series(water[water["_series_key"].eq(selected)].drop(columns="_series_key"))
+
+
+def water_level_figure(chosen, height=350):
+    row = chosen.iloc[-1]
+    chart_rows = water_chart_series(chosen)
+    fig = go.Figure(go.Scatter(x=chart_rows.index, y=chart_rows.values, mode="lines",
+        connectgaps=False, line=dict(color="#168879", width=2.5), name="Observed water level"))
+    elapsed = chosen["date_time"].diff()
+    gaps = [dict(type="rect", xref="x", yref="y domain", y0=0, y1=1,
+        x0=chosen.loc[i - 1, "date_time"] + pd.Timedelta(minutes=15), x1=chosen.loc[i, "date_time"],
+        fillcolor="#78879a", opacity=0.12, line_width=0, layer="below")
+        for i in chosen.index[elapsed.gt(pd.Timedelta(minutes=15))]]
+    fig.update_layout(shapes=gaps)
+    fig.update_xaxes(title="Observation time (UTC)")
+    fig.update_yaxes(title=f"Water level ({row['unit']})")
+    return chart_style(fig, height)
+
+
 def coverage_chart(table):
     fig = go.Figure()
     for _, row in table.dropna(subset=["First UTC", "Latest UTC"]).iterrows():
@@ -55,31 +83,52 @@ def render_monitoring_overview(bundle, weather, transport, catalog, assets, serv
     water = bundle.get("water_levels", pd.DataFrame())
     status = bundle.get("status", pd.DataFrame())
     connected = int(status["status"].eq("api_connected").sum()) if not status.empty else 0
-    latest = pd.to_datetime(water.get("date_time", pd.Series(dtype=str)), utc=True, errors="coerce").max()
     st.markdown('<div class="monitor-hero"><div class="eyebrow">LIVERPOOL / MONITORING WORKSPACE</div>'
                 '<h2>Liverpool monitoring and data quality</h2>'
-                '<p>Observation times, source coverage and measurement compatibility.</p></div>', unsafe_allow_html=True)
+                '<p>Explore monitoring locations, inspect observations and review data health.</p></div>', unsafe_allow_html=True)
+    observed = table[table["Kind"].eq("Observation")]
+    issues = quality_findings(observed)
     cards = st.columns(4)
-    cards[0].metric("Current observation streams", int(table["State"].eq("Current").sum()), help="Water: <=60 minutes old; traffic: <=180 minutes. API connectivity is counted separately.")
-    cards[1].metric("Connected API / file feeds", connected)
-    cards[2].metric("Catalogue candidates", int(catalog["rank"].ge(4).sum()) if not catalog.empty else 0)
+    cards[0].metric("Fresh / checked streams", f"{int(observed['State'].eq('Current').sum())} / {len(observed)}", help="Includes a missing-feed placeholder when no observations return. Freshness is not flood safety. Water: 60 minutes; traffic: 180 minutes only after timezone verification.")
+    cards[1].metric("Feeds retrieved by this view", connected, help="Only water and traffic are requested on the monitoring home; this is not a health check of every catalogue source.")
+    cards[2].metric("Data-health findings", len(issues), help="Missing, stale or unverifiable observations. These are not flood warnings.")
     cards[3].metric("Water observations", len(water))
-    state_badge("Current" if table["State"].eq("Current").any() else "Unavailable", f"Latest water observation: {utc_label(latest)}")
-    left, right = st.columns([1.25, 1])
+    left, right = st.columns([1.45, 1])
     with left:
-        st.subheader("Observation coverage")
-        st.plotly_chart(coverage_chart(table), width="stretch")
-        st.caption("Only streams with a verified UTC time basis appear here. Segments show first and last returned timestamps, not uninterrupted coverage.")
+        st.subheader("Monitoring locations")
+        selected = render_monitoring_map(bundle, assets, service_area, compact=True)
     with right:
-        st.subheader("Data readiness")
-        readiness = table.groupby("State").size().rename("Streams").reset_index()
-        fig = px.bar(readiness, x="Streams", y="State", orientation="h", text="Streams", color="State", color_discrete_map=COLORS)
-        fig.update_layout(showlegend=False)
-        st.plotly_chart(chart_style(fig, 320), width="stretch")
-    st.subheader("Monitoring locations")
-    render_monitoring_map(bundle, assets, service_area, compact=True)
-    with st.expander("Sources and observation timestamps", expanded=False):
-        st.dataframe(table[["Source", "Kind", "State", "Records", "Latest UTC", "Age (min)"]], hide_index=True, width="stretch")
+        st.subheader("Water-gauge detail")
+        if water.empty:
+            state_badge("Unavailable", "No water observations returned for these dates.")
+            st.info("Check selected dates and source status. An empty response does not prove a sensor outage.")
+        else:
+            if selected and selected.get("kind") == "Water":
+                identity = f"{selected['station_reference']}|{selected['unit']}|{selected['datum_uri']}"
+                if st.session_state.get("overview_map_focus") != identity:
+                    st.session_state["overview_gauge"] = identity
+                    st.session_state["overview_map_focus"] = identity
+            chosen = select_water_series(water, label="Overview gauge", key="overview_gauge")
+            if not chosen.empty:
+                row = chosen.iloc[-1]
+                quality = quality_table({"water_levels": chosen}, pd.DataFrame(), pd.DataFrame()).iloc[0]
+                reading = f"{row['value']:.3f}" if pd.notna(row["value"]) else "Not valid"
+                st.markdown(f'<div class="stream-card"><h3>{escape(str(row["station_reference"]))} / WATER LEVEL</h3>'
+                    f'<div class="reading">{reading} <small>{escape(str(row["unit"]))}</small></div>'
+                    f'<small>{escape(str(row["datum"]))}<br>{utc_label(row["date_time"])}</small></div>', unsafe_allow_html=True)
+                state_badge(quality["State"], "Freshness describes observation age, not flood risk.")
+                st.plotly_chart(water_level_figure(chosen, 220), width="stretch", key="overview_water_chart")
+                retrieved = pd.to_datetime(chosen.get("retrieved_at_utc", pd.Series(dtype=str)), utc=True, errors="coerce").max()
+                st.caption(f"Collected: {utc_label(retrieved)}. No predicted tide or risk inference is shown.")
+    st.subheader("Observation coverage")
+    st.plotly_chart(coverage_chart(observed), width="stretch")
+    st.caption("Segments show the first and last returned UTC timestamps, not uninterrupted coverage. Traffic with an unverified time basis is excluded.")
+    if not issues.empty:
+        with st.expander(f"Review {len(issues)} data-health findings", expanded=False):
+            st.dataframe(issues, hide_index=True, width="stretch")
+    with st.expander("Source timestamps and scope", expanded=False):
+        st.dataframe(observed[["Source", "State", "Records", "Latest UTC", "Age (min)"]], hide_index=True, width="stretch")
+        st.caption("Demonstration weather and events are excluded from the monitoring KPIs. Published shipping statistics are available under Raw Data.")
 
 
 def render_monitoring_map(bundle, assets, service_area, compact=False):
@@ -87,7 +136,7 @@ def render_monitoring_map(bundle, assets, service_area, compact=False):
         st.subheader("Monitoring map")
     layers = []
     if service_area:
-        layers.append(pdk.Layer("GeoJsonLayer", service_area, filled=True, stroked=True,
+        layers.append(pdk.Layer("GeoJsonLayer", service_area, id="service-area", filled=True, stroked=True,
             get_fill_color=[22, 136, 121, 15], get_line_color=[22, 136, 121, 140], line_width_min_pixels=2))
     controls = st.columns(3)
     show_water = controls[0].checkbox("Water gauges", value=True, key=f"map_water_{compact}")
@@ -98,33 +147,51 @@ def render_monitoring_map(bundle, assets, service_area, compact=False):
     if show_water and not water.empty:
         for station, group in water.groupby("station_reference"):
             row = group.sort_values("date_time").iloc[-1]
+            datum = "" if pd.isna(row["datum_uri"]) else row["datum_uri"]
+            reference = group[group["unit"].eq(row["unit"]) & group["datum_uri"].fillna("").eq(datum)]
+            state = quality_table({"water_levels": reference}, pd.DataFrame(), pd.DataFrame()).iloc[0]["State"]
+            color = [192, 120, 34, 230] if state != "Current" else [22, 136, 121, 230]
             map_rows.append({"lat": row.get("lat"), "lon": row.get("lon"), "name": f"Water gauge {station}",
-                "detail": f"{row.get('value')} {row.get('unit')} | {row.get('datum')}", "color": [22, 136, 121, 220], "radius": 120})
+                "station_reference": str(station), "unit": str(row.get("unit", "")), "datum_uri": str(row.get("datum_uri", "")),
+                "kind": "Water", "state": state,
+                "detail": f"{row.get('value')} {row.get('unit')} | {row.get('datum')} | {state}", "color": color, "radius": 120})
     traffic = bundle.get("webtris_sites", pd.DataFrame())
     if show_traffic and not traffic.empty:
         for _, row in traffic.iterrows():
             map_rows.append({"lat": row.get("lat"), "lon": row.get("lon"), "name": f"Traffic counter {row.get('site_id')}",
-                "detail": str(row.get("description", "Reference location; not a port-gate queue measurement")), "color": [52, 99, 150, 200], "radius": 85})
+                "kind": "Traffic", "state": "Reference location", "site_id": str(row.get("site_id")),
+                "detail": str(row.get("description", "Reference location; not a port-gate queue measurement")), "color": [52, 99, 150, 220], "radius": 85})
     if show_demo:
         for _, row in assets.iterrows():
-            map_rows.append({"lat": row["lat"], "lon": row["lon"], "name": row["name"], "detail": "Demonstration asset; operational state not verified", "color": [120, 135, 154, 170], "radius": 140})
+            map_rows.append({"lat": row["lat"], "lon": row["lon"], "name": row["name"], "kind": "Demonstration", "state": "Sample", "detail": "Demonstration asset; operational state not verified", "color": [120, 135, 154, 170], "radius": 140})
     points = pd.DataFrame(map_rows)
     if not points.empty:
         points["lat"] = pd.to_numeric(points["lat"], errors="coerce")
         points["lon"] = pd.to_numeric(points["lon"], errors="coerce")
         points = points.dropna(subset=["lat", "lon"])
-        layers.append(pdk.Layer("ScatterplotLayer", points, get_position="[lon, lat]", get_radius="radius",
+        layers.append(pdk.Layer("ScatterplotLayer", points, id="monitoring-points", get_position="[lon, lat]", get_radius="radius",
             get_fill_color="color", stroked=True, get_line_color=[255, 255, 255], line_width_min_pixels=2, radius_min_pixels=6, pickable=True))
         if not compact:
-            layers.append(pdk.Layer("TextLayer", points, get_position="[lon, lat]", get_text="name", get_size=12,
+            layers.append(pdk.Layer("TextLayer", points, id="point-labels", get_position="[lon, lat]", get_text="name", get_size=12,
                 get_color=[32, 56, 71], get_pixel_offset=[0, -17], get_text_anchor="middle", get_alignment_baseline="bottom"))
     deck = pdk.Deck(map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
         initial_view_state=pdk.ViewState(latitude=53.448, longitude=-3.015, zoom=11.5, pitch=0),
         layers=layers, tooltip={"text": "{name}\n{detail}"})
-    st.pydeck_chart(deck, width="stretch", height=360 if compact else 560)
-    st.caption("Teal: water gauges. Blue: traffic-counter reference locations. Grey: optional demonstration assets. The service-area outline is a demonstration boundary.")
+    event = st.pydeck_chart(deck, width="stretch", height=440 if compact else 540,
+        on_select="rerun", selection_mode="single-object", key=f"monitoring_map_{compact}")
+    objects = event.get("selection", {}).get("objects", {}).get("monitoring-points", [])
+    selected = objects[0] if objects else None
+    st.caption("Click a monitoring point to inspect it. Teal: fresh water observations; amber: other water states; blue: traffic reference locations. Grey assets and the outline are demonstrations, not risk classifications.")
     if not compact:
-        st.dataframe(points.drop(columns=["color", "radius"], errors="ignore"), hide_index=True, width="stretch")
+        if not points.empty:
+            fallback = st.selectbox("Monitoring location", points["name"].tolist(), key="map_location_fallback")
+            selected = selected or points[points["name"].eq(fallback)].iloc[0].to_dict()
+            st.markdown(f"**Selected location: {escape(str(selected['name']))}**")
+            st.write(selected["detail"])
+            st.caption(f"Source type: {selected['kind']} | State: {selected['state']} | Coordinates: {selected['lat']}, {selected['lon']}")
+        with st.expander("Location register", expanded=False):
+            st.dataframe(points.drop(columns=["color", "radius"], errors="ignore"), hide_index=True, width="stretch")
+    return selected
 
 
 def render_monitoring_weather(bundle, weather):
@@ -134,45 +201,57 @@ def render_monitoring_weather(bundle, weather):
     if water.empty:
         st.info("No water observations returned for this period. The EA live API retains about 28 days; older replay needs archive data.")
     else:
-        water = water.copy()
-        water["series"] = water["station_reference"].astype(str) + " | " + water["unit"].astype(str) + " | " + water["datum"].astype(str)
-        station = st.selectbox("Gauge and vertical reference", water["series"].unique().tolist())
-        chosen = water[water["series"].eq(station)].sort_values("date_time")
+        chosen = select_water_series(water, key="explorer_gauge")
+        if chosen.empty:
+            st.warning("The returned series has no valid observation timestamps.")
+            return
+        if len(chosen) > 1:
+            first, last = st.select_slider("Visible observation interval", options=chosen["date_time"].tolist(),
+                value=(chosen.iloc[0]["date_time"], chosen.iloc[-1]["date_time"]),
+                format_func=lambda t: t.strftime("%d %b %H:%M UTC"), key=f"explorer_interval_{chosen.iloc[0]['station_reference']}")
+            chosen = chosen[chosen["date_time"].between(first, last)].reset_index(drop=True)
         row = chosen.iloc[-1]
         unit = str(row["unit"])
         state = quality_table({"water_levels": chosen}, pd.DataFrame(), pd.DataFrame()).iloc[0]
-        cards = st.columns(3)
+        cards = st.columns(4)
         cards[0].metric("Latest in selected period", f"{float(row['value']):.3f} {unit}")
         cards[1].metric("Observed range", f"{chosen['value'].max() - chosen['value'].min():.3f} {unit}")
         cards[2].metric("Missing 15-minute intervals", int(state["Missing intervals"]))
+        rate = row["rate_per_hour"]
+        cards[3].metric("Latest valid change rate", f"{rate:+.2f} m/h" if pd.notna(rate) else "Not available", help="Calculated only between consecutive 15-minute observations; gaps are not bridged.")
         state_badge(state["State"], f"{utc_label(state['Latest UTC'])} | {row['datum']}")
-        chart_rows = chosen[["date_time", "value"]].copy()
-        chart_rows["date_time"] = pd.to_datetime(chart_rows["date_time"], utc=True)
-        if not chart_rows.empty:
-            chart_rows = chart_rows.drop_duplicates("date_time").set_index("date_time").asfreq("15min").reset_index()
-        fig = px.line(chart_rows, x="date_time", y="value", markers=True, labels={"date_time": "Observation time (UTC)", "value": f"Water level ({unit})"}, color_discrete_sequence=["#168879"])
-        fig.update_traces(connectgaps=False, line_width=2.5)
-        fig.update_xaxes(rangeslider_visible=True)
-        fig = chart_style(fig, 460)
-        fig.update_layout(margin=dict(l=15, r=20, t=30, b=65))
-        st.plotly_chart(fig, width="stretch")
-        st.caption("One measurement reference is shown at a time. Curves break at missing 15-minute observations; no datum conversion or gap filling is applied.")
-    st.subheader("Weather demonstration")
-    state_badge("Sample", "Local demonstration records, not a connected weather service.")
-    selected = filter_dates(weather, "timestamp", start, end)
-    if selected.empty:
-        st.info("The sample weather dates do not overlap the selected period.")
-        if st.checkbox("Show the sample weather on its own dates", value=False):
-            selected = weather.copy()
-    if not selected.empty:
-        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-            subplot_titles=["Temperature (C)", "Wind speed (mph)", "Rainfall (mm)"])
-        for position, (column, label, color) in enumerate([
-            ("temperature_c", "Temperature (C)", "#b87036"), ("wind_speed_mph", "Wind speed (mph)", "#346396"), ("rainfall_mm", "Rainfall (mm)", "#168879")], 1):
-            fig.add_trace(go.Scatter(x=selected["timestamp"], y=selected[column], mode="lines+markers", name=label, line=dict(color=color)), row=position, col=1)
-        fig.update_layout(showlegend=False)
-        fig.update_xaxes(title_text="Sample timestamps; timezone unspecified", row=3, col=1)
-        st.plotly_chart(chart_style(fig, 600), width="stretch")
+        level_tab, rate_tab, records_tab = st.tabs(["Observed level", "Rate of change", "Selected records"])
+        with level_tab:
+            st.plotly_chart(water_level_figure(chosen, 400), width="stretch")
+            st.caption("Shaded gaps contain no observed values. No datum conversion, interpolation or forecast is applied.")
+        with rate_tab:
+            rate_fig = go.Figure(go.Bar(x=chosen["date_time"], y=chosen["rate_per_hour"], marker_color="#346396"))
+            rate_fig.update_xaxes(title="Observation time (UTC)")
+            rate_fig.update_yaxes(title="Observed change rate (m/h)")
+            st.plotly_chart(chart_style(rate_fig, 360), width="stretch")
+        with records_tab:
+            st.dataframe(chosen, hide_index=True, width="stretch")
+        st.download_button("Download selected observations", chosen.to_csv(index=False).encode(),
+            f"water_{row['station_reference']}_{start}_{end}.csv", "text/csv")
+        st.caption("Downloads use the interval filter above; plot zoom does not change the exported rows.")
+        with st.expander("Source and measurement metadata"):
+            st.write({name: str(row.get(name, "Not provided")) for name in ["station_reference", "unit", "datum", "datum_uri", "api_endpoint", "retrieved_at_utc"]})
+    with st.expander("Illustrative weather (not a live feed)"):
+        state_badge("Sample", "Local demonstration records, not a connected weather service.")
+        selected = filter_dates(weather, "timestamp", start, end)
+        if selected.empty:
+            st.info("The sample weather dates do not overlap the selected period.")
+            if st.checkbox("Show the sample weather on its own dates", value=False):
+                selected = weather.copy()
+        if not selected.empty:
+            fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                subplot_titles=["Temperature (C)", "Wind speed (mph)", "Rainfall (mm)"])
+            for position, (column, label, color) in enumerate([
+                ("temperature_c", "Temperature (C)", "#b87036"), ("wind_speed_mph", "Wind speed (mph)", "#346396"), ("rainfall_mm", "Rainfall (mm)", "#168879")], 1):
+                fig.add_trace(go.Scatter(x=selected["timestamp"], y=selected[column], mode="lines+markers", name=label, line=dict(color=color)), row=position, col=1)
+            fig.update_layout(showlegend=False)
+            fig.update_xaxes(title_text="Sample timestamps; timezone unspecified", row=3, col=1)
+            st.plotly_chart(chart_style(fig, 600), width="stretch")
 
 
 def render_monitoring_transport(bundle, demonstration):
@@ -209,7 +288,19 @@ def render_data_quality(bundle, weather, transport):
     cards[1].metric("Stale observations", int(table["State"].eq("Stale").sum()))
     cards[2].metric("Demonstration streams", int(table["Kind"].eq("Sample").sum()))
     st.caption("Freshness budgets are display checks: water 60 minutes, traffic 180 minutes after timezone verification. Traffic times without verified timezone cannot be classified as current. Historical mode evaluates coverage, while age still reports age relative to now. Missing intervals are counted only within returned timestamp extents.")
-    st.dataframe(table, hide_index=True, width="stretch")
+    findings = quality_findings(table)
+    st.subheader("Data-health review queue")
+    st.caption("These findings concern data usability, not flood severity or operational safety.")
+    if findings.empty:
+        st.success("No configured data-health findings for the returned observation streams.")
+    else:
+        st.dataframe(findings, hide_index=True, width="stretch")
+    with st.expander("Full quality register"):
+        st.dataframe(table, hide_index=True, width="stretch")
+    status = bundle.get("status", pd.DataFrame())
+    if not status.empty and status["status"].eq("api_error").any():
+        with st.expander("Collection errors"):
+            st.dataframe(status.loc[status["status"].eq("api_error"), ["source", "last_call_utc", "access_note"]], hide_index=True, width="stretch")
     st.download_button("Download quality report", table.to_csv(index=False).encode(), "monitoring_quality.csv", "text/csv")
     water = bundle.get("water_levels", pd.DataFrame())
     st.subheader("Water-series compatibility")

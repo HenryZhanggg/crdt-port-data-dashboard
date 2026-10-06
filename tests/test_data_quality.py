@@ -42,6 +42,11 @@ class DataQualityTests(unittest.TestCase):
         self.assertEqual(result["Missing intervals"], 1)
         self.assertEqual(result["Invalid values"], 1)
 
+    def test_infinite_values_are_not_valid_observations(self):
+        frame = pd.DataFrame({"time": [self.now] * 3, "value": [float("inf"), float("-inf"), "invalid"]})
+        result = assess_series("Water", frame, "time", "Observation", self.now, value_column="value")
+        self.assertEqual(result["Invalid values"], 3)
+
     def test_datum_requires_source_metadata(self):
         label, uri = measure_datum({"unitName": "m"})
         self.assertEqual(label, "Unknown datum")

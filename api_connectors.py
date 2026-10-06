@@ -543,7 +543,7 @@ def deferred_connector_rows() -> list[dict[str, object]]:
     ]
 
 
-def fetch_raw_data_bundle(start_date=None, end_date=None) -> dict[str, pd.DataFrame]:
+def fetch_raw_data_bundle(start_date=None, end_date=None, sources=None) -> dict[str, pd.DataFrame]:
     session = request_session()
     bundle = empty_bundle()
     statuses: list[dict[str, object]] = []
@@ -558,6 +558,8 @@ def fetch_raw_data_bundle(start_date=None, end_date=None) -> dict[str, pd.DataFr
     ]
 
     for connector_name, call in connector_calls:
+        if sources is not None and connector_name not in sources:
+            continue
         try:
             result = call()
             if connector_name in {"dft", "ea", "webtris"}:

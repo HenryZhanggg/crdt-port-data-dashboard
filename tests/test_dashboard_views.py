@@ -39,9 +39,14 @@ class DashboardViewTests(unittest.TestCase):
             app.session_state["dashboard_authorised"] = True
             app.run()
             self.assertEqual(len(app.exception), 0, str(app.exception))
-            for page in ["GIS", "Weather", "Transport", "Data Quality", "Dataset Catalogue", "Data Status", "Raw Data"]:
-                next(widget for widget in app.radio if widget.label == "View").set_value(page).run()
-                self.assertEqual(len(app.exception), 0, f"{page}: {app.exception}")
+            for section, pages in [
+                ("Monitoring", ["GIS", "Observation Explorer", "Transport", "Data Quality"]),
+                ("Data & Research", ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"]),
+            ]:
+                next(widget for widget in app.radio if widget.label == "Workspace").set_value(section).run()
+                for page in pages:
+                    next(widget for widget in app.radio if widget.label == "View").set_value(page).run()
+                    self.assertEqual(len(app.exception), 0, f"{page}: {app.exception}")
             next(widget for widget in app.radio if widget.label == "Time mode").set_value("Historical browsing").run()
             self.assertEqual(len(app.exception), 0, str(app.exception))
 
@@ -52,6 +57,79 @@ class DashboardViewTests(unittest.TestCase):
         bundle = empty_bundle()
         bundle["status"] = pd.DataFrame(columns=["connector_id", "title", "domain", "status", "records", "last_call_utc", "url", "access_note"])
         self.check_views(bundle)
+
+    def test_stale_water_is_not_labelled_unavailable_on_home(self):
+        bundle = observation_fixture()
+        bundle["water_levels"]["date_time"] -= pd.Timedelta(days=1)
+        st.cache_data.clear()
+        with patch("api_connectors.fetch_raw_data_bundle", return_value=bundle):
+            app = AppTest.from_file("app.py", default_timeout=30)
+            app.session_state["dashboard_authorised"] = True
+            app.run()
+            self.assertTrue(any("<strong>Stale</strong>" in item.value for item in app.markdown))
+
+    def test_explorer_loads_only_water_source(self):
+        st.cache_data.clear()
+        with patch("api_connectors.fetch_raw_data_bundle", return_value=observation_fixture()) as fetch:
+            app = AppTest.from_file("app.py", default_timeout=30)
+            app.session_state["dashboard_authorised"] = True
+            app.run()
+            fetch.reset_mock()
+            st.cache_data.clear()
+            next(widget for widget in app.radio if widget.label == "View").set_value("Observation Explorer").run()
+            self.assertEqual(len(app.exception), 0, str(app.exception))
+            self.assertEqual([call.kwargs["sources"] for call in fetch.call_args_list], [("water_level",)])
+
+    def test_replay_cursor_changes_the_eight_point_window(self):
+        st.cache_data.clear()
+        with patch("api_connectors.fetch_raw_data_bundle", return_value=observation_fixture()):
+            app = AppTest.from_file("app.py", default_timeout=30)
+            app.session_state["dashboard_authorised"] = True
+            app.run()
+            next(widget for widget in app.radio if widget.label == "Workspace").set_value("Data & Research").run()
+            next(widget for widget in app.radio if widget.label == "View").set_value("Research & Replay").run()
+            self.assertEqual(len(app.exception), 0, str(app.exception))
+            cursor = next(widget for widget in app.slider if widget.label == "Replay checkpoint")
+            cursor.set_value(7).run()
+            self.assertEqual(len(app.exception), 0, str(app.exception))
+            self.assertTrue(any("105" in item.value for item in app.caption))
+
+    def test_partner_without_weather_access_cannot_open_explorer(self):
+        st.cache_data.clear()
+        with patch("api_connectors.fetch_raw_data_bundle", return_value=observation_fixture()):
+            app = AppTest.from_file("app.py", default_timeout=30)
+            app.session_state["dashboard_authorised"] = True
+            app.run()
+            next(widget for widget in app.radio if widget.label == "View").set_value("Observation Explorer").run()
+            next(widget for widget in app.selectbox if widget.label == "Partner").set_value("Terminal operator").run()
+            self.assertEqual(len(app.exception), 0, str(app.exception))
+            pages = next(widget for widget in app.radio if widget.label == "View").options
+            self.assertNotIn("Observation Explorer", pages)
+            next(widget for widget in app.radio if widget.label == "Workspace").set_value("Data & Research").run()
+            pages = next(widget for widget in app.radio if widget.label == "View").options
+            self.assertNotIn("Research & Replay", pages)
+
+    def test_map_freshness_matches_displayed_measurement_reference(self):
+        bundle = observation_fixture()
+        water = bundle["water_levels"]
+        fresh = water[water["station_reference"].eq("E70139")].copy()
+        stale = fresh.assign(unit="m", datum_uri="datum:local", datum="Local datum",
+            date_time=fresh["date_time"] - pd.Timedelta(days=1))
+        bundle["water_levels"] = pd.concat([stale, fresh])
+        decks = []
+        def capture(deck, **kwargs):
+            decks.append(deck)
+            return {"selection": {"objects": {}}}
+        st.cache_data.clear()
+        with patch("api_connectors.fetch_raw_data_bundle", return_value=bundle), patch("monitoring_views.st.pydeck_chart", side_effect=capture):
+            app = AppTest.from_file("app.py", default_timeout=30)
+            app.session_state["dashboard_authorised"] = True
+            app.run()
+        self.assertEqual(len(app.exception), 0, str(app.exception))
+        points = next(layer.data for layer in decks[-1].layers if layer.id == "monitoring-points")
+        self.assertEqual(points[0]["unit"], "mAOD")
+        self.assertEqual(points[0]["state"], "Current")
+
 
 
 if __name__ == "__main__":

@@ -1,7 +1,9 @@
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
+import api_connectors
 from api_connectors import fetch_liverpool_tide_water_levels, fetch_webtris
 
 
@@ -34,6 +36,22 @@ class Session:
 
 
 class ConnectorDateTests(unittest.TestCase):
+    def test_water_only_loading_does_not_fetch_other_feeds(self):
+        with patch.object(api_connectors, "request_session", return_value=Session(water=True)), \
+             patch.object(api_connectors, "fetch_webtris") as traffic, \
+             patch.object(api_connectors, "fetch_dft_port_statistics") as shipping:
+            result = api_connectors.fetch_raw_data_bundle("2026-10-05", "2026-10-06", sources=("water_level",))
+            self.assertEqual(len(result["water_levels"]), 1)
+            traffic.assert_not_called()
+            shipping.assert_not_called()
+
+    def test_failed_selected_source_is_reported(self):
+        with patch.object(api_connectors, "fetch_liverpool_tide_water_levels", side_effect=RuntimeError("Upstream unavailable")):
+            result = api_connectors.fetch_raw_data_bundle(sources=("water_level",))
+            row = result["status"][result["status"]["connector_id"].eq("water_level_api")].iloc[0]
+            self.assertEqual(row["status"], "api_error")
+            self.assertIn("Upstream unavailable", row["access_note"])
+
     def test_water_query_uses_selected_dates_and_measure_datum(self):
         session = Session(water=True)
         frame, _ = fetch_liverpool_tide_water_levels(session, "2026-10-05", "2026-10-06")
