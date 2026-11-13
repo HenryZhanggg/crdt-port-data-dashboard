@@ -48,5 +48,9 @@ Files: `README.md`, tests as needed; QA screenshots remain outside deployment in
 - [x] Run the complete unittest suite, compile checks and dependency checks. Resolve substantive regressions. Final run: 89 tests passed; compile and pip checks passed.
 - [x] Run the application locally, inspect desktop and narrow layouts in the browser. New workspaces and 390px overflow checked in CUA; empty feeds and retained research/export routes covered by AppTest.
 - [x] Obtain independent code/spec review; address important findings and repeat affected checks.
-- [ ] Commit only intended code/docs/tests. Check remote main for concurrent changes; use a normal fast-forward push to update the user's existing application repository.
-- [ ] Verify the existing Streamlit URL updates. Preserve the production password; report any protected-interior verification limit explicitly.
+- [x] Commit only intended code/docs/tests. Checked remote main for concurrent changes and used a normal fast-forward push. Main application change: `54a6cd9`.
+- [x] Verify the existing Streamlit URL updates. The deployed title is now `CRDT-Port | Resilience Workbench`; the existing password gate remains. Protected interior was verified locally, not unlocked on production.
+
+## Verification record
+
+Final code checks: 89 unittest cases passed, Python compilation passed, `pip check` passed and `git diff --check` passed. Independent contract/identity, UI and deployment-readiness reviews were completed and important findings resolved. CUA inspected the live-data local workbench, object/dependency, run, module, demonstrator and governance routes; a 390px-wide viewport had no horizontal page overflow. Production URL: https://crdt-port-data-dashboard.streamlit.app/.
