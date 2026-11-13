@@ -94,8 +94,12 @@ def quality_table(bundle, weather, transport, now=None):
     rows = []
     water = bundle.get("water_levels", pd.DataFrame())
     if not water.empty:
-        for (station, unit), group in water.groupby(["station_reference", "unit"], dropna=False):
-            rows.append(assess_series(f"Water {station} | {unit}", group, "date_time", "Observation", now, 60, "value", 15))
+        water = water.copy()
+        water["datum_uri"] = water.get("datum_uri", pd.Series("", index=water.index)).fillna("")
+        for (station, unit, datum), group in water.groupby(["station_reference", "unit", "datum_uri"], dropna=False):
+            result = assess_series(f"Water {station} | {unit}", group, "date_time", "Observation", now, 60, "value", 15)
+            result["Vertical reference"] = datum or "Unknown datum"
+            rows.append(result)
     else:
         rows.append(assess_series("Liverpool water level", water, "date_time", "Observation", now))
     traffic = bundle.get("webtris_daily", pd.DataFrame())

@@ -7,6 +7,7 @@ from data_quality import (
     compatibility,
     filter_dates,
     measure_datum,
+    quality_table,
     observation_graph,
     validate_observations,
 )
@@ -24,6 +25,16 @@ class DataQualityTests(unittest.TestCase):
     def test_sample_is_never_current(self):
         frame = pd.DataFrame({"time": [self.now]})
         self.assertEqual(assess_series("Weather", frame, "time", "Sample", self.now)["State"], "Sample")
+
+    def test_quality_keeps_same_unit_different_datums_separate(self):
+        water = pd.DataFrame([
+            {'station_reference': 'same', 'unit': 'm', 'datum_uri': 'datum:a', 'date_time': self.now, 'value': 1},
+            {'station_reference': 'same', 'unit': 'm', 'datum_uri': 'datum:b', 'date_time': self.now - pd.Timedelta(days=1), 'value': 2},
+        ])
+        table = quality_table({'water_levels': water}, pd.DataFrame(), pd.DataFrame(), now=self.now)
+        rows = table[table['Source'].str.startswith('Water same')]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(set(rows['State']), {'Current', 'Stale'})
 
     def test_missing_and_future_times_are_distinguished(self):
         invalid = pd.DataFrame({"time": ["invalid"]})

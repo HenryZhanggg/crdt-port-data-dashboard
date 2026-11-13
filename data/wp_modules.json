@@ -1,0 +1,86 @@
+[
+  {
+    "module_id": "WP1",
+    "title": "Shared semantics, modular platform and resilience metrics",
+    "owner": "WP summary: Middlesex; T1.0: Strathclyde; T1.1/T1.2: Middlesex and LJMU; T1.3: LJMU, Middlesex and all industry partners. Software integration lead to be agreed.",
+    "tasks": ["T1.0", "T1.1", "T1.2", "T1.3", "ID9"],
+    "delivery_type": "Versioned ontology, identity and metric definitions; platform module contracts",
+    "implementation_status": "Prototype shared shell and SOSA/SHACL observation checks available; formal WP1 ontology pending",
+    "available": ["Shared map, inspector and module navigation shell", "SOSA-based observation graph and SHACL data checks", "Source-derived workspace IDs"],
+    "pending": ["Formal WP1 ontology and approved entity/relationship definitions", "Agreed canonical identity mappings and resilience metrics", "Named platform and software integration owners"],
+    "inputs": ["WP2 data samples and mappings", "WP3/4/5 domain semantics", "WP6 user tasks"],
+    "outputs": ["Ontology and metric versions for WP2-5", "Platform component handover and integration rules"]
+  },
+  {
+    "module_id": "WP2",
+    "title": "Data products, real-time monitoring and communication continuity",
+    "owner": "WP summary: Lancaster. T2.1: LJMU, Lancaster, Strathclyde, Sefton Council, Mersey Maritime and Sealand; T2.2: Lancaster, Middlesex, LJMU, York and all industry partners; T2.4: Lancaster, York and all industry partners.",
+    "tasks": ["T2.1", "T2.2", "T2.3", "T2.4", "ID18"],
+    "delivery_type": "Versioned data products, monitoring service and monitoring visualisation",
+    "implementation_status": "Prototype data connectors and monitoring diagnostics available; project-wide data and communication assurance pending",
+    "available": ["Existing source connectors, observation inspection and provenance", "Freshness, missingness and data-quality monitoring", "Source status and observation report exports"],
+    "pending": ["Partner-approved products, access terms and WP1 mappings", "Verified coverage and model-input readiness", "Crisis communication continuity validation"],
+    "inputs": ["WP1 semantic and identity definitions", "Source-owner access and quality metadata", "WP7 governance requirements"],
+    "outputs": ["Observations and versioned input products for WP3/4/5", "Monitoring views and communication evidence"]
+  },
+  {
+    "module_id": "WP3",
+    "title": "Scenarios, impact, adaptation, recovery and model integration",
+    "owner": "WP summary: LJMU and Middlesex. T3.6: York and all partners; T3.7: LJMU and all partners; T3.8: Middlesex and all partners.",
+    "tasks": ["T3.1", "T3.2", "T3.3", "T3.4", "T3.6", "T3.7", "T3.8"],
+    "delivery_type": "Model input/output contracts and versioned scenario/run result packages",
+    "implementation_status": "Prototype partner result import, display and comparison only; live inference and model orchestration pending",
+    "available": ["Session-local model_run JSON import and inspection", "Exact-reference run output comparison", "Archived research/replay evidence"],
+    "pending": ["Executable partner scenario, impact and recovery models", "Scientific validation and applicability evidence", "T3.8 model-chain execution and error handling"],
+    "inputs": ["WP1 metrics and semantics", "WP2 versioned products", "WP4 cross-sector dependencies/results", "WP5 security constraints"],
+    "outputs": ["Scenario and run metadata with provider evidence status", "Impact and recovery outputs for WP5 and WP6"]
+  },
+  {
+    "module_id": "WP4",
+    "title": "Cross-sector dependencies, coupled models and interoperability",
+    "owner": "WP summary: Strathclyde. T4.1: Strathclyde and named industry partners; T4.2: York, Middlesex, LJMU and named industry partners; T4.3: Middlesex, LJMU and all partners; T4.4: Lancaster and all partners.",
+    "tasks": ["T4.1", "T4.2", "T4.3", "T4.4"],
+    "delivery_type": "Versioned relationship datasets, cross-sector model results and interoperability evidence",
+    "implementation_status": "Prototype relationship/result import and display only; verified operational dependencies and coupled models pending",
+    "available": ["Session-local dependency JSON validation and inspection", "Endpoint, direction, evidence and validity metadata display", "WP4 model_run import contract"],
+    "pending": ["Domain-confirmed operational dependency instances", "Cross-sector coupled models and test results", "T4.4 partner interoperability acceptance"],
+    "inputs": ["WP1 named relationship definitions", "WP2 source-to-instance mappings", "Partner domain evidence"],
+    "outputs": ["Declared/inferred/simulated relationships for WP3 and WP5", "Cross-sector run packages", "Exchange rules and integration test evidence"]
+  },
+  {
+    "module_id": "WP5",
+    "title": "Security, ethics and integrated impact visualisation",
+    "owner": "WP summary: Swansea. T5.1: Swansea, Mersey Maritime and Sealand; T5.2: Middlesex and all partners. ID50 has no separate task number or implementation institution in the Gantt; developer to be agreed.",
+    "tasks": ["T5.1", "T5.2", "ID48", "ID49", "ID50"],
+    "delivery_type": "Security/ethics constraints and integrated impact visualisation module",
+    "implementation_status": "Prototype visualisation shell and result inspection available; security models and production authorisation pending",
+    "available": ["Shared map, evidence panels and imported-result comparison", "Existing prototype password gate and partner navigation", "WP5 model_run import contract"],
+    "pending": ["Threat and security countermeasure models", "Validated ethical and technical control requirements", "Production identity, institutional authorisation and control assurance", "Named ID50 module developer and partner acceptance"],
+    "inputs": ["WP1 platform rules", "WP2 monitoring", "WP3/4 model results", "WP7 policies and source-owner permissions"],
+    "outputs": ["Integrated impact and comparison views for WP6", "Security and ethics controls for technical implementers"]
+  },
+  {
+    "module_id": "WP6",
+    "title": "Four demonstrators, business validation and feedback",
+    "owner": "WP summary: LJMU. T6.1-T6.4 involve the named academic and industry partners; T6.5: Middlesex, LJMU and all partners.",
+    "tasks": ["T6.1", "T6.2", "T6.3", "T6.4", "T6.5"],
+    "delivery_type": "User tasks, demonstrator protocols, acceptance criteria and field feedback",
+    "implementation_status": "Prototype task presets only; completed real-world demonstrations and business acceptance pending",
+    "available": ["Congestion/logistics task preset", "Incident response/recovery task preset", "Adverse weather task preset", "Supply-chain disruption task preset"],
+    "pending": ["Partner-approved interventions, inputs and acceptance criteria", "Integrated-system demonstrations and field evidence", "Recorded business validation and feedback closure"],
+    "inputs": ["WP1-5 integrated capabilities", "Industry user tasks and validation conditions", "WP7 access and use agreements"],
+    "outputs": ["Requirements and feedback to each product owner", "Demonstrator evidence for WP7"]
+  },
+  {
+    "module_id": "WP7",
+    "title": "Deployment governance, data governance and dissemination",
+    "owner": "WP summary: Middlesex and York. T7.1: York and all partners; T7.2: Strathclyde and all partners; T7.3: Lancaster and all partners; T7.4: Middlesex and all partners.",
+    "tasks": ["T7.1", "T7.2", "T7.3", "T7.4"],
+    "delivery_type": "Governance handovers, responsibility agreements and UK dissemination roadmap",
+    "implementation_status": "Prototype governance handover records available; institutional policies and operational enforcement pending",
+    "available": ["WP responsibility and input/output handover catalogue", "Session-local import scope and evidence declarations", "Documented prototype access boundaries"],
+    "pending": ["Agreed institutional data/access/retention/publication policies", "Named hosting, release, backup, recovery and maintenance teams", "Policy enforcement and UK rollout commitments"],
+    "inputs": ["WP5 risk and control requirements", "Source-owner permissions", "WP6 demonstration evidence", "Technical operating-team commitments"],
+    "outputs": ["Policy and responsibility boundaries for all technical teams", "Deployment/data governance agreements and rollout roadmap"]
+  }
+]

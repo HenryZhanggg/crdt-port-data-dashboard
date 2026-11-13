@@ -2,6 +2,18 @@
 
 This repository contains a Streamlit monitoring demonstrator for the CRDT-Port project. It displays observations, source coverage and data-quality evidence, and maps water observations into a small SOSA ontology validated with SHACL. It does not yet run pre-warning model inference, asset-impact reasoning or production authentication.
 
+## Modular port workbench (13 November 2026)
+
+The home view combines a map, a shared water/traffic/illustrative-asset inspector and selectable panels. Use the top shortcuts for monitoring, objects/dependencies, scenario results, data/evidence and WP handovers; the sidebar retains all existing observation, transport, quality, research/replay, catalogue and report views. The shared observation dates retain their original seven-calendar-day limit. Map colours describe data state, not hazard severity. Demonstration assets and the service-area outline are opt-in.
+
+- **Shared context:** source-derived object IDs persist across the monitoring and object workspaces. Water charts, map state and quality inspection use the selected station, unit and vertical datum. Selected panels and layers survive deeper analysis.
+- **Partner module intake:** Objects & Dependencies and Scenarios & Runs accept validated, data-only JSON handovers. Files are limited to 1 MB and ten run packages per session. Relationship assertions retain direction, validity, evidence and endpoint-alignment status. Run packages retain scenario/run IDs, model/input/ontology versions and provider evidence status. No upload executes code, calls its URLs or starts a model.
+- **Explicit result comparison:** choose a current run and A/B runs yourself. Delta is B minus A only for matching entity, metric, unit and UTC valid time under the same declared ontology version. Unmatched values remain missing. Large integers retain exact table/CSV values; unsupported precise chart ranges are explained instead of silently rounded.
+- **Accountable WP packages:** WP1 semantics/platform/metrics; WP2 data and monitoring; WP3 scenarios/models/runs; WP4 cross-sector dependencies and interoperability; WP5 security/ethics and integrated impact visualisation; WP6 four draft demonstrator task packages; WP7 governance handover records. These are prototype integration surfaces, not evidence that consortium research deliverables are complete.
+- **Access and evidence:** the existing password gate remains before data loading. Partner selection still describes prototype navigation, not institutional authorisation. Locking the dashboard clears imported result packages. Imports remain in the current authorised Streamlit session and are not saved to the repository or server-side product storage. Provider validation and ontology labels remain declarations, not project acceptance. Formal WP1 alignment, verified operational dependencies, executable partner models and production governance controls remain pending.
+
+Partner contracts and the minimum handover are documented in [docs/module-integration.md](docs/module-integration.md). The editable capability register is [data/wp_modules.json](data/wp_modules.json). The new code is split into `module_contracts.py` (registry and validated handovers), `workbench_data.py` (workspace identity and selection), and `workbench_views.py` (composable views). No new production dependency is required.
+
 ## Monitoring and Research Workspace
 
 - **Monitoring** is the home section: Overview, GIS, Observation Explorer, Transport and Data Quality. **Data & Research** holds Research & Replay, Report Centre and the original catalogue/status/raw-data views. Existing partner-view filters remain prototype navigation rules, not institutional access control.

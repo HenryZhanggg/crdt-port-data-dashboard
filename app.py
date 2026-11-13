@@ -14,11 +14,20 @@ from api_connectors import empty_bundle, fetch_raw_data_bundle
 from monitoring_views import (
     render_data_quality,
     render_monitoring_map,
-    render_monitoring_overview,
     render_monitoring_transport,
     render_monitoring_weather,
 )
 from research_views import render_report_centre, render_research_workspace
+from workbench_views import (
+    apply_workbench_theme,
+    render_demonstrators,
+    render_governance,
+    render_modules,
+    render_objects,
+    render_runs,
+    render_shortcuts,
+    render_workbench,
+)
 
 
 BASE_DIR = Path(__file__).parent
@@ -170,9 +179,9 @@ PROCESS_STATE_COLORS = {
 
 
 st.set_page_config(
-    page_title="CRDT-Port Monitoring",
+    page_title="CRDT-Port | Resilience Workbench",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -1303,6 +1312,7 @@ def main() -> None:
     apply_professional_theme()
     if not require_dashboard_authorisation():
         st.stop()
+    apply_workbench_theme()
 
     partners = load_csv("partners.csv")
     assets = load_csv("assets.csv")
@@ -1315,6 +1325,8 @@ def main() -> None:
     st.sidebar.title("CRDT-Port")
     if st.sidebar.button("Lock dashboard"):
         st.session_state["dashboard_authorised"] = False
+        for field in ["partner_runs", "dependency_package", "current_run_id", "current_run_picker", "workbench_entity_id"]:
+            st.session_state.pop(field, None)
         st.rerun()
 
     partner_name = st.sidebar.selectbox("Partner", partners["partner_name"].tolist(), index=0)
@@ -1322,13 +1334,16 @@ def main() -> None:
     render_access_banner(partner)
     views = allowed_views(partner)
 
-    st.sidebar.divider()
-    mode = st.sidebar.radio("Time mode", ["Live monitoring", "Historical browsing"], key="monitor_mode")
+    st.title("CRDT-Port Dashboard")
+    context = st.columns([1, 1.4, 1.8])
+    context[0].markdown("**LIVERPOOL & MERSEYSIDE**")
+    context[0].caption(st.session_state.get("demonstrator_task", "Shared observation, model and evidence workspace"))
+    mode = context[1].radio("Time mode", ["Live monitoring", "Historical browsing"], key="monitor_mode", horizontal=True)
     today = pd.Timestamp.now(tz="UTC").date()
     first = (pd.Timestamp(today) - pd.Timedelta(days=1 if mode == "Live monitoring" else 6)).date()
-    dates = st.sidebar.date_input("Observation dates", value=(first, today), max_value=today,
+    dates = context[2].date_input("Observation dates", value=(first, today), max_value=today,
         disabled=mode == "Live monitoring", key=f"monitor_dates_{mode}")
-    st.sidebar.caption("UTC calendar dates for water; source calendar dates for traffic. Browse up to seven days per request.")
+    st.sidebar.caption("Dates: water uses UTC; traffic retains its unverified source timezone. Up to seven days per request.")
     if len(dates) != 2:
         st.info("Select both a start date and an end date.")
         st.stop()
@@ -1337,8 +1352,6 @@ def main() -> None:
         st.stop()
     st.session_state["monitor_start"] = dates[0].isoformat()
     st.session_state["monitor_end"] = dates[1].isoformat()
-
-    st.title("CRDT-Port Dashboard")
 
     available_pages = []
     if "overview" in views:
@@ -1364,25 +1377,32 @@ def main() -> None:
     st.sidebar.divider()
     monitoring = [name for name in ["Overview", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
     research = [name for name in ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"] if name in available_pages]
-    sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Data & Research", research)] if pages}
+    models = ["Objects & Dependencies", "Scenarios & Runs"] if "gis" in views else []
+    modules = ["Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
+    sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Models & Dependencies", models),
+        ("Data & Research", research), ("WP Delivery", modules)] if pages}
     section = st.sidebar.radio("Workspace", list(sections), key="workspace_section")
     page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
     st.markdown(f'<div class="workspace-meta"><span>{section.upper()} / LIVERPOOL</span>'
         f'<span>{dates[0].strftime("%d %b %Y")} - {dates[1].strftime("%d %b %Y")} | {mode}</span></div>', unsafe_allow_html=True)
+    render_shortcuts(sections, page)
+    if st.session_state.get("current_run_id"):
+        st.text(f"Current imported run: {st.session_state['current_run_id']}. Its output valid times are separate from observation dates.")
     st.session_state["monitor_sources"] = {
         "Overview": ("water_level", "webtris"), "GIS": ("water_level", "webtris"),
         "Observation Explorer": ("water_level",), "Transport": ("webtris",),
         "Data Quality": ("water_level", "webtris"), "Research & Replay": ("water_level",),
         "Report Centre": ("water_level", "webtris"),
+        "Objects & Dependencies": ("water_level", "webtris"),
     }.get(page, ("dft", "ons", "ea", "water_level", "naptan", "webtris"))
 
     bundle = None
-    if page in {"Overview", "GIS", "Observation Explorer", "Transport", "Data Quality", "Research & Replay", "Report Centre"}:
+    if page in {"Overview", "GIS", "Observation Explorer", "Transport", "Data Quality", "Research & Replay", "Report Centre", "Objects & Dependencies"}:
         with st.spinner("Retrieving the feeds used by this view"):
             bundle = load_api_raw_bundle()
 
     if page == "Overview":
-        render_monitoring_overview(bundle, weather, transport, catalog, assets, service_area)
+        render_workbench(bundle, assets, service_area, transport)
     elif page == "GIS":
         render_monitoring_map(bundle, assets, service_area)
     elif page == "Observation Explorer":
@@ -1402,6 +1422,16 @@ def main() -> None:
         render_research_workspace(bundle)
     elif page == "Report Centre":
         render_report_centre(bundle, weather, transport)
+    elif page == "Objects & Dependencies":
+        render_objects(bundle, assets)
+    elif page == "Scenarios & Runs":
+        render_runs()
+    elif page == "Module Registry":
+        render_modules()
+    elif page == "Demonstrator Tasks":
+        render_demonstrators()
+    elif page == "Governance Handover":
+        render_governance()
 
     st.sidebar.divider()
     if st.sidebar.button("Refresh data"):
