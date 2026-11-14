@@ -17,11 +17,13 @@ COLORS = {"Current": "#168879", "Stale": "#c07822", "Sample": "#78879a", "Unavai
 
 
 def chart_style(fig, height=380):
-    fig.update_layout(template="plotly_white", height=height, margin=dict(l=15, r=20, t=30, b=20),
-                      font=dict(family="Source Sans Pro, sans-serif", size=13, color="#203847"),
-                      hovermode="x unified", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", legend_title_text="")
-    fig.update_xaxes(showgrid=True, gridcolor="#e9eef1")
-    fig.update_yaxes(showgrid=True, gridcolor="#e9eef1")
+    fig.update_layout(template="plotly_white", height=height, margin=dict(l=12, r=16, t=25, b=15),
+                      font=dict(family="Arial, sans-serif", size=12, color="#223849"),
+                      hovermode="x unified", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", legend_title_text="",
+                      hoverlabel=dict(bgcolor="#142a3a", font_color="#e5eef4"),
+                      modebar=dict(bgcolor="rgba(255,255,255,0)", color="#5a6e7e", activecolor="#157985"))
+    fig.update_xaxes(showgrid=True, gridcolor="#e4eaf0", zeroline=False, tickfont=dict(family="Consolas, monospace", size=11), automargin=True)
+    fig.update_yaxes(showgrid=True, gridcolor="#e4eaf0", zerolinecolor="#cbd5df", tickfont=dict(family="Consolas, monospace", size=11), automargin=True)
     return fig
 
 

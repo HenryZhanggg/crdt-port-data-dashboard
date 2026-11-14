@@ -28,13 +28,54 @@ TASKS = {
 
 def apply_workbench_theme():
     st.markdown('''<style>
-    .block-container {max-width:1800px; padding-top:1rem;}
-    .workspace-meta {background:#142839; color:#d9e7ec; padding:.7rem 1rem; border-radius:6px; border:0;}
-    .workbench-reading {font-size:1.65rem; font-weight:650; color:#183c51; margin:.4rem 0;}
-    div[data-testid="stVerticalBlockBorderWrapper"] {border-radius:8px; background:rgba(255,255,255,.82);}
-    div[data-testid="stMetric"] {border-top:3px solid #2d8990;}
-    div[data-testid="stButton"] button {border-radius:5px;}
-    @media (max-width:700px) {.block-container{padding-top:2.8rem;} .workspace-meta{font-size:.72rem;}}
+    .block-container {max-width:1800px; padding-top:3rem; padding-bottom:1.5rem;}
+    [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {gap:.65rem;}
+    .workbench-header {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+        gap:.5rem 1rem; background:#142a3a; color:#e5eef4; padding:.75rem 1rem; border-left:3px solid #43b8bd;}
+    .workbench-header > div {display:flex; align-items:center; flex-wrap:wrap; gap:.4rem 1.2rem;}
+    .workbench-brand {font-size:.95rem; font-weight:600; letter-spacing:.08em;}
+    .workbench-subtitle, .workbench-region {font: .72rem/1.5 Consolas,monospace; letter-spacing:.04em; color:#b9cbd7;}
+    .workspace-meta {display:flex; flex-wrap:wrap; justify-content:space-between; gap:.4rem 1rem;
+        color:#536b7b; background:transparent; border:0; border-bottom:1px solid #cbd5df; border-radius:0;
+        padding:.3rem 0 .5rem; margin:0; font: .73rem/1.5 Consolas,monospace; letter-spacing:.025em;}
+    .st-key-workspace_toolbar {padding:.2rem .65rem .5rem; background:#f6f8fa; border-bottom:1px solid #cbd5df;}
+    .st-key-workspace_toolbar [data-testid="stWidgetLabel"] p {font-size:.75rem; color:#536b7b;}
+    .st-key-workspace_shortcuts [data-testid="stButton"] button {min-height:2.1rem;}
+    .st-key-workspace_shortcuts [data-testid="stButton"] p {font-size:.78rem;}
+    .st-key-workbench_spatial, .st-key-workbench_inspector, [class*="st-key-workbench_panel_"] {
+        background:#fff; border-radius:3px;}
+    .workbench-panel-title {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+        gap:.35rem; padding-bottom:.45rem; border-bottom:1px solid #d8e1e8; color:#233e50;
+        font:600 .75rem/1.5 Consolas,monospace; letter-spacing:.045em;}
+    .workbench-panel-title span {font-size:.69rem; font-weight:400; color:#62798a;}
+    .workbench-identity {font: .73rem/1.6 Consolas,monospace; color:#5a7080; overflow-wrap:anywhere;}
+    .workbench-reading {font:500 1.8rem/1.25 Consolas,monospace; font-variant-numeric:tabular-nums; color:#183c51; margin:.2rem 0;}
+    .workbench-reference {margin:.2rem 0; display:grid; grid-template-columns:75px minmax(0,1fr); gap:.35rem .6rem; font-size:.77rem;}
+    .workbench-reference dt {color:#5a7080;}
+    .workbench-reference dd {margin:0; font-family:Consolas,monospace; overflow-wrap:anywhere;}
+    .quality-note {border:0; border-left:2px solid #cbd5df; background:#f6f8fa; border-radius:0;
+        padding:.4rem .55rem; margin:.2rem 0; gap:.5rem; font-size:.76rem;}
+    .quality-note strong {font-family:Consolas,monospace; font-weight:500;}
+    div[data-testid="stMetric"] {border:1px solid #cbd5df; border-top:2px solid #157985; border-radius:3px;
+        min-height:65px; padding:.45rem .7rem;}
+    [data-testid="stMetricValue"] {font:500 1.3rem/1.5 Consolas,monospace; font-variant-numeric:tabular-nums;}
+    [data-testid="stMetricLabel"] p {font-size:.74rem;}
+    div[data-testid="stButton"] button, [data-testid="stExpander"], .stPlotlyChart,
+    div[data-testid="stDataFrame"] {border-radius:3px;}
+    .stPlotlyChart {border:0; padding:0;}
+    [data-testid="stCaptionContainer"] {color:#5a7080;}
+    [data-testid="stSidebar"] {background:#e5ebf0; border-right:1px solid #cbd5df;}
+    @media (max-width:700px) {
+        .block-container{padding-top:3rem;}
+        .workbench-header {padding:.7rem;}
+        .workbench-subtitle, .workbench-region, .workspace-meta {font-size:.7rem;}
+        .st-key-workspace_toolbar {padding:.4rem;}
+        .st-key-workspace_shortcuts [data-testid="stHorizontalBlock"] {flex-wrap:wrap; gap:.4rem;}
+        .st-key-workspace_shortcuts [data-testid="stColumn"] {flex:1 1 135px; min-width:0;}
+        .st-key-workbench_summary [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem;}
+        .st-key-workbench_summary [data-testid="stColumn"] {width:auto; min-width:0;}
+    }
+    @media (pointer:coarse) {[data-testid="stButton"] button {min-height:44px;}}
     </style>''', unsafe_allow_html=True)
 
 
@@ -52,10 +93,11 @@ def render_shortcuts(sections, current_page):
     available = [(label, section, page) for label, section, page in targets if page in sections.get(section, [])]
     if not available:
         return
-    for column, (label, section, page) in zip(st.columns(len(available)), available):
-        column.button(label, key=f'shortcut_{page}', width='stretch',
-                      type='primary' if page == current_page else 'secondary',
-                      on_click=navigate, args=(section, page))
+    with st.container(key='workspace_shortcuts'):
+        for column, (label, section, page) in zip(st.columns(len(available), gap='small'), available):
+            column.button(label, key=f'shortcut_{page}', width='stretch',
+                          type='primary' if page == current_page else 'secondary',
+                          on_click=navigate, args=(section, page))
 
 
 def _remember_object():
@@ -128,7 +170,7 @@ def _map(bundle, assets, service_area):
     deck = pdk.Deck(map_style='https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
         initial_view_state=pdk.ViewState(latitude=53.448, longitude=-3.015, zoom=11.3, pitch=0), layers=layers,
         tooltip={'text': '{name}\n{detail}'})
-    event = st.pydeck_chart(deck, width='stretch', height=480, on_select='rerun', selection_mode='single-object', key='workbench_map')
+    event = st.pydeck_chart(deck, width='stretch', height=340, on_select='rerun', selection_mode='single-object', key='workbench_map')
     objects = (event or {}).get('selection', {}).get('objects', {}).get('monitoring-points', [])
     st.caption('Teal: fresh water data · Amber: other water states · Blue: traffic locations · Grey: illustrative assets. Colours describe data, not operational risk.')
     return entities, objects[0].get('entity_id') if objects else None
@@ -138,7 +180,8 @@ def _inspect(entity, bundle):
     if entity is None:
         return pd.DataFrame()
     st.markdown(f"**{entity['name']}**")
-    st.caption(f"{entity['kind']} · {entity['evidence_role']} | Workspace ID: {entity['entity_id']}")
+    st.markdown(f'<div class="workbench-identity">{escape(entity["kind"])} · {escape(entity["evidence_role"].upper())}'
+                f'<br>{escape(entity["entity_id"])}</div>', unsafe_allow_html=True)
     chosen = pd.DataFrame()
     if entity['kind'] == 'Water':
         water = bundle.get('water_levels', pd.DataFrame())
@@ -158,7 +201,11 @@ def _inspect(entity, bundle):
             value = f"{latest['value']:.3f} {latest['unit']}" if pd.notna(latest['value']) else 'Invalid / conflicting value'
             st.markdown(f'<div class="workbench-reading">{escape(value)}</div>', unsafe_allow_html=True)
             state_badge(quality['State'], 'Observation age is not a risk classification.')
-            st.caption(f"Observed: {utc_label(latest['date_time'])}\n\nVertical reference: {latest.get('datum', 'Unknown')}")
+            st.markdown('<dl class="workbench-reference">'
+                f'<dt>Observed</dt><dd>{escape(utc_label(latest["date_time"]))}</dd>'
+                f'<dt>Unit</dt><dd>{escape(str(latest["unit"]))}</dd>'
+                f'<dt>Datum</dt><dd>{escape(str(latest.get("datum", "Unknown")))}</dd>'
+                '<dt>Source</dt><dd>Environment Agency</dd></dl>', unsafe_allow_html=True)
             with st.expander('Evidence & provenance'):
                 st.json({key: str(latest.get(key, 'Not provided')) for key in
                     ['station_reference', 'unit', 'datum', 'datum_uri', 'api_endpoint', 'retrieved_at_utc']})
@@ -263,35 +310,42 @@ def render_workbench(bundle, assets, service_area, transport):
     table = quality_table(bundle, pd.DataFrame(), pd.DataFrame())
     observations = table[table['Kind'].eq('Observation')]
     findings = quality_findings(observations)
-    left, right = st.columns([2.2, 1], gap='medium')
-    with left, st.container(border=True):
-        st.markdown('**SPATIAL SITUATION**')
-        entities, map_id = _map(bundle, assets, service_area)
-    with right, st.container(border=True):
-        st.markdown('**CONTEXT INSPECTOR**')
+    with st.container(key='workbench_summary'):
+        cards = st.columns(4, gap='small')
+        cards[0].metric('Water measurement references', int(observations['Source'].str.startswith('Water ').sum()))
+        cards[1].metric('Traffic reference locations', len(bundle.get('webtris_sites', pd.DataFrame())))
+        cards[2].metric('Data checks to review', len(findings))
+        cards[3].metric('Partner runs in session', len(st.session_state.get('partner_runs', {})))
+    with st.expander('Workspace panels', expanded=False):
+        visible = st.multiselect('Visible panels', PANELS, default=st.session_state.get('workbench_panel_preset', DEFAULT_PANELS),
+                                key='workbench_panels', on_change=_remember_panels)
+    left, right = st.columns([2.2, 1], gap='small')
+    with left:
+        with st.container(border=True, key='workbench_spatial'):
+            st.markdown('<div class="workbench-panel-title">SPATIAL SITUATION <span>OBSERVATIONS / REFERENCE LOCATIONS</span></div>', unsafe_allow_html=True)
+            entities, map_id = _map(bundle, assets, service_area)
+        trend_slot = st.container(border=True, key='workbench_panel_trend') if 'Selected observations' in visible else None
+    with right, st.container(border=True, key='workbench_inspector'):
+        st.markdown('<div class="workbench-panel-title">OBJECT INSPECTOR <span>SELECTED REFERENCE</span></div>', unsafe_allow_html=True)
         entity = _pick_object(entities, map_id)
         selected = _inspect(entity, bundle)
-    cards = st.columns(4)
-    cards[0].metric('Water measurement references', int(observations['Source'].str.startswith('Water ').sum()))
-    cards[1].metric('Traffic reference locations', len(bundle.get('webtris_sites', pd.DataFrame())))
-    cards[2].metric('Data checks to review', len(findings))
-    cards[3].metric('Partner runs in session', len(st.session_state.get('partner_runs', {})))
-    visible = st.multiselect('Visible panels', PANELS, default=st.session_state.get('workbench_panel_preset', DEFAULT_PANELS),
-                            key='workbench_panels', on_change=_remember_panels)
-    for first in range(0, len(visible), 2):
-        for column, panel in zip(st.columns(2), visible[first:first + 2]):
-            with column, st.container(border=True):
-                st.markdown(f'**{panel.upper()}**')
-                if panel == 'Selected observations':
-                    if entity and entity['kind'] == 'Water' and not selected.empty:
-                        st.plotly_chart(water_level_figure(selected, 280), width='stretch', key='workbench_observation_plot')
-                        st.caption('Observed values at their actual timestamps; gaps are retained. Open Observation Explorer for interval export.')
-                    elif entity and entity['kind'] == 'Traffic' and not selected.empty and 'Total Volume' in selected:
-                        fig = px.line(selected, x='timestamp', y='Total Volume', labels={'timestamp': 'Source time (timezone unverified)'})
-                        st.plotly_chart(chart_style(fig, 280), width='stretch')
-                    else:
-                        st.info('Select a monitoring object with returned observations to view its trend.')
-                elif panel == 'Events & restrictions':
+    if trend_slot is not None:
+        with trend_slot:
+            st.markdown('<div class="workbench-panel-title">SELECTED OBSERVATIONS <span>ACTUAL SOURCE TIMESTAMPS</span></div>', unsafe_allow_html=True)
+            if entity and entity['kind'] == 'Water' and not selected.empty:
+                st.plotly_chart(water_level_figure(selected, 230), width='stretch', key='workbench_observation_plot')
+                st.caption('Observed values; gaps retained. Open Observation Explorer for interval export.')
+            elif entity and entity['kind'] == 'Traffic' and not selected.empty and 'Total Volume' in selected:
+                fig = px.line(selected, x='timestamp', y='Total Volume', labels={'timestamp': 'Source time (timezone unverified)'})
+                st.plotly_chart(chart_style(fig, 230), width='stretch')
+            else:
+                st.info('Select a monitoring object with returned observations to view its trend.')
+    panels = [panel for panel in visible if panel != 'Selected observations']
+    for first in range(0, len(panels), 2):
+        for column, panel in zip(st.columns(2, gap='small'), panels[first:first + 2]):
+            with column, st.container(border=True, key=f'workbench_panel_{panel.replace(" ", "_")}'):
+                st.markdown(f'<div class="workbench-panel-title">{escape(panel.upper())}</div>', unsafe_allow_html=True)
+                if panel == 'Events & restrictions':
                     st.info('An operational incident / restriction feed is not connected. No live event or closure is inferred from data age.')
                     if st.session_state.get('workbench_layer_demo'):
                         st.caption('Illustrative transport events have their own sample dates and an unspecified timezone.')

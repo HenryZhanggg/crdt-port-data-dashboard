@@ -6,6 +6,8 @@ This repository contains a Streamlit monitoring demonstrator for the CRDT-Port p
 
 The home view combines a map, a shared water/traffic/illustrative-asset inspector and selectable panels. Use the top shortcuts for monitoring, objects/dependencies, scenario results, data/evidence and WP handovers; the sidebar retains all existing observation, transport, quality, research/replay, catalogue and report views. The shared observation dates retain their original seven-calendar-day limit. Map colours describe data state, not hazard severity. Demonstration assets and the service-area outline are opt-in.
 
+The 14 November interface refresh adds a compact navy header, time/date/refresh toolbar, source-reference metadata and consistent neutral panels/charts. Existing summary metrics sit above the map; the selected-observation chart sits directly below it. Expand **Workspace panels** to change the optional panels. On narrow screens, the map and trend stack before the object inspector. **Recent observations** requests yesterday and today with cached responses; refresh is manual, not continuous polling.
+
 - **Shared context:** source-derived object IDs persist across the monitoring and object workspaces. Water charts, map state and quality inspection use the selected station, unit and vertical datum. Selected panels and layers survive deeper analysis.
 - **Partner module intake:** Objects & Dependencies and Scenarios & Runs accept validated, data-only JSON handovers. Files are limited to 1 MB and ten run packages per session. Relationship assertions retain direction, validity, evidence and endpoint-alignment status. Run packages retain scenario/run IDs, model/input/ontology versions and provider evidence status. No upload executes code, calls its URLs or starts a model.
 - **Explicit result comparison:** choose a current run and A/B runs yourself. Delta is B minus A only for matching entity, metric, unit and UTC valid time under the same declared ontology version. Unmatched values remain missing. Large integers retain exact table/CSV values; unsupported precise chart ranges are explained instead of silently rounded.
@@ -35,7 +37,7 @@ The extractor validates summary means against per-fold rows. Full workbooks, row
 
 ## Monitoring update (6 October 2026)
 
-- Live monitoring selects yesterday and today; historical browsing accepts a selected period of up to seven calendar days. EA water and WebTRIS traffic requests use the selected dates rather than a fixed 2024 traffic example.
+- Recent observations selects yesterday and today; historical browsing accepts a selected period of up to seven calendar days. EA water and WebTRIS traffic requests use the selected dates rather than a fixed 2024 traffic example.
 - Overview separates current observation streams from connected APIs. Its coverage chart shows returned first/last timestamps, not uninterrupted coverage.
 - GIS offers water-gauge, traffic-counter and optional demonstration-asset layers. The service-area outline remains a demonstration boundary.
 - Weather displays one gauge/reference at a time, with UTC timestamps, a range slider and visible gaps. Temperature, wind and rain use independent axes. Local weather and transport examples remain explicitly labelled.

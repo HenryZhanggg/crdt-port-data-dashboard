@@ -28,6 +28,16 @@ class WorkbenchViewTests(unittest.TestCase):
         self.assertTrue(any(x.label == 'Inspect an object' for x in app.selectbox))
         self.assertTrue(any(x.label == 'Visible panels' for x in app.multiselect))
 
+    def test_recent_observations_are_a_query_window_and_history_keeps_date_control(self):
+        app = self.app()
+        mode = next(x for x in app.radio if x.label == 'Time mode')
+        self.assertEqual(mode.value, 'Recent observations')
+        self.assertTrue(app.date_input[0].disabled)
+        mode.set_value('Historical browsing').run()
+        self.assertFalse(app.exception)
+        self.assertFalse(app.date_input[0].disabled)
+        self.assertTrue(any(x.label == 'Inspect an object' for x in app.selectbox))
+
     def test_map_click_on_traffic_opens_the_same_object_in_inspector(self):
         selection = {'selection': {'objects': {'monitoring-points': [{'entity_id': 'traffic:6806'}]}}}
         with patch('streamlit.pydeck_chart', return_value=selection):

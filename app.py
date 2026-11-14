@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+from html import escape
 from pathlib import Path
 
 import pandas as pd
@@ -237,7 +238,7 @@ def apply_professional_theme() -> None:
         .stream-card .reading { font-size:1.8rem; font-weight:600; line-height:2.1rem; }
         .stream-card small { color:#55717b; }
         [data-testid="stAppViewContainer"] {
-            background: linear-gradient(135deg, #edf5f3 0%, #f7f9fb 42%, #f3f6fa 100%);
+            background: #edf1f5;
         }
         .monitor-hero {
             padding: 1rem 1.3rem;
@@ -273,6 +274,11 @@ def apply_professional_theme() -> None:
             line-height: 1.15rem;
             white-space: normal;
             overflow-wrap: anywhere;
+        }
+        [data-testid="stMetricLabel"] p {
+            white-space: normal !important;
+            overflow: visible;
+            text-overflow: clip;
         }
         [data-testid="stMetricValue"] {
             font-size: 1.5rem;
@@ -363,6 +369,7 @@ def apply_professional_theme() -> None:
             [data-testid="stMetricValue"] {
                 font-size: 1.25rem;
             }
+            [data-testid="stMetricLabel"] p { min-height: 2rem; }
         }
         </style>
         """,
@@ -1334,15 +1341,20 @@ def main() -> None:
     render_access_banner(partner)
     views = allowed_views(partner)
 
-    st.title("CRDT-Port Dashboard")
-    context = st.columns([1, 1.4, 1.8])
-    context[0].markdown("**LIVERPOOL & MERSEYSIDE**")
-    context[0].caption(st.session_state.get("demonstrator_task", "Shared observation, model and evidence workspace"))
-    mode = context[1].radio("Time mode", ["Live monitoring", "Historical browsing"], key="monitor_mode", horizontal=True)
-    today = pd.Timestamp.now(tz="UTC").date()
-    first = (pd.Timestamp(today) - pd.Timedelta(days=1 if mode == "Live monitoring" else 6)).date()
-    dates = context[2].date_input("Observation dates", value=(first, today), max_value=today,
-        disabled=mode == "Live monitoring", key=f"monitor_dates_{mode}")
+    st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT / PORT SYSTEMS</span>'
+        '<span class="workbench-subtitle">RESILIENCE WORKBENCH</span></div>'
+        '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>', unsafe_allow_html=True)
+    with st.container(key="workspace_toolbar"):
+        context = st.columns([1.35, 1.35, .5], vertical_alignment="bottom", gap="small")
+        mode = context[0].radio("Time mode", ["Recent observations", "Historical browsing"], key="monitor_mode", horizontal=True,
+            help="Recent observations requests yesterday and today. Feeds are cached; this view does not poll continuously.")
+        today = pd.Timestamp.now(tz="UTC").date()
+        first = (pd.Timestamp(today) - pd.Timedelta(days=1 if mode == "Recent observations" else 6)).date()
+        dates = context[1].date_input("Observation dates", value=(first, today), max_value=today,
+            disabled=mode == "Recent observations", key=f"monitor_dates_{mode}")
+        if context[2].button("Refresh data", width="stretch", help="Clear cached responses and request the feeds used by this view."):
+            st.cache_data.clear()
+            st.rerun()
     st.sidebar.caption("Dates: water uses UTC; traffic retains its unverified source timezone. Up to seven days per request.")
     if len(dates) != 2:
         st.info("Select both a start date and an end date.")
@@ -1383,9 +1395,11 @@ def main() -> None:
         ("Data & Research", research), ("WP Delivery", modules)] if pages}
     section = st.sidebar.radio("Workspace", list(sections), key="workspace_section")
     page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
-    st.markdown(f'<div class="workspace-meta"><span>{section.upper()} / LIVERPOOL</span>'
-        f'<span>{dates[0].strftime("%d %b %Y")} - {dates[1].strftime("%d %b %Y")} | {mode}</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="workspace-meta"><span>{escape(section.upper())} / {escape(page.upper())}</span>'
+        f'<span>OBSERVATION WINDOW · {dates[0].strftime("%d %b %Y")} — {dates[1].strftime("%d %b %Y")}</span></div>', unsafe_allow_html=True)
     render_shortcuts(sections, page)
+    if st.session_state.get("demonstrator_task"):
+        st.caption(st.session_state["demonstrator_task"])
     if st.session_state.get("current_run_id"):
         st.text(f"Current imported run: {st.session_state['current_run_id']}. Its output valid times are separate from observation dates.")
     st.session_state["monitor_sources"] = {
@@ -1432,12 +1446,6 @@ def main() -> None:
         render_demonstrators()
     elif page == "Governance Handover":
         render_governance()
-
-    st.sidebar.divider()
-    if st.sidebar.button("Refresh data"):
-        st.cache_data.clear()
-        st.rerun()
-
 
 if __name__ == "__main__":
     main()
