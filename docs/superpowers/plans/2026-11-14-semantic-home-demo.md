@@ -10,7 +10,7 @@
 - [x] UI: TDD AppTest for default landing, type/object selection, relation filtering, linked views, scenario products, separate live monitoring and removal of old entry points. Files: semantic_views.py, tests/test_semantic_views.py, app.py and small navigation edits in workbench_views.py.
 - [x] Migration: keep legacy monitoring tests targeting Live Monitoring; handle stale session navigation; delete the retired demo modules/tests; update README/module integration guidance and mark the old plan superseded.
 - [x] Verification: 121 tests passed; independent spec/quality review approved. Desktop and 390px browser checks passed for native map/graph selection, inverse jumps, scenario switching, context download, overflow, real monitoring navigation and retired entry removal. Regression tests cover stale chart selection and two-dimensional graph picking.
-- [ ] Delivery: commit only scoped files, push without force to the existing main branch, verify the online version marker and report the published entry point.
+- [x] Delivery: implementation a627702 pushed without force to main; remote hash matched. The existing Streamlit URL displayed the new "Ontology-guided main demo" login marker with no application exception. Protected interactions were verified locally; online verification covered the deployed application gate. Default Overview and the Ontology demo shortcut are the published entry points.
 
 ## Acceptance
 
