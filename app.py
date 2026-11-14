@@ -20,6 +20,8 @@ from monitoring_views import (
 )
 from research_views import render_report_centre, render_research_workspace
 from semantic_views import render_semantic_demo
+from daily_service import load_daily_snapshot
+from daily_views import render_daily_home
 from workbench_views import (
     apply_workbench_theme,
     render_demonstrators,
@@ -206,7 +208,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · Version 1 · System overview")
+        st.caption("Interface update: 14 November 2026 · Everyday port overview")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -1373,7 +1375,7 @@ def main() -> None:
     st.sidebar.divider()
     monitoring = [name for name in ["Overview", "Live Monitoring", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
     research = [name for name in ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"] if name in available_pages]
-    models = ["Objects & Dependencies", "Scenarios & Runs"] if "gis" in views else []
+    models = ["Objects & Dependencies", "Scenarios & Runs", "Port connections example"] if "gis" in views else []
     modules = ["Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
     sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Models & Dependencies", models),
         ("Data & Research", research), ("WP Delivery", modules)] if pages}
@@ -1386,9 +1388,9 @@ def main() -> None:
     page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
 
     st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT port dashboard version 1</span>'
-        '<span class="workbench-subtitle">RESILIENCE WORKBENCH</span></div>'
+        '<span class="workbench-subtitle">YOUR PORT, AT A GLANCE</span></div>'
         '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>', unsafe_allow_html=True)
-    if page != "Overview":
+    if page not in {"Overview", "Port connections example"}:
         with st.container(key="workspace_toolbar"):
             context = st.columns([1.35, 1.35, .5], vertical_alignment="bottom", gap="small")
             mode = context[0].radio("Time mode", ["Recent observations", "Historical browsing"], key="monitor_mode", horizontal=True,
@@ -1398,7 +1400,8 @@ def main() -> None:
             dates = context[1].date_input("Observation dates", value=(first, today), max_value=today,
                 disabled=mode == "Recent observations", key=f"monitor_dates_{mode}")
             if context[2].button("Refresh data", width="stretch", help="Clear cached responses and request the feeds used by this view."):
-                st.cache_data.clear()
+                load_observation_source.clear()
+                load_reference_source.clear()
                 st.rerun()
         st.sidebar.caption("Dates: water uses UTC; traffic retains its unverified source timezone. Up to seven days per request.")
         if len(dates) != 2:
@@ -1411,15 +1414,18 @@ def main() -> None:
         st.session_state["monitor_end"] = dates[1].isoformat()
 
     if page == "Overview":
-        st.markdown('<div class="workspace-meta"><span>PORT SYSTEMS / OVERVIEW</span>'
+        st.markdown('<div class="workspace-meta"><span>AROUND LIVERPOOL / TODAY</span>'
+                    '<span>WEATHER · WATER · LOCAL UPDATES</span></div>', unsafe_allow_html=True)
+    elif page == "Port connections example":
+        st.markdown('<div class="workspace-meta"><span>PORT CONNECTIONS / EXAMPLE</span>'
                     '<span>ILLUSTRATIVE DATA · 14 NOVEMBER 2026</span></div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="workspace-meta"><span>{escape(section.upper())} / {escape(page.upper())}</span>'
             f'<span>OBSERVATION WINDOW · {dates[0].strftime("%d %b %Y")} — {dates[1].strftime("%d %b %Y")}</span></div>', unsafe_allow_html=True)
     render_shortcuts(sections, page)
-    if page != "Overview" and st.session_state.get("demonstrator_task"):
+    if page not in {"Overview", "Port connections example"} and st.session_state.get("demonstrator_task"):
         st.caption(st.session_state["demonstrator_task"])
-    if page != "Overview" and st.session_state.get("current_run_id"):
+    if page not in {"Overview", "Port connections example"} and st.session_state.get("current_run_id"):
         st.text(f"Current imported run: {st.session_state['current_run_id']}. Its output valid times are separate from observation dates.")
     st.session_state["monitor_sources"] = {
         "Live Monitoring": ("water_level", "webtris"), "GIS": ("water_level", "webtris"),
@@ -1435,6 +1441,10 @@ def main() -> None:
             bundle = load_api_raw_bundle()
 
     if page == "Overview":
+        with st.spinner("Checking local weather, water levels and official updates"):
+            snapshot = load_daily_snapshot()
+        render_daily_home(snapshot)
+    elif page == "Port connections example":
         render_semantic_demo()
     elif page == "Live Monitoring":
         render_workbench(bundle, assets, service_area, transport)

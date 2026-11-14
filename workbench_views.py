@@ -44,6 +44,7 @@ def apply_workbench_theme():
     .st-key-workspace_toolbar [data-testid="stWidgetLabel"] p {font-size:.75rem; color:#536b7b;}
     .st-key-workspace_shortcuts [data-testid="stButton"] button {min-height:2.1rem;}
     .st-key-workspace_shortcuts [data-testid="stButton"] p {font-size:.78rem;}
+    .st-key-workspace_shortcuts {max-width:720px;}
     .st-key-workbench_spatial, .st-key-workbench_inspector, [class*="st-key-workbench_panel_"] {
         background:#fff; border-radius:3px;}
     .workbench-panel-title {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
@@ -107,6 +108,15 @@ def apply_workbench_theme():
     [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .workbench-panel-title) {margin-bottom:0;}
     .st-key-semantic_inspector .semantic-fields dt {font:.75rem/1.55 sans-serif;}
     .st-key-semantic_inspector .semantic-fields dd {font:.78rem/1.55 Consolas,monospace;}
+    .st-key-daily_heading h3 {font-size:1.5rem; padding:.15rem 0;}
+    .st-key-daily_summary [data-testid="stMetric"] {background:#fff; border-top:2px solid #d4e1e7;}
+    .st-key-daily_summary [data-testid="stMetricValue"] {font:600 1.45rem/1.4 sans-serif;}
+    .st-key-daily_spatial, .st-key-daily_updates, .st-key-daily_content, .st-key-daily_places {
+        background:#fff; border-radius:5px;}
+    [class*="st-key-daily_"] [data-testid="stCaptionContainer"] p {color:#536b7b; font-size:.78rem; line-height:1.5;}
+    [class*="st-key-daily_"] [data-testid="stMarkdownContainer"]:has(> .workbench-panel-title) {margin-bottom:0;}
+    .daily-update-title {font-size:.9rem; line-height:1.45; font-weight:600;}
+    .daily-source {font-size:.76rem; color:#536b7b; line-height:1.5;}
     @media (max-width:700px) {
         .block-container{padding-top:3rem;}
         .workbench-header {padding:.7rem;}
@@ -116,6 +126,8 @@ def apply_workbench_theme():
         .st-key-workspace_shortcuts [data-testid="stColumn"] {flex:1 1 135px; min-width:0;}
         .st-key-workbench_summary [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem;}
         .st-key-workbench_summary [data-testid="stColumn"] {width:auto; min-width:0;}
+        .st-key-daily_summary [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem;}
+        .st-key-daily_summary [data-testid="stColumn"] {width:auto; min-width:0;}
     }
     @media (pointer:coarse) {[data-testid="stButton"] button {min-height:44px;}}
     </style>''', unsafe_allow_html=True)
@@ -127,20 +139,30 @@ def navigate(section, page):
 
 
 def render_shortcuts(sections, current_page):
-    targets = [('System overview', 'Monitoring', 'Overview'),
+    targets = [('Home', 'Monitoring', 'Overview'),
                ('Monitor', 'Monitoring', 'Live Monitoring'),
                ('Objects & dependencies', 'Models & Dependencies', 'Objects & Dependencies'),
                ('Scenarios & runs', 'Models & Dependencies', 'Scenarios & Runs'),
                ('Data & evidence', 'Data & Research', 'Dataset Catalogue'),
-               ('WP modules', 'WP Delivery', 'Module Registry')]
+               ('WP modules', 'WP Delivery', 'Module Registry'),
+               ('Port connections example', 'Models & Dependencies', 'Port connections example')]
     available = [(label, section, page) for label, section, page in targets if page in sections.get(section, [])]
     if not available:
         return
+    primary = [target for target in available if target[2] in {'Overview', 'Live Monitoring'}]
+    secondary = [target for target in available if target not in primary]
     with st.container(key='workspace_shortcuts'):
-        for column, (label, section, page) in zip(st.columns(len(available), gap='small'), available):
+        columns = st.columns(len(primary) + bool(secondary), gap='small')
+        for column, (label, section, page) in zip(columns, primary):
             column.button(label, key=f'shortcut_{page}', width='stretch',
                           type='primary' if page == current_page else 'secondary',
                           on_click=navigate, args=(section, page))
+        if secondary:
+            with columns[-1].popover('More views', width='stretch'):
+                for label, section, page in secondary:
+                    st.button(label, key=f'shortcut_{page}', width='stretch',
+                              type='primary' if page == current_page else 'secondary',
+                              on_click=navigate, args=(section, page))
 
 
 def _remember_object():

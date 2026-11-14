@@ -6,6 +6,7 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from test_dashboard_views import observation_fixture
+from test_daily_views import daily_fixture
 
 
 class SemanticViewTests(unittest.TestCase):
@@ -14,15 +15,20 @@ class SemanticViewTests(unittest.TestCase):
         fetch=patch('api_connectors.fetch_raw_data_bundle', return_value=observation_fixture())
         self.fetch=fetch.start()
         self.addCleanup(fetch.stop)
+        daily=patch('daily_service.load_daily_snapshot', return_value=daily_fixture())
+        daily.start()
+        self.addCleanup(daily.stop)
         app=AppTest.from_file('app.py', default_timeout=30)
         app.session_state['dashboard_authorised']=True
+        app.session_state['workspace_section']='Models & Dependencies'
+        app.session_state['workspace_view_Models & Dependencies']='Port connections example'
         for key,value in state.items():
             app.session_state[key]=value
         app.run()
         self.assertFalse(app.exception)
         return app
 
-    def test_default_home_is_semantic_demo_without_fetching_live_feeds(self):
+    def test_semantic_example_remains_available_without_fetching_live_feeds(self):
         app=self.app()
         self.assertTrue(any('CRDT port dashboard version 1' in x.value for x in app.subheader))
         self.assertTrue(any(x.label=='Object type' for x in app.selectbox))

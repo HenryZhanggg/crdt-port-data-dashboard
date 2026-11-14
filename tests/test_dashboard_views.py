@@ -7,6 +7,7 @@ from streamlit.testing.v1 import AppTest
 
 from api_connectors import empty_bundle, status_row
 from data_quality import quality_table
+from test_daily_views import daily_fixture
 
 
 def observation_fixture():
@@ -28,6 +29,11 @@ def observation_fixture():
 
 
 class DashboardViewTests(unittest.TestCase):
+    def setUp(self):
+        daily = patch('daily_service.load_daily_snapshot', return_value=daily_fixture())
+        daily.start()
+        self.addCleanup(daily.stop)
+
     def test_unverified_traffic_timezone_is_not_current(self):
         table = quality_table(observation_fixture(), pd.DataFrame(), pd.DataFrame())
         self.assertEqual(table[table["Source"].eq("Traffic 6806")].iloc[0]["State"], "Timezone unverified")
