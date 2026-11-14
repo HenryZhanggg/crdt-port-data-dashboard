@@ -1,0 +1,77 @@
+{
+  "verified_at": "2026-11-14T21:30:33.113583+00:00",
+  "photos": [
+    {
+      "id": "seaforth-2022",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Seaforth_Container_Terminal_2022.jpg",
+      "permanent_source_page": "https://commons.wikimedia.org/w/index.php?oldid=1224473793",
+      "original_url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Seaforth_Container_Terminal_2022.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Seaforth_Container_Terminal_2022.jpg/1280px-Seaforth_Container_Terminal_2022.jpg",
+      "original_dimensions": [
+        5757,
+        3837
+      ],
+      "original_bytes": 10658486,
+      "original_sha1": "a5e10df4469227951e54fa9d7cd7519afc251cdd",
+      "uploaded_at_utc": "2026-03-22T17:40:48Z",
+      "width": 1280,
+      "height": 853,
+      "sha256": "e3d855fb19aa2a1e4a1acb94c8867d36c7cf89d5a388fd1ea3f0758d02129d15",
+      "modifications": "Wikimedia-generated 1280px preview; colours unchanged; no crop or AI modification.",
+      "derivative_license": "CC BY-SA 4.0",
+      "title": "Royal Seaforth Container Terminal",
+      "captured_at": "2022-11-24",
+      "author": "Niels Johannes",
+      "attribution": "Photo: Niels Johannes / Wikimedia Commons",
+      "location": "Seaforth, Port of Liverpool, Merseyside, England",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "local_path": "assets/public_media/seaforth-2022-1280.jpg",
+      "description": "Dark skies above the Seaforth Container Terminal (Liverpool) in 2022",
+      "historical": true
+    },
+    {
+      "id": "seaforth-entrance-2021",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Entrance_to_Seaforth_Container_Terminal,_Port_of_Liverpool.jpg",
+      "permanent_source_page": "https://commons.wikimedia.org/w/index.php?oldid=1097677308",
+      "original_url": "https://upload.wikimedia.org/wikipedia/commons/d/df/Entrance_to_Seaforth_Container_Terminal%2C_Port_of_Liverpool.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Entrance_to_Seaforth_Container_Terminal%2C_Port_of_Liverpool.jpg/1280px-Entrance_to_Seaforth_Container_Terminal%2C_Port_of_Liverpool.jpg",
+      "original_dimensions": [
+        4944,
+        3024
+      ],
+      "original_bytes": 16646481,
+      "original_sha1": "1aca1e6ea407c44ca936d5773319f70fa88e10d7",
+      "uploaded_at_utc": "2021-04-03T09:31:55Z",
+      "width": 1280,
+      "height": 783,
+      "sha256": "f727e394d962ce419544f3e36b50a219efb957c909ba55d6cef1a10b02ba1f48",
+      "modifications": "Wikimedia-generated 1280px preview; colours unchanged; no crop or AI modification.",
+      "derivative_license": "CC BY-SA 4.0",
+      "title": "Seaforth Dock entrance",
+      "captured_at": "2021-03-20",
+      "author": "Phil Nash (Rodhullandemu)",
+      "attribution": "By Phil Nash from Wikimedia Commons CC BY-SA 4.0 & GFDL",
+      "location": "Seaforth, Port of Liverpool, Merseyside, England",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "local_path": "assets/public_media/seaforth-entrance-2021-1280.jpg",
+      "description": "Gatehouse and barriers at the entrance to Seaforth Dock.",
+      "historical": true
+    }
+  ],
+  "video": {
+    "title": "Port of Liverpool - Your gateway to transatlantic trade",
+    "publisher": "Peel Ports",
+    "publisher_url": "https://www.youtube.com/@PeelPorts",
+    "published_at": "2026-10-23",
+    "watch_url": "https://www.youtube.com/watch?v=UQjseoH2H2M",
+    "source_page": "https://www.peelports.com/port-locations/liverpool/",
+    "embeddable_verified": true,
+    "embedding_verified_at": "2026-11-14T21:30:33.113583+00:00",
+    "is_live": false,
+    "duration_seconds": 155,
+    "license": "Copyright remains with publisher. No Creative Commons or local redistribution permission verified. Hosted playback via the provided YouTube player only.",
+    "verification_method": "Official Peel Ports Liverpool page links directly to the film. Public YouTube oEmbed returned a player iframe; public watch-page player metadata reports status OK and playableInEmbed true. No authentication or bypass was used."
+  }
+}

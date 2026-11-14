@@ -54,7 +54,7 @@ class DailyViewTests(unittest.TestCase):
     def test_everyday_home_has_plain_sections_and_no_technical_controls(self):
         app=self.app()
         self.assertTrue(any(x.value=='Around Liverpool' for x in app.subheader))
-        self.assertTrue({'Weather','Tides & water','Travel','Port news','Reminders','My places'} <= {x.label for x in app.tabs})
+        self.assertTrue({'Weather','Tides & water','Travel','Port news','My places'} <= {x.label for x in app.tabs})
         labels={x.label for x in app.selectbox}
         self.assertIn('Water level',labels)
         self.assertFalse({'Object type','Relationship','Scenario'} & labels)
@@ -150,6 +150,22 @@ class DailyViewTests(unittest.TestCase):
         for value in ['https://[broken','https://user@www.peelports.com/news/',
                       'https://www.peelports.com.evil.example/news/', 'https://www.peelports.com:123/news/']:
             self.assertIsNone(_safe_url(value))
+
+    def test_updates_are_sorted_by_publication_and_filter_by_category(self):
+        from daily_views import update_items
+        snapshot=daily_fixture()
+        snapshot['port_news']['items'][0]['published_at']='2026-11-10'
+        snapshot['weather_warnings']['items']=[{'title':'Weather bulletin','published_at':'2026-11-12T10:00:00Z'}]
+        snapshot['traffic']['items']=[{'title':'No timestamp'}]
+        self.assertEqual([x['title'] for x in update_items(snapshot,'All')],
+                         ['Weather bulletin','Port services update','No timestamp'])
+        self.assertEqual([x['title'] for x in update_items(snapshot,'Port')],['Port services update'])
+
+    def test_update_filter_keeps_unconnected_travel_visible(self):
+        app=self.app()
+        next(x for x in app.radio if x.label=='Latest updates').set_value('Travel').run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Live road incident feed not connected' in x.value for x in app.caption))
 
 
 if __name__=='__main__':

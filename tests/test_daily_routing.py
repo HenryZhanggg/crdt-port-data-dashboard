@@ -33,12 +33,13 @@ class DailyRoutingTests(unittest.TestCase):
         self.daily.assert_called_once()
         self.feeds.assert_not_called()
 
-    def test_example_is_available_in_more_views_and_home_returns_to_daily(self):
+    def test_monitor_opens_network_and_overview_returns_to_daily(self):
         app = self.app()
-        next(item for item in app.button if item.label == 'Port connections example').click().run()
+        next(item for item in app.button if item.label == 'Monitor').click().run()
         self.assertFalse(app.exception)
         self.assertTrue(any(item.label == 'Object type' for item in app.selectbox))
-        next(item for item in app.button if item.label == 'Home').click().run()
+        self.feeds.assert_not_called()
+        next(item for item in app.button if item.label == 'Overview').click().run()
         self.assertFalse(app.exception)
         self.assertTrue(any('Around Liverpool' in item.value for item in app.subheader))
 
@@ -50,7 +51,7 @@ class DailyRoutingTests(unittest.TestCase):
     def test_monitor_refresh_keeps_the_provider_weather_cache(self):
         from daily_service import load_weather
         app = self.app()
-        next(item for item in app.button if item.label == 'Monitor').click().run()
+        next(item for item in app.button if item.label == 'Observations').click().run()
         moment = datetime.now(timezone.utc)
         payload = {'properties':{'meta':{'updated_at':moment.isoformat()},'timeseries':[
             {'time':(moment+timedelta(hours=1)).isoformat(), 'data':{'instant':{'details':

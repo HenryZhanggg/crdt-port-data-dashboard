@@ -19,13 +19,16 @@ COLORS = {"Current": "#168879", "Stale": "#c07822", "Sample": "#78879a", "Unavai
 
 
 def chart_style(fig, height=380):
-    fig.update_layout(template="plotly_white", height=height, margin=dict(l=12, r=16, t=25, b=15),
-                      font=dict(family="Arial, sans-serif", size=12, color="#223849"),
-                      hovermode="x unified", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", legend_title_text="",
-                      hoverlabel=dict(bgcolor="#142a3a", font_color="#e5eef4"),
-                      modebar=dict(bgcolor="rgba(255,255,255,0)", color="#5a6e7e", activecolor="#157985"))
-    fig.update_xaxes(showgrid=True, gridcolor="#e4eaf0", zeroline=False, tickfont=dict(family="Consolas, monospace", size=11), automargin=True)
-    fig.update_yaxes(showgrid=True, gridcolor="#e4eaf0", zerolinecolor="#cbd5df", tickfont=dict(family="Consolas, monospace", size=11), automargin=True)
+    fig.update_layout(template="plotly_dark", height=height, margin=dict(l=12, r=16, t=30, b=15),
+                      font=dict(family="Arial, sans-serif", size=12, color="#95A2B5"),
+                      colorway=["#7C83FD", "#6C9CC7", "#65A79C", "#9E8BBF", "#8A9BAF"],
+                      hovermode="x unified", paper_bgcolor="#111722", plot_bgcolor="#111722", legend_title_text="",
+                      hoverlabel=dict(bgcolor="#1A2232", bordercolor="#35415A", font_color="#F2F5F9"),
+                      modebar=dict(bgcolor="rgba(17,23,34,0)", color="#95A2B5", activecolor="#7C83FD"))
+    fig.update_xaxes(showgrid=True, gridcolor="#253041", zeroline=False, linecolor="#253041",
+                     tickfont=dict(family="Arial, sans-serif", size=11, color="#95A2B5"), automargin=True)
+    fig.update_yaxes(showgrid=True, gridcolor="#253041", zerolinecolor="#35415A", linecolor="#253041",
+                     tickfont=dict(family="Arial, sans-serif", size=11, color="#95A2B5"), automargin=True)
     return fig
 
 
@@ -58,7 +61,7 @@ def water_level_figure(chosen, height=350):
     row = chosen.iloc[-1]
     chart_rows = water_chart_series(chosen)
     fig = go.Figure(go.Scatter(x=chart_rows.index, y=chart_rows.values, mode="lines",
-        connectgaps=False, line=dict(color="#168879", width=2.5), name="Observed water level"))
+        connectgaps=False, line=dict(color="#7C83FD", width=2), name="Observed water level"))
     elapsed = chosen["date_time"].diff()
     gaps = [dict(type="rect", xref="x", yref="y domain", y0=0, y1=1,
         x0=chosen.loc[i - 1, "date_time"] + pd.Timedelta(minutes=15), x1=chosen.loc[i, "date_time"],

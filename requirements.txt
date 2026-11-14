@@ -1,4 +1,6 @@
 streamlit==1.57.0
+# Streamlit 1.57's media gzip adapter uses Starlette's pre-1.0 responder contract.
+starlette==0.52.1
 pandas>=2.0
 plotly>=5.20
 pydeck>=0.8

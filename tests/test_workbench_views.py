@@ -138,7 +138,7 @@ class WorkbenchViewTests(unittest.TestCase):
         next(x for x in app.multiselect if x.label == 'Visible panels').set_value(['Dependencies']).run()
         next(x for x in app.checkbox if x.label == 'Demonstration assets').check().run()
         next(x for x in app.button if x.label == 'Objects & dependencies').click().run()
-        next(x for x in app.button if x.label == 'Monitor').click().run()
+        next(x for x in app.button if x.label == 'Observations').click().run()
         self.assertFalse(app.exception)
         self.assertEqual(next(x for x in app.multiselect if x.label == 'Visible panels').value, ['Dependencies'])
         self.assertTrue(next(x for x in app.checkbox if x.label == 'Demonstration assets').value)

@@ -29,108 +29,8 @@ TASKS = {
 
 
 def apply_workbench_theme():
-    st.markdown('''<style>
-    .block-container {max-width:1800px; padding-top:3rem; padding-bottom:1.5rem;}
-    [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {gap:.65rem;}
-    .workbench-header {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
-        gap:.5rem 1rem; background:#142a3a; color:#e5eef4; padding:.75rem 1rem; border-left:3px solid #43b8bd;}
-    .workbench-header > div {display:flex; align-items:center; flex-wrap:wrap; gap:.4rem 1.2rem;}
-    .workbench-brand {font-size:1.05rem; font-weight:600; letter-spacing:.01em;}
-    .workbench-subtitle, .workbench-region {font: .72rem/1.5 Consolas,monospace; letter-spacing:.04em; color:#b9cbd7;}
-    .workspace-meta {display:flex; flex-wrap:wrap; justify-content:space-between; gap:.4rem 1rem;
-        color:#536b7b; background:transparent; border:0; border-bottom:1px solid #cbd5df; border-radius:0;
-        padding:.3rem 0 .5rem; margin:0; font: .73rem/1.5 Consolas,monospace; letter-spacing:.025em;}
-    .st-key-workspace_toolbar {padding:.2rem .65rem .5rem; background:#f6f8fa; border-bottom:1px solid #cbd5df;}
-    .st-key-workspace_toolbar [data-testid="stWidgetLabel"] p {font-size:.75rem; color:#536b7b;}
-    .st-key-workspace_shortcuts [data-testid="stButton"] button {min-height:2.1rem;}
-    .st-key-workspace_shortcuts [data-testid="stButton"] p {font-size:.78rem;}
-    .st-key-workspace_shortcuts {max-width:720px;}
-    .st-key-workbench_spatial, .st-key-workbench_inspector, [class*="st-key-workbench_panel_"] {
-        background:#fff; border-radius:3px;}
-    .workbench-panel-title {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
-        gap:.35rem; padding-bottom:.45rem; border-bottom:1px solid #d8e1e8; color:#233e50;
-        font:600 .75rem/1.5 Consolas,monospace; letter-spacing:.045em;}
-    .workbench-panel-title span {font-size:.69rem; font-weight:400; color:#62798a;}
-    .workbench-identity {font: .73rem/1.6 Consolas,monospace; color:#5a7080; overflow-wrap:anywhere;}
-    .workbench-reading {font:500 1.8rem/1.25 Consolas,monospace; font-variant-numeric:tabular-nums; color:#183c51; margin:.2rem 0;}
-    .workbench-reference {margin:.2rem 0; display:grid; grid-template-columns:75px minmax(0,1fr); gap:.35rem .6rem; font-size:.77rem;}
-    .workbench-reference dt {color:#5a7080;}
-    .workbench-reference dd {margin:0; font-family:Consolas,monospace; overflow-wrap:anywhere;}
-    .port-map-context {display:flex; flex-wrap:wrap; justify-content:space-between; gap:.3rem;
-        padding:.45rem .65rem; background:#0b263b; color:#bed8e8; font:.72rem/1.5 Consolas,monospace;}
-    .port-map-legend {display:flex; flex-wrap:wrap; align-items:center; gap:.4rem 1rem;
-        padding:.55rem .65rem; background:#0b263b; color:#c5d9e6; font-size:.73rem;}
-    .port-map-legend span {display:inline-flex; align-items:center; gap:.35rem;}
-    .port-map-legend i {display:inline-block; width:8px; height:8px; border-radius:50%;}
-    .quality-note {border:0; border-left:2px solid #cbd5df; background:#f6f8fa; border-radius:0;
-        padding:.4rem .55rem; margin:.2rem 0; gap:.5rem; font-size:.76rem;}
-    .quality-note strong {font-family:Consolas,monospace; font-weight:500;}
-    div[data-testid="stMetric"] {border:1px solid #cbd5df; border-top:2px solid #157985; border-radius:3px;
-        min-height:65px; padding:.45rem .7rem;}
-    [data-testid="stMetricValue"] {font:500 1.3rem/1.5 Consolas,monospace; font-variant-numeric:tabular-nums;}
-    [data-testid="stMetricLabel"] p {font-size:.74rem;}
-    div[data-testid="stButton"] button, [data-testid="stExpander"], .stPlotlyChart,
-    div[data-testid="stDataFrame"] {border-radius:3px;}
-    .stPlotlyChart {border:0; padding:0;}
-    [data-testid="stCaptionContainer"] {color:#5a7080;}
-    [data-testid="stSidebar"] {background:#e5ebf0; border-right:1px solid #cbd5df;}
-    [data-testid="stSidebar"] h1 {font-size:1.2rem; line-height:1.4;}
-    .st-key-semantic_heading h3 {font-size:1.3rem; padding:.15rem 0;}
-    .st-key-semantic_heading [data-testid="stVerticalBlock"] {gap:.15rem;}
-    .st-key-semantic_context {background:#fff; border:1px solid #cbd5df; border-left:3px solid #157985;
-        border-radius:3px; padding:.45rem .75rem .6rem;}
-    .st-key-semantic_context [data-testid="stWidgetLabel"] p,
-    .st-key-semantic_spatial [data-testid="stWidgetLabel"] p,
-    .st-key-semantic_objects [data-testid="stWidgetLabel"] p {font-size:.75rem; color:#536b7b;}
-    .st-key-semantic_objects, .st-key-semantic_spatial, .st-key-semantic_inspector,
-    .st-key-semantic_content, .st-key-semantic_analysis {background:#fff; border-radius:3px;}
-    .st-key-semantic_objects, .st-key-semantic_inspector, .st-key-semantic_analysis {gap:.45rem;}
-    .st-key-semantic_objects [data-testid="stButton"] button,
-    .st-key-semantic_inspector [data-testid="stButton"] button {min-height:2.25rem; text-align:left;}
-    .st-key-semantic_objects [data-testid="stButton"] p,
-    .st-key-semantic_inspector [data-testid="stButton"] p {font-size:.8rem; line-height:1.35;}
-    [class*="st-key-semantic_"] [data-testid="stCaptionContainer"] p {color:#536b7b; font-size:.75rem; line-height:1.45;}
-    .st-key-semantic_inspector pre {white-space:pre-wrap; overflow-wrap:anywhere; font-size:.75rem;}
-    .st-key-semantic_content [data-testid="stTabs"] {gap:.35rem;}
-    .st-key-semantic_content [data-testid="stTab"] {font-size:.8rem;}
-    .semantic-status {display:flex; flex-wrap:wrap; gap:.35rem .5rem; color:#466172;
-        font: .68rem/1.5 Consolas,monospace; letter-spacing:.025em;}
-    .semantic-status span {padding:.15rem .45rem; background:#eaf1f5; border:1px solid #ccdae3; border-radius:2px;}
-    .semantic-legend {display:flex; flex-wrap:wrap; gap:.35rem 1rem; color:#466172; font-size:.72rem;}
-    .semantic-legend span {display:inline-flex; align-items:center; gap:.4rem;}
-    .semantic-legend i {display:inline-block; flex-shrink:0; background:#157985;}
-    .semantic-node {width:8px; height:8px; border-radius:50%;}
-    .semantic-edge {width:18px; height:3px;}
-    .semantic-legend .semantic-muted {height:1px; background:#718a9a;}
-    .semantic-fields {grid-template-columns:64px minmax(0,1fr); margin:.15rem 0; gap:.4rem .5rem;}
-    [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .semantic-status),
-    [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .semantic-fields),
-    [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .workbench-panel-title) {margin-bottom:0;}
-    .st-key-semantic_inspector .semantic-fields dt {font:.75rem/1.55 sans-serif;}
-    .st-key-semantic_inspector .semantic-fields dd {font:.78rem/1.55 Consolas,monospace;}
-    .st-key-daily_heading h3 {font-size:1.5rem; padding:.15rem 0;}
-    .st-key-daily_summary [data-testid="stMetric"] {background:#fff; border-top:2px solid #d4e1e7;}
-    .st-key-daily_summary [data-testid="stMetricValue"] {font:600 1.45rem/1.4 sans-serif;}
-    .st-key-daily_spatial, .st-key-daily_updates, .st-key-daily_content, .st-key-daily_places {
-        background:#fff; border-radius:5px;}
-    [class*="st-key-daily_"] [data-testid="stCaptionContainer"] p {color:#536b7b; font-size:.78rem; line-height:1.5;}
-    [class*="st-key-daily_"] [data-testid="stMarkdownContainer"]:has(> .workbench-panel-title) {margin-bottom:0;}
-    .daily-update-title {font-size:.9rem; line-height:1.45; font-weight:600;}
-    .daily-source {font-size:.76rem; color:#536b7b; line-height:1.5;}
-    @media (max-width:700px) {
-        .block-container{padding-top:3rem;}
-        .workbench-header {padding:.7rem;}
-        .workbench-subtitle, .workbench-region, .workspace-meta {font-size:.7rem;}
-        .st-key-workspace_toolbar {padding:.4rem;}
-        .st-key-workspace_shortcuts [data-testid="stHorizontalBlock"] {flex-wrap:wrap; gap:.4rem;}
-        .st-key-workspace_shortcuts [data-testid="stColumn"] {flex:1 1 135px; min-width:0;}
-        .st-key-workbench_summary [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem;}
-        .st-key-workbench_summary [data-testid="stColumn"] {width:auto; min-width:0;}
-        .st-key-daily_summary [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem;}
-        .st-key-daily_summary [data-testid="stColumn"] {width:auto; min-width:0;}
-    }
-    @media (pointer:coarse) {[data-testid="stButton"] button {min-height:44px;}}
-    </style>''', unsafe_allow_html=True)
+    from dashboard_theme import apply_dashboard_theme
+    apply_dashboard_theme()
 
 
 def navigate(section, page):
@@ -139,17 +39,17 @@ def navigate(section, page):
 
 
 def render_shortcuts(sections, current_page):
-    targets = [('Home', 'Monitoring', 'Overview'),
-               ('Monitor', 'Monitoring', 'Live Monitoring'),
+    targets = [('Overview', 'Monitoring', 'Overview'),
+               ('Monitor', 'Monitoring', 'Monitor'),
+               ('Observations', 'Monitoring', 'Live Monitoring'),
                ('Objects & dependencies', 'Models & Dependencies', 'Objects & Dependencies'),
                ('Scenarios & runs', 'Models & Dependencies', 'Scenarios & Runs'),
                ('Data & evidence', 'Data & Research', 'Dataset Catalogue'),
-               ('WP modules', 'WP Delivery', 'Module Registry'),
-               ('Port connections example', 'Models & Dependencies', 'Port connections example')]
+               ('WP modules', 'WP Delivery', 'Module Registry')]
     available = [(label, section, page) for label, section, page in targets if page in sections.get(section, [])]
     if not available:
         return
-    primary = [target for target in available if target[2] in {'Overview', 'Live Monitoring'}]
+    primary = [target for target in available if target[2] in {'Overview', 'Monitor'}]
     secondary = [target for target in available if target not in primary]
     with st.container(key='workspace_shortcuts'):
         columns = st.columns(len(primary) + bool(secondary), gap='small')
@@ -158,7 +58,7 @@ def render_shortcuts(sections, current_page):
                           type='primary' if page == current_page else 'secondary',
                           on_click=navigate, args=(section, page))
         if secondary:
-            with columns[-1].popover('More views', width='stretch'):
+            with columns[-1].popover('More', width='stretch'):
                 for label, section, page in secondary:
                     st.button(label, key=f'shortcut_{page}', width='stretch',
                               type='primary' if page == current_page else 'secondary',
@@ -244,7 +144,7 @@ def _map(bundle, assets, service_area):
         selection_mode='single-object', key=key)
     selected = selected_map_object(event)
     st.markdown(MAP_LEGEND, unsafe_allow_html=True)
-    st.caption('Select a marker or label. Colours describe data, not risk; the white ring is selection, not coverage. Map: OpenFreeMap / OpenMapTiles / OpenStreetMap.')
+    st.caption('Select a marker or label. Colours describe data, not risk; the violet ring is selection, not coverage. Map: OpenFreeMap / OpenMapTiles / OpenStreetMap.')
     return entities, selected.get('entity_id') if selected else None
 
 

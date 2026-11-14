@@ -13,6 +13,7 @@ import streamlit as st
 from monitoring_views import chart_style
 from port_map import MARITIME_STYLE
 from workspace_data import clean_water_series, water_chart_series
+from public_media import render_public_media
 
 
 _SOURCE_HOSTS = {'api.met.no','met.no','www.met.no','weather.metoffice.gov.uk','www.metoffice.gov.uk',
@@ -118,7 +119,7 @@ def _map(series, chosen, place):
         counts[location] = offset+1
         points.append({'id':entry['id'], 'lat':lat, 'lon':lon, 'name':escape(_place_label(entry)),
             'label':_plain(entry['name']).split(' · ')[0]+' · '+_plain(entry.get('unit','')),
-            'offset':[17,-16+offset*30], 'color':[51,203,214] if entry['id']==chosen else [150,183,202],
+            'offset':[17,-16+offset*30], 'color':[124,131,253] if entry['id']==chosen else [149,162,181],
             'border':1 if entry['id']==chosen else 0})
     layers = [pdk.Layer('ScatterplotLayer', points, id='daily-water', get_position='[lon, lat]',
         radius_units=pdk.types.String('pixels'), get_radius=7, get_fill_color='color', pickable=True),
@@ -126,12 +127,12 @@ def _map(series, chosen, place):
             get_pixel_offset='offset', get_size=12, get_color=[230,241,248],
             get_text_anchor=pdk.types.String('start'), background=True,
             get_background_color=[10,29,43,235], background_padding=[5,3],
-            get_border_width='border', get_border_color=[51,203,214], pickable=True)]
+            get_border_width='border', get_border_color=[124,131,253], pickable=True)]
     selected = [point for point in points if point['id']==chosen]
     if selected:
         layers.append(pdk.Layer('ScatterplotLayer', selected, id='daily-selection', get_position='[lon, lat]',
             radius_units=pdk.types.String('pixels'), get_radius=12, filled=False, stroked=True,
-            get_line_color=[235,247,250], line_width_min_pixels=2))
+            get_line_color=[124,131,253], line_width_min_pixels=2))
     if not points:
         layers = [pdk.Layer('ScatterplotLayer', [{'lat':place['lat'],'lon':place['lon']}],
             get_position='[lon, lat]', radius_units=pdk.types.String('pixels'), get_radius=6,
@@ -171,6 +172,77 @@ def _items(section, empty_message='No items returned by this source.', limit=3):
         st.caption('Feed timestamp: '+_when(section['feed_updated_at']))
 
 
+_UPDATE_SECTIONS = [('port_notices','Port'),('port_news','Port'),
+                    ('weather_warnings','Weather'),('flood_warnings','Weather'),('traffic','Travel')]
+
+
+def update_items(snapshot, category='All'):
+    rows = [dict(item, category=group, source_key=key)
+            for key,group in _UPDATE_SECTIONS if category in ('All',group)
+            for item in snapshot[key].get('items', [])]
+    def published(row):
+        moment = _time(row.get('published_at'))
+        return moment.value if pd.notna(moment) else -1
+    return sorted(rows, key=published, reverse=True)
+
+
+def _update_feed(snapshot, category):
+    for item in update_items(snapshot, category)[:6]:
+        section = snapshot[item['source_key']]
+        title = escape(_plain(item.get('title')) or 'Source update')
+        url = _safe_url(item.get('url'))
+        if url:
+            title = '<a href="'+escape(url,quote=True)+'" target="_blank" rel="noopener noreferrer">'+title+'</a>'
+        st.markdown('<article class="daily-update"><span class="daily-category">'+item['category']+'</span>'
+            '<div class="daily-update-title">'+title+'</div><div class="daily-source">'
+            +escape(_plain(section['source_name']))+' · '+escape(_when(item.get('published_at')))
+            +'</div></article>',unsafe_allow_html=True)
+        if item.get('valid_from') or item.get('valid_to'):
+            st.caption('Validity: '+_when(item.get('valid_from'))+' → '+_when(item.get('valid_to')))
+        if item.get('description'):
+            st.caption(_plain(item['description'])[:240])
+    for key,group in _UPDATE_SECTIONS:
+        if category not in ('All',group):
+            continue
+        section = snapshot[key]
+        _source(section)
+        if section.get('status')=='unavailable':
+            st.info(_plain(section.get('message')) or 'Source temporarily unavailable.')
+        elif section.get('status')=='link_only':
+            st.caption(_plain(section.get('message')) or 'Automatic feed not connected.')
+        elif not section.get('items'):
+            st.caption('No items returned by '+_plain(section['source_name'])+'. Check the source for current coverage.')
+        if section.get('feed_updated_at'):
+            st.caption('Feed timestamp: '+_when(section['feed_updated_at']))
+        if key in {'port_notices','traffic'} or not section.get('items'):
+            _link('Open '+_plain(section['source_name'])+' · '+('port notices' if key=='port_notices' else group.lower()),section.get('source_url'))
+
+
+def _compact_trends(forecast, frame, selected):
+    cols = st.columns(2, gap='small')
+    with cols[0], st.container(border=True, key='daily_weather_trend'):
+        st.markdown('**Next hours · weather**')
+        if forecast.empty:
+            st.caption('Forecast currently unavailable.')
+        else:
+            fig = go.Figure(go.Scatter(x=forecast['time'],y=forecast['temp_c'], mode='lines',
+                line={'color':'#7C83FD','width':2},connectgaps=False,fill='tozeroy',fillcolor='rgba(124,131,253,.08)'))
+            fig.update_layout(yaxis_title='Temperature (°C)', xaxis_title='Forecast time (UTC)')
+            st.plotly_chart(chart_style(fig,175),width='stretch',key='daily_weather_mini')
+        st.caption('MET Norway forecast · CC BY 4.0 · model estimates')
+    with cols[1], st.container(border=True, key='daily_water_trend'):
+        st.markdown('**Recent hours · water**')
+        if frame.empty or not selected:
+            st.caption('Water observations currently unavailable.')
+        else:
+            chart = water_chart_series(frame)
+            fig = go.Figure(go.Scatter(x=chart.index,y=chart.values,mode='lines',
+                line={'color':'#62B8C9','width':2},connectgaps=False))
+            fig.update_layout(yaxis_title='Water level ('+selected.get('unit','')+')',xaxis_title='Observation time (UTC)')
+            st.plotly_chart(chart_style(fig,175),width='stretch',key='daily_water_mini')
+            st.caption(_place_label(selected))
+
+
 def render_daily_home(snapshot):
     now = pd.Timestamp.now(tz='UTC')
     place = snapshot['place']
@@ -205,7 +277,7 @@ def render_daily_home(snapshot):
         notices = snapshot['port_notices']
         cards[3].metric('Port notices', str(len(notices.get('items',[])))+' listed' if notices.get('status')=='available' else 'Official list')
         cards[3].caption('Peel Ports · check each notice for validity')
-    left, right = st.columns([2,1], gap='small')
+    left, right = st.columns([1.85,1], gap='small')
     with left, st.container(border=True, key='daily_spatial'):
         st.markdown('**Explore the waterfront**')
         if lookup:
@@ -219,18 +291,13 @@ def render_daily_home(snapshot):
         if selected:
             st.caption('Reference: '+_plain(selected.get('datum','Unknown reference'))+' · '+_plain(selected.get('unit','')))
     with right, st.container(border=True, key='daily_updates'):
-        st.markdown('**Local updates**')
-        reminders, saved = st.tabs(['Reminders','My places'])
-        with reminders, st.container(height=430, border=False):
-            st.markdown('**Weather alerts**')
-            _items(snapshot['weather_warnings'], 'No items returned for North West England.')
-            _link('Check Met Office warnings', snapshot['weather_warnings'].get('source_url'))
-            st.markdown('**Flood alerts**')
-            _items(snapshot['flood_warnings'], 'No items returned for the Liverpool-area search.')
-            _link('Check flood warnings', snapshot['flood_warnings'].get('source_url'))
-            st.markdown('**Port notices**')
-            _items(snapshot['port_notices'])
-            _link('Open official port notices', snapshot['port_notices'].get('source_url'))
+        st.markdown('**Latest updates**')
+        reminders, saved = st.tabs(['Updates','My places'])
+        with reminders:
+            category = st.radio('Latest updates',['All','Port','Weather','Travel'],horizontal=True,
+                label_visibility='collapsed',key='daily_update_category')
+            with st.container(height=390, border=False):
+                _update_feed(snapshot,category)
         with saved, st.container(key='daily_places'):
             st.caption('Keep up to four water references here during this visit.')
             pins = st.session_state.get('daily_saved_places', [])
@@ -241,6 +308,8 @@ def render_daily_home(snapshot):
                 st.button(_place_label(entry) if entry else 'Saved reference temporarily unavailable', key='daily_saved_'+place_id,
                     disabled=entry is None, on_click=_choose_place, args=(place_id,), width='stretch')
                 st.button('Remove saved place', key='daily_remove_'+place_id, on_click=_remove_place, args=(place_id,))
+    _compact_trends(forecast,frame,selected)
+    render_public_media()
     with st.container(border=True, key='daily_content'):
         weather_tab, tide_tab, travel_tab, news_tab = st.tabs(['Weather','Tides & water','Travel','Port news'])
         with weather_tab:
@@ -253,7 +322,7 @@ def render_daily_home(snapshot):
                 cols = st.columns(2, gap='small')
                 for column,key,label,unit in [(cols[0],'temp_c','Temperature','°C'),(cols[1],'wind_m_s','Wind speed','m/s')]:
                     values = pd.to_numeric(forecast[key],errors='coerce')
-                    fig = go.Figure(go.Scatter(x=forecast['time'],y=values,mode='lines+markers',connectgaps=False,line={'color':'#157985','width':2}))
+                    fig = go.Figure(go.Scatter(x=forecast['time'],y=values,mode='lines+markers',connectgaps=False,line={'color':'#7C83FD','width':2}))
                     fig.update_layout(xaxis_title='Forecast time (UTC)', yaxis_title=label+' ('+unit+')')
                     column.plotly_chart(chart_style(fig,225),width='stretch',key='daily_forecast_'+key)
                 table = forecast[['time','description','temp_c','wind_m_s','rain_mm']].copy()
@@ -277,7 +346,7 @@ def render_daily_home(snapshot):
                     change = tail['value'].iloc[-1]-tail['value'].iloc[0]
                     st.caption('Rose between latest readings' if change>0 else 'Fell between latest readings' if change<0 else 'Unchanged between latest readings')
                 chart = water_chart_series(frame)
-                fig = go.Figure(go.Scatter(x=chart.index,y=chart.values,mode='lines',connectgaps=False,line={'color':'#157985','width':2.5}))
+                fig = go.Figure(go.Scatter(x=chart.index,y=chart.values,mode='lines',connectgaps=False,line={'color':'#62B8C9','width':2.5}))
                 fig.update_layout(xaxis_title='Observation time (UTC)',yaxis_title='Water level ('+selected.get('unit','')+')')
                 st.plotly_chart(chart_style(fig,260),width='stretch',key='daily_water_history')
                 st.caption('Recent readings returned by the source. Tide predictions and next high/low times are not connected.')

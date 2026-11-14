@@ -23,7 +23,6 @@ from semantic_views import render_semantic_demo
 from daily_service import load_daily_snapshot
 from daily_views import render_daily_home
 from workbench_views import (
-    apply_workbench_theme,
     render_demonstrators,
     render_governance,
     render_modules,
@@ -208,7 +207,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · Everyday port overview")
+        st.caption("Interface update: 14 November 2026 · Network monitor & waterfront media")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -229,156 +228,8 @@ def require_dashboard_authorisation() -> bool:
 
 
 def apply_professional_theme() -> None:
-    st.markdown(
-        """
-        <style>
-        :root { --port-ink: #203847; --port-teal: #168879; }
-        .workspace-meta { display:flex; flex-wrap:wrap; justify-content:space-between; gap:0.4rem;
-            border-bottom:1px solid #d5e3e5; padding:0.2rem 0 0.9rem; margin-bottom:1rem;
-            color:#55717b; font-size:0.78rem; letter-spacing:0.03rem; }
-        .stream-card { border:1px solid #dce7e8; border-top:3px solid var(--port-teal); border-radius:6px;
-            background:white; padding:0.9rem 1rem; margin:0.4rem 0; }
-        .stream-card h3 { font-size:0.85rem !important; padding:0 !important; margin:0 0 0.4rem; }
-        .stream-card .reading { font-size:1.8rem; font-weight:600; line-height:2.1rem; }
-        .stream-card small { color:#55717b; }
-        [data-testid="stAppViewContainer"] {
-            background: #edf1f5;
-        }
-        .monitor-hero {
-            padding: 1rem 1.3rem;
-            border-left: 5px solid var(--port-teal);
-            border-radius: 8px;
-            background: linear-gradient(110deg, #e3f1ed, #ffffff);
-            margin: 0.6rem 0 1.1rem;
-        }
-        .monitor-hero h2 { color: var(--port-ink); font-size:1.35rem !important; padding:0 !important; margin:0.45rem 0; }
-        .monitor-hero p { color: #4e6874; margin-bottom:0; padding:0; font-size:0.9rem; }
-        [data-testid="stAppViewContainer"] h1 { font-size:1.9rem !important; padding-bottom:0.4rem; }
-        .eyebrow { font-size: 0.72rem; letter-spacing: 0.12rem; font-weight: 650; color: #346b65; }
-        .quality-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem;
-            padding: 0.7rem 1rem; background: #ffffff; border: 1px solid #dce7e8;
-            border-radius: 6px; margin: 0.7rem 0 1rem; color: #49616c; font-size: 0.9rem; }
-        .quality-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-        .block-container {
-            padding-top: 0.8rem;
-            padding-bottom: 2rem;
-            max-width: 1500px;
-        }
-        [data-testid="stMetric"] {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            min-height: 92px;
-            padding: 0.72rem 0.82rem;
-            overflow: hidden;
-        }
-        [data-testid="stMetricLabel"] {
-            color: #4b5563;
-            font-size: 0.78rem;
-            line-height: 1.15rem;
-            white-space: normal;
-            overflow-wrap: anywhere;
-        }
-        [data-testid="stMetricLabel"] p {
-            white-space: normal !important;
-            overflow: visible;
-            text-overflow: clip;
-        }
-        [data-testid="stMetricValue"] {
-            font-size: 1.5rem;
-            line-height: 1.85rem;
-            white-space: normal;
-            overflow-wrap: anywhere;
-        }
-        h1, h2, h3 {
-            letter-spacing: 0;
-        }
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 0.35rem;
-        }
-        h2, h3 {
-            margin-top: 0.85rem;
-        }
-        .stPlotlyChart {
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 0.25rem;
-            background: #ffffff;
-        }
-        div[data-testid="stDataFrame"] {
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-        }
-        .stRadio [role="radiogroup"] {
-            gap: 0.4rem;
-        }
-        .action-list {
-            display: grid;
-            gap: 0.55rem;
-        }
-        .action-item {
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 0.72rem 0.82rem;
-            background: #ffffff;
-        }
-        .action-title {
-            display: flex;
-            gap: 0.55rem;
-            align-items: center;
-            font-weight: 650;
-            color: #111827;
-        }
-        .action-meta {
-            color: #4b5563;
-            font-size: 0.82rem;
-            margin-top: 0.22rem;
-        }
-        .action-body {
-            margin-top: 0.4rem;
-            color: #111827;
-            font-size: 0.92rem;
-            line-height: 1.35rem;
-        }
-        .state-pill {
-            display: inline-block;
-            border-radius: 999px;
-            padding: 0.08rem 0.48rem;
-            font-size: 0.75rem;
-            background: #f3f4f6;
-            color: #374151;
-            white-space: nowrap;
-        }
-        @media (max-width: 700px) {
-            .block-container { padding-top: 3rem; }
-            [data-testid="stAppViewContainer"] h1 { font-size: 1.6rem !important; line-height: 1.95rem !important; }
-            .monitor-hero { padding: 1rem; }
-            .monitor-hero h2 { font-size: 1.35rem !important; line-height: 1.7rem !important; }
-            .block-container {
-                padding-left: 0.85rem;
-                padding-right: 0.85rem;
-            }
-            h1 {
-                font-size: 1.45rem;
-                line-height: 1.8rem;
-            }
-            h2, h3 {
-                font-size: 1.12rem;
-                line-height: 1.45rem;
-            }
-            [data-testid="stMetric"] {
-                min-height: 78px;
-            }
-            [data-testid="stMetricValue"] {
-                font-size: 1.25rem;
-            }
-            [data-testid="stMetricLabel"] p { min-height: 2rem; }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    from dashboard_theme import apply_dashboard_theme
+    apply_dashboard_theme()
 
 
 @st.cache_data(ttl=60)
@@ -555,14 +406,8 @@ def render_metric_card(label: str, value: str, help_text: str | None = None) -> 
 
 
 def polish_chart(fig, height: int = 330):
-    fig.update_layout(
-        template="plotly_white",
-        height=height,
-        margin=dict(l=10, r=10, t=20, b=10),
-        legend_title_text="",
-        font=dict(size=12),
-    )
-    return fig
+    from monitoring_views import chart_style
+    return chart_style(fig, height)
 
 
 def render_access_banner(partner: pd.Series) -> None:
@@ -1323,7 +1168,6 @@ def main() -> None:
     apply_professional_theme()
     if not require_dashboard_authorisation():
         st.stop()
-    apply_workbench_theme()
 
     partners = load_csv("partners.csv")
     assets = load_csv("assets.csv")
@@ -1350,9 +1194,15 @@ def main() -> None:
         st.session_state["workspace_section"] = "Monitoring"
         st.session_state["workspace_view_Monitoring"] = "Overview"
 
+    if st.session_state.get("workspace_view_Models & Dependencies") == "Port connections example":
+        st.session_state.pop("workspace_view_Models & Dependencies", None)
+        st.session_state["workspace_section"] = "Monitoring"
+        st.session_state["workspace_view_Monitoring"] = "Monitor"
+
     available_pages = []
     if "overview" in views:
         available_pages.append("Overview")
+        available_pages.append("Monitor")
         available_pages.append("Live Monitoring")
     if "gis" in views:
         available_pages.append("GIS")
@@ -1373,9 +1223,9 @@ def main() -> None:
         available_pages.append("Research & Replay")
 
     st.sidebar.divider()
-    monitoring = [name for name in ["Overview", "Live Monitoring", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
+    monitoring = [name for name in ["Overview", "Monitor", "Live Monitoring", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
     research = [name for name in ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"] if name in available_pages]
-    models = ["Objects & Dependencies", "Scenarios & Runs", "Port connections example"] if "gis" in views else []
+    models = ["Objects & Dependencies", "Scenarios & Runs"] if "gis" in views else []
     modules = ["Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
     sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Models & Dependencies", models),
         ("Data & Research", research), ("WP Delivery", modules)] if pages}
@@ -1385,12 +1235,13 @@ def main() -> None:
     view_key = f"workspace_view_{section}"
     if st.session_state.get(view_key) not in sections[section]:
         st.session_state[view_key] = sections[section][0]
-    page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
+    page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed",
+        format_func=lambda name: "Observations" if name == "Live Monitoring" else name)
 
     st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT port dashboard version 1</span>'
-        '<span class="workbench-subtitle">YOUR PORT, AT A GLANCE</span></div>'
+        '<span class="workbench-subtitle">CONNECTED PORT INTELLIGENCE</span></div>'
         '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>', unsafe_allow_html=True)
-    if page not in {"Overview", "Port connections example"}:
+    if page not in {"Overview", "Monitor"}:
         with st.container(key="workspace_toolbar"):
             context = st.columns([1.35, 1.35, .5], vertical_alignment="bottom", gap="small")
             mode = context[0].radio("Time mode", ["Recent observations", "Historical browsing"], key="monitor_mode", horizontal=True,
@@ -1416,16 +1267,16 @@ def main() -> None:
     if page == "Overview":
         st.markdown('<div class="workspace-meta"><span>AROUND LIVERPOOL / TODAY</span>'
                     '<span>WEATHER · WATER · LOCAL UPDATES</span></div>', unsafe_allow_html=True)
-    elif page == "Port connections example":
-        st.markdown('<div class="workspace-meta"><span>PORT CONNECTIONS / EXAMPLE</span>'
-                    '<span>ILLUSTRATIVE DATA · 14 NOVEMBER 2026</span></div>', unsafe_allow_html=True)
+    elif page == "Monitor":
+        st.markdown('<div class="workspace-meta"><span>MONITOR / CONNECTED ASSETS</span>'
+                    '<span>GEOGRAPHY · CONNECTIONS · EVIDENCE</span></div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="workspace-meta"><span>{escape(section.upper())} / {escape(page.upper())}</span>'
             f'<span>OBSERVATION WINDOW · {dates[0].strftime("%d %b %Y")} — {dates[1].strftime("%d %b %Y")}</span></div>', unsafe_allow_html=True)
     render_shortcuts(sections, page)
-    if page not in {"Overview", "Port connections example"} and st.session_state.get("demonstrator_task"):
+    if page not in {"Overview", "Monitor"} and st.session_state.get("demonstrator_task"):
         st.caption(st.session_state["demonstrator_task"])
-    if page not in {"Overview", "Port connections example"} and st.session_state.get("current_run_id"):
+    if page not in {"Overview", "Monitor"} and st.session_state.get("current_run_id"):
         st.text(f"Current imported run: {st.session_state['current_run_id']}. Its output valid times are separate from observation dates.")
     st.session_state["monitor_sources"] = {
         "Live Monitoring": ("water_level", "webtris"), "GIS": ("water_level", "webtris"),
@@ -1444,7 +1295,7 @@ def main() -> None:
         with st.spinner("Checking local weather, water levels and official updates"):
             snapshot = load_daily_snapshot()
         render_daily_home(snapshot)
-    elif page == "Port connections example":
+    elif page == "Monitor":
         render_semantic_demo()
     elif page == "Live Monitoring":
         render_workbench(bundle, assets, service_area, transport)
