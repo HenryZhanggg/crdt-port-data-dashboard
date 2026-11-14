@@ -1,5 +1,6 @@
 """Composable port workspace; partner packages are data, never executable plugins."""
 from html import escape
+from hashlib import sha1
 import json
 import math
 
@@ -12,6 +13,7 @@ import streamlit as st
 from data_quality import quality_table
 from module_contracts import compare_run_outputs, load_module_registry, package_template, validate_package
 from monitoring_views import chart_style, select_water_series, state_badge, utc_label, water_level_figure
+from port_map import MAP_LEGEND, MARITIME_STYLE, monitoring_layers, selected_map_object
 from workbench_data import build_entities, choose_entity
 from workspace_data import quality_findings
 
@@ -53,6 +55,12 @@ def apply_workbench_theme():
     .workbench-reference {margin:.2rem 0; display:grid; grid-template-columns:75px minmax(0,1fr); gap:.35rem .6rem; font-size:.77rem;}
     .workbench-reference dt {color:#5a7080;}
     .workbench-reference dd {margin:0; font-family:Consolas,monospace; overflow-wrap:anywhere;}
+    .port-map-context {display:flex; flex-wrap:wrap; justify-content:space-between; gap:.3rem;
+        padding:.45rem .65rem; background:#0b263b; color:#bed8e8; font:.72rem/1.5 Consolas,monospace;}
+    .port-map-legend {display:flex; flex-wrap:wrap; align-items:center; gap:.4rem 1rem;
+        padding:.55rem .65rem; background:#0b263b; color:#c5d9e6; font-size:.73rem;}
+    .port-map-legend span {display:inline-flex; align-items:center; gap:.35rem;}
+    .port-map-legend i {display:inline-block; width:8px; height:8px; border-radius:50%;}
     .quality-note {border:0; border-left:2px solid #cbd5df; background:#f6f8fa; border-radius:0;
         padding:.4rem .55rem; margin:.2rem 0; gap:.5rem; font-size:.76rem;}
     .quality-note strong {font-family:Consolas,monospace; font-weight:500;}
@@ -102,6 +110,7 @@ def render_shortcuts(sections, current_page):
 
 def _remember_object():
     st.session_state['workbench_entity_id'] = st.session_state['workbench_entity_picker']
+    st.session_state['workbench_map_revision'] = st.session_state.get('workbench_map_revision', 0) + 1
 
 
 def _remember_layer(name, key):
@@ -112,6 +121,12 @@ def _remember_layer(name, key):
 
 def _remember_panels():
     st.session_state['workbench_panel_preset'] = list(st.session_state['workbench_panels'])
+
+
+def _remember_map_object(key):
+    selected = selected_map_object(st.session_state.get(key))
+    if selected:
+        st.session_state['workbench_entity_id'] = selected['entity_id']
 
 
 def _pick_object(entities, map_id=None):
@@ -155,25 +170,25 @@ def _map(bundle, assets, service_area):
         visible_bundle['webtris_sites'] = pd.DataFrame()
     entities = build_entities(visible_bundle, assets, demo)
     points = entities.dropna(subset=['lat', 'lon']).copy()
-    points['color'] = points.apply(lambda row: [137, 153, 168, 210] if row['kind'] == 'Demonstration'
-        else [86, 160, 211, 235] if row['kind'] == 'Traffic'
-        else [69, 194, 169, 240] if row['state'] == 'Current' else [231, 177, 88, 240], axis=1) if not points.empty else pd.Series(dtype=object)
     points['detail'] = points['evidence_role'] + ' | ' + points['state']
     layers = []
     if demo and service_area:
         layers.append(pdk.Layer('GeoJsonLayer', service_area, id='demonstration-boundary', filled=True,
-            get_fill_color=[108, 145, 162, 12], get_line_color=[137, 153, 168, 130], line_width_min_pixels=1))
-    if not points.empty:
-        layers.append(pdk.Layer('ScatterplotLayer', points, id='monitoring-points', get_position='[lon, lat]',
-            get_fill_color='color', get_radius=100, radius_min_pixels=7, radius_max_pixels=16,
-            stroked=True, get_line_color=[225, 238, 243], line_width_min_pixels=1, pickable=True))
-    deck = pdk.Deck(map_style='https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            get_fill_color=[108, 145, 162, 12], get_line_color=[137, 153, 168, 130], line_width_min_pixels=1, pickable=False))
+    layers.extend(monitoring_layers(points, choose_entity(entities, st.session_state.get('workbench_entity_id'))))
+    deck = pdk.Deck(map_style=MARITIME_STYLE,
         initial_view_state=pdk.ViewState(latitude=53.448, longitude=-3.015, zoom=11.3, pitch=0), layers=layers,
-        tooltip={'text': '{name}\n{detail}'})
-    event = st.pydeck_chart(deck, width='stretch', height=340, on_select='rerun', selection_mode='single-object', key='workbench_map')
-    objects = (event or {}).get('selection', {}).get('objects', {}).get('monitoring-points', [])
-    st.caption('Teal: fresh water data · Amber: other water states · Blue: traffic locations · Grey: illustrative assets. Colours describe data, not operational risk.')
-    return entities, objects[0].get('entity_id') if objects else None
+        tooltip={'text': '{name}\n{detail}', 'style': {'backgroundColor': '#0b263b', 'color': '#e1f1fa'}})
+    # Native selections use row indices; reset them when visible membership changes.
+    membership = '|'.join(sorted(points['entity_id']))
+    key = 'workbench_map_' + sha1(membership.encode()).hexdigest()[:10] + f"_{st.session_state.get('workbench_map_revision', 0)}"
+    st.markdown(f'<div class="port-map-context"><span>MARITIME MAP / LIVERPOOL</span><span>{len(points)} MAPPED OBJECTS</span></div>', unsafe_allow_html=True)
+    event = st.pydeck_chart(deck, width='stretch', height=380, on_select=lambda: _remember_map_object(key),
+        selection_mode='single-object', key=key)
+    selected = selected_map_object(event)
+    st.markdown(MAP_LEGEND, unsafe_allow_html=True)
+    st.caption('Select a marker or label. Colours describe data, not risk; the white ring is selection, not coverage. Map: OpenFreeMap / OpenMapTiles / OpenStreetMap.')
+    return entities, selected.get('entity_id') if selected else None
 
 
 def _inspect(entity, bundle):

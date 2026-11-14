@@ -205,6 +205,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT-Port Data Visualisation Dashboard")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
+        st.caption("Interface update: 14 November 2026 · Maritime map")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")

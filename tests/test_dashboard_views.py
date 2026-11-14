@@ -127,8 +127,24 @@ class DashboardViewTests(unittest.TestCase):
             app.run()
         self.assertEqual(len(app.exception), 0, str(app.exception))
         points = next(layer.data for layer in decks[-1].layers if layer.id == "monitoring-points")
-        self.assertEqual(points[0]["unit"], "mAOD")
-        self.assertEqual(points[0]["state"], "Current")
+        point = next(row for row in points if row['entity_id'] == 'water:E70139')
+        self.assertEqual(point["unit"], "mAOD")
+        self.assertEqual(point["state"], "Current")
+
+    def test_gis_demo_boundary_is_only_drawn_with_demo_assets(self):
+        decks = []
+        def capture(deck, **kwargs):
+            decks.append(deck)
+            return {"selection": {"objects": {}}}
+        st.cache_data.clear()
+        with patch("api_connectors.fetch_raw_data_bundle", return_value=observation_fixture()), patch("streamlit.pydeck_chart", side_effect=capture):
+            app = AppTest.from_file("app.py", default_timeout=30)
+            app.session_state["dashboard_authorised"] = True
+            app.run()
+            next(x for x in app.radio if x.label == "View").set_value("GIS").run()
+            self.assertFalse(any(layer.id == 'service-area' for layer in decks[-1].layers))
+            next(x for x in app.checkbox if x.label == "Demonstration assets").check().run()
+            self.assertTrue(any(layer.id == 'service-area' for layer in decks[-1].layers))
 
 
 

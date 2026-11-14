@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+from hashlib import sha1
 
 import pandas as pd
 import plotly.express as px
@@ -11,6 +12,7 @@ import streamlit as st
 
 from data_quality import compatibility, filter_dates, observation_graph, quality_table, validate_observations
 from workspace_data import clean_water_series, quality_findings, water_chart_series
+from port_map import MAP_LEGEND, MARITIME_STYLE, monitoring_layers, selected_map_object
 
 
 COLORS = {"Current": "#168879", "Stale": "#c07822", "Sample": "#78879a", "Unavailable": "#b84f51", "Unknown time": "#b84f51", "Timezone unverified": "#c07822", "Future timestamp": "#b84f51", "Historical statistics": "#466887", "Reference": "#466887"}
@@ -137,13 +139,13 @@ def render_monitoring_map(bundle, assets, service_area, compact=False):
     if not compact:
         st.subheader("Monitoring map")
     layers = []
-    if service_area:
-        layers.append(pdk.Layer("GeoJsonLayer", service_area, id="service-area", filled=True, stroked=True,
-            get_fill_color=[22, 136, 121, 15], get_line_color=[22, 136, 121, 140], line_width_min_pixels=2))
     controls = st.columns(3)
     show_water = controls[0].checkbox("Water gauges", value=True, key=f"map_water_{compact}")
     show_traffic = controls[1].checkbox("Traffic counters", value=True, key=f"map_traffic_{compact}")
     show_demo = controls[2].checkbox("Demonstration assets", value=False, key=f"map_demo_{compact}")
+    if show_demo and service_area:
+        layers.append(pdk.Layer("GeoJsonLayer", service_area, id="service-area", filled=True, stroked=True,
+            get_fill_color=[108, 145, 162, 12], get_line_color=[137, 153, 168, 130], line_width_min_pixels=1, pickable=False))
     map_rows = []
     water = bundle.get("water_levels", pd.DataFrame())
     if show_water and not water.empty:
@@ -152,38 +154,38 @@ def render_monitoring_map(bundle, assets, service_area, compact=False):
             datum = "" if pd.isna(row["datum_uri"]) else row["datum_uri"]
             reference = group[group["unit"].eq(row["unit"]) & group["datum_uri"].fillna("").eq(datum)]
             state = quality_table({"water_levels": reference}, pd.DataFrame(), pd.DataFrame()).iloc[0]["State"]
-            color = [192, 120, 34, 230] if state != "Current" else [22, 136, 121, 230]
             map_rows.append({"lat": row.get("lat"), "lon": row.get("lon"), "name": f"Water gauge {station}",
+                "entity_id": f"water:{station}",
                 "station_reference": str(station), "unit": str(row.get("unit", "")), "datum_uri": str(row.get("datum_uri", "")),
                 "kind": "Water", "state": state,
-                "detail": f"{row.get('value')} {row.get('unit')} | {row.get('datum')} | {state}", "color": color, "radius": 120})
+                "detail": f"{row.get('value')} {row.get('unit')} | {row.get('datum')} | {state}"})
     traffic = bundle.get("webtris_sites", pd.DataFrame())
     if show_traffic and not traffic.empty:
         for _, row in traffic.iterrows():
             map_rows.append({"lat": row.get("lat"), "lon": row.get("lon"), "name": f"Traffic counter {row.get('site_id')}",
+                "entity_id": f"traffic:{row.get('site_id')}",
                 "kind": "Traffic", "state": "Reference location", "site_id": str(row.get("site_id")),
-                "detail": str(row.get("description", "Reference location; not a port-gate queue measurement")), "color": [52, 99, 150, 220], "radius": 85})
+                "detail": str(row.get("description", "Reference location; not a port-gate queue measurement"))})
     if show_demo:
         for _, row in assets.iterrows():
-            map_rows.append({"lat": row["lat"], "lon": row["lon"], "name": row["name"], "kind": "Demonstration", "state": "Sample", "detail": "Demonstration asset; operational state not verified", "color": [120, 135, 154, 170], "radius": 140})
+            map_rows.append({"lat": row["lat"], "lon": row["lon"], "name": row["name"], "entity_id": f"demo:{row['asset_id']}",
+                "kind": "Demonstration", "state": "Sample", "detail": "Demonstration asset; operational state not verified"})
     points = pd.DataFrame(map_rows)
     if not points.empty:
         points["lat"] = pd.to_numeric(points["lat"], errors="coerce")
         points["lon"] = pd.to_numeric(points["lon"], errors="coerce")
         points = points.dropna(subset=["lat", "lon"])
-        layers.append(pdk.Layer("ScatterplotLayer", points, id="monitoring-points", get_position="[lon, lat]", get_radius="radius",
-            get_fill_color="color", stroked=True, get_line_color=[255, 255, 255], line_width_min_pixels=2, radius_min_pixels=6, pickable=True))
-        if not compact:
-            layers.append(pdk.Layer("TextLayer", points, id="point-labels", get_position="[lon, lat]", get_text="name", get_size=12,
-                get_color=[32, 56, 71], get_pixel_offset=[0, -17], get_text_anchor="middle", get_alignment_baseline="bottom"))
-    deck = pdk.Deck(map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+        layers.extend(monitoring_layers(points))
+    deck = pdk.Deck(map_style=MARITIME_STYLE,
         initial_view_state=pdk.ViewState(latitude=53.448, longitude=-3.015, zoom=11.5, pitch=0),
-        layers=layers, tooltip={"text": "{name}\n{detail}"})
+        layers=layers, tooltip={"text": "{name}\n{detail}", "style": {"backgroundColor": "#0b263b", "color": "#e1f1fa"}})
+    membership = '|'.join(sorted(points['entity_id'])) if not points.empty else ''
+    key = f'monitoring_map_{compact}_' + sha1(membership.encode()).hexdigest()[:10]
     event = st.pydeck_chart(deck, width="stretch", height=440 if compact else 540,
-        on_select="rerun", selection_mode="single-object", key=f"monitoring_map_{compact}")
-    objects = event.get("selection", {}).get("objects", {}).get("monitoring-points", [])
-    selected = objects[0] if objects else None
-    st.caption("Click a monitoring point to inspect it. Teal: fresh water observations; amber: other water states; blue: traffic reference locations. Grey assets and the outline are demonstrations, not risk classifications.")
+        on_select="rerun", selection_mode="single-object", key=key)
+    selected = selected_map_object(event)
+    st.markdown(MAP_LEGEND, unsafe_allow_html=True)
+    st.caption("Select a marker or label. Colours describe source/data state, not risk. Grey assets and the optional outline are illustrative. Map: OpenFreeMap / OpenMapTiles / OpenStreetMap.")
     if not compact:
         if not points.empty:
             fallback = st.selectbox("Monitoring location", points["name"].tolist(), key="map_location_fallback")

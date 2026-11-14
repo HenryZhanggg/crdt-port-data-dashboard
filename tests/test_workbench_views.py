@@ -47,6 +47,28 @@ class WorkbenchViewTests(unittest.TestCase):
         self.assertEqual(app.session_state['workbench_entity_id'], 'traffic:6806')
         self.assertTrue(any('Timezone unverified' in str(x.value) for x in app.markdown))
 
+    def test_map_label_pick_opens_the_corresponding_object(self):
+        selection = {'selection': {'objects': {'monitoring-labels': [{'entity_id': 'water:E70124'}]}}}
+        with patch('streamlit.pydeck_chart', return_value=selection):
+            app = self.app()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['workbench_entity_id'], 'water:E70124')
+
+    def test_manual_inspector_choice_clears_previous_native_map_selection(self):
+        keys, decks = [], []
+        def capture(deck, **kwargs):
+            keys.append(kwargs['key'])
+            decks.append(deck)
+            return {'selection': {'objects': {}}}
+        with patch('streamlit.pydeck_chart', side_effect=capture):
+            app = self.app()
+            previous_key = keys[-1]
+            next(x for x in app.selectbox if x.label == 'Inspect an object').set_value('water:E70124').run()
+        self.assertFalse(app.exception)
+        self.assertNotEqual(keys[-1], previous_key)
+        ring = next(layer for layer in decks[-1].layers if layer.id == 'selected-object')
+        self.assertEqual(ring.data[0]['entity_id'], 'water:E70124')
+
     def test_new_workspaces_are_usable_without_partner_models(self):
         app = self.app()
         for section, page in [('Models & Dependencies', 'Objects & Dependencies'),
@@ -105,8 +127,9 @@ class WorkbenchViewTests(unittest.TestCase):
             picker.set_value('E70139|m|datum:old').run()
         self.assertFalse(app.exception)
         points = next(layer.data for layer in decks[-1].layers if layer.id == 'monitoring-points')
-        self.assertEqual(points[0]['state'], 'Stale')
-        self.assertEqual(points[0]['datum_uri'], 'datum:old')
+        point = next(row for row in points if row['entity_id'] == 'water:E70139')
+        self.assertEqual(point['state'], 'Stale')
+        self.assertEqual(point['datum_uri'], 'datum:old')
 
     def test_panel_and_layer_choices_survive_deep_analysis(self):
         app = self.app()
