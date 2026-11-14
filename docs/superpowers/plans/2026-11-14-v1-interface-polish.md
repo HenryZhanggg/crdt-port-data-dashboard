@@ -9,4 +9,4 @@
 - [x] Rename visible application surfaces in app.py; keep access and navigation behavior intact.
 - [x] Adjust scoped panel/context styling in workbench_views.py; compact navigation and headings in semantic_views.py; update the existing heading assertion.
 - [x] 121 existing tests passed; git diff check clean. Independent diff review found no material issues. Browser checks passed for exact title/header name, desktop/390px layout, native map/graph picking, inverse navigation, scenario switching, evidence download and monitoring navigation. Screenshots inspected for label layout and overflow.
-- [ ] Commit scoped changes, push without force to main, and verify the new Streamlit login name/version marker and completed login form.
+- [x] Implementation ab173a1 pushed without force to main; remote hash matched. Streamlit displayed the exact new login name/version marker and completed Password/Unlock form with no application errors. Protected workspace interactions were verified locally.
