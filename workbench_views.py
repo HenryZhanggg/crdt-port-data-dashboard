@@ -97,6 +97,7 @@ def render_shortcuts(sections, current_page):
                ('Objects & dependencies', 'Models & Dependencies', 'Objects & Dependencies'),
                ('Scenarios & runs', 'Models & Dependencies', 'Scenarios & Runs'),
                ('Data & evidence', 'Data & Research', 'Dataset Catalogue'),
+               ('Integration demo', 'WP Delivery', 'Integration Demo'),
                ('WP modules', 'WP Delivery', 'Module Registry')]
     available = [(label, section, page) for label, section, page in targets if page in sections.get(section, [])]
     if not available:
@@ -493,7 +494,7 @@ def render_runs():
 
 def render_modules():
     st.subheader('WP module handovers')
-    st.caption('One accountable delivery package per WP, connected to the shared workbench. Status describes this application, not consortium task completion.')
+    st.caption('WP responsibility register: a WP may deliver multiple data products, models and views. Each consuming team owns its internal adaptation. Status describes this application, not consortium task completion.')
     modules = load_module_registry()
     selected = st.selectbox('Module', [row['module_id'] for row in modules], format_func=lambda value: next(f"{r['module_id']} · {r['title']}" for r in modules if r['module_id'] == value))
     module = next(row for row in modules if row['module_id'] == selected)

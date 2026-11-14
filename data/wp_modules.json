@@ -8,7 +8,7 @@
     "implementation_status": "Prototype shared shell and SOSA/SHACL observation checks available; formal WP1 ontology pending",
     "available": ["Shared map, inspector and module navigation shell", "SOSA-based observation graph and SHACL data checks", "Source-derived workspace IDs"],
     "pending": ["Formal WP1 ontology and approved entity/relationship definitions", "Agreed canonical identity mappings and resilience metrics", "Named platform and software integration owners"],
-    "inputs": ["WP2 data samples and mappings", "WP3/4/5 domain semantics", "WP6 user tasks"],
+    "inputs": ["WP2 source samples and metadata", "Each consuming WP's domain semantics and mapping requirements", "WP6 user tasks"],
     "outputs": ["Ontology and metric versions for WP2-5", "Platform component handover and integration rules"]
   },
   {
@@ -19,19 +19,19 @@
     "delivery_type": "Versioned data products, monitoring service and monitoring visualisation",
     "implementation_status": "Prototype data connectors and monitoring diagnostics available; project-wide data and communication assurance pending",
     "available": ["Existing source connectors, observation inspection and provenance", "Freshness, missingness and data-quality monitoring", "Source status and observation report exports"],
-    "pending": ["Partner-approved products, access terms and WP1 mappings", "Verified coverage and model-input readiness", "Crisis communication continuity validation"],
+    "pending": ["Partner-approved source products, access terms and metadata", "Verified source coverage, quality and missing-data evidence", "Crisis communication continuity validation"],
     "inputs": ["WP1 semantic and identity definitions", "Source-owner access and quality metadata", "WP7 governance requirements"],
-    "outputs": ["Observations and versioned input products for WP3/4/5", "Monitoring views and communication evidence"]
+    "outputs": ["Source records/access, observations, versions and quality evidence for consuming WPs", "Monitoring views and communication evidence; adaptation for WP2's own monitoring module"]
   },
   {
     "module_id": "WP3",
     "title": "Scenarios, impact, adaptation, recovery and model integration",
     "owner": "WP summary: LJMU and Middlesex. T3.6: York and all partners; T3.7: LJMU and all partners; T3.8: Middlesex and all partners.",
-    "tasks": ["T3.1", "T3.2", "T3.3", "T3.4", "T3.6", "T3.7", "T3.8"],
+    "tasks": ["T3.0", "T3.1", "T3.2", "T3.3", "T3.4", "T3.6", "T3.7", "T3.8"],
     "delivery_type": "Model input/output contracts and versioned scenario/run result packages",
     "implementation_status": "Prototype partner result import, display and comparison only; live inference and model orchestration pending",
     "available": ["Session-local model_run JSON import and inspection", "Exact-reference run output comparison", "Archived research/replay evidence"],
-    "pending": ["Executable partner scenario, impact and recovery models", "Scientific validation and applicability evidence", "T3.8 model-chain execution and error handling"],
+    "pending": ["Internal semantic adaptation, model input construction and provider/consumer connection agreements", "Executable partner scenario, impact and recovery models", "Scientific validation and applicability evidence", "T3.8 model-chain execution and error handling"],
     "inputs": ["WP1 metrics and semantics", "WP2 versioned products", "WP4 cross-sector dependencies/results", "WP5 security constraints"],
     "outputs": ["Scenario and run metadata with provider evidence status", "Impact and recovery outputs for WP5 and WP6"]
   },
@@ -43,8 +43,8 @@
     "delivery_type": "Versioned relationship datasets, cross-sector model results and interoperability evidence",
     "implementation_status": "Prototype relationship/result import and display only; verified operational dependencies and coupled models pending",
     "available": ["Session-local dependency JSON validation and inspection", "Endpoint, direction, evidence and validity metadata display", "WP4 model_run import contract"],
-    "pending": ["Domain-confirmed operational dependency instances", "Cross-sector coupled models and test results", "T4.4 partner interoperability acceptance"],
-    "inputs": ["WP1 named relationship definitions", "WP2 source-to-instance mappings", "Partner domain evidence"],
+    "pending": ["Internal semantic adaptation and model input construction", "Domain-confirmed operational dependency instances", "Cross-sector coupled models and test results", "T4.4 provider/consumer exchange agreements and partner interoperability acceptance"],
+    "inputs": ["WP1 named relationship definitions", "WP2 source records/access and quality metadata, mapped internally by WP4", "Partner domain evidence"],
     "outputs": ["Declared/inferred/simulated relationships for WP3 and WP5", "Cross-sector run packages", "Exchange rules and integration test evidence"]
   },
   {
@@ -55,8 +55,8 @@
     "delivery_type": "Security/ethics constraints and integrated impact visualisation module",
     "implementation_status": "Prototype visualisation shell and result inspection available; security models and production authorisation pending",
     "available": ["Shared map, evidence panels and imported-result comparison", "Existing prototype password gate and partner navigation", "WP5 model_run import contract"],
-    "pending": ["Threat and security countermeasure models", "Validated ethical and technical control requirements", "Production identity, institutional authorisation and control assurance", "Named ID50 module developer and partner acceptance"],
-    "inputs": ["WP1 platform rules", "WP2 monitoring", "WP3/4 model results", "WP7 policies and source-owner permissions"],
+    "pending": ["Internal semantic adaptation, input construction and provider/consumer connection agreements", "Threat and security countermeasure models", "Validated ethical and technical control requirements", "Production identity, institutional authorisation and control assurance", "Named ID50 module developer and partner acceptance"],
+    "inputs": ["WP1 platform rules", "WP2 source records, monitoring and quality evidence, adapted internally by WP5", "WP3/4 model results", "WP7 policies and source-owner permissions"],
     "outputs": ["Integrated impact and comparison views for WP6", "Security and ethics controls for technical implementers"]
   },
   {

@@ -19,6 +19,7 @@ from monitoring_views import (
     render_monitoring_weather,
 )
 from research_views import render_report_centre, render_research_workspace
+from integration_views import render_integration_demo
 from workbench_views import (
     apply_workbench_theme,
     render_demonstrators,
@@ -205,7 +206,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT-Port Data Visualisation Dashboard")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · Maritime map")
+        st.caption("Interface update: 14 November 2026 · Integration demo")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -1391,7 +1392,7 @@ def main() -> None:
     monitoring = [name for name in ["Overview", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
     research = [name for name in ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"] if name in available_pages]
     models = ["Objects & Dependencies", "Scenarios & Runs"] if "gis" in views else []
-    modules = ["Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
+    modules = ["Integration Demo", "Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
     sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Models & Dependencies", models),
         ("Data & Research", research), ("WP Delivery", modules)] if pages}
     section = st.sidebar.radio("Workspace", list(sections), key="workspace_section")
@@ -1441,6 +1442,8 @@ def main() -> None:
         render_objects(bundle, assets)
     elif page == "Scenarios & Runs":
         render_runs()
+    elif page == "Integration Demo":
+        render_integration_demo(catalog)
     elif page == "Module Registry":
         render_modules()
     elif page == "Demonstrator Tasks":

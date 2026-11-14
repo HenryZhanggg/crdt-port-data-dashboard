@@ -20,6 +20,12 @@ Design references: [Rotterdam Weather & Tide](https://www.portofrotterdam.com/en
 
 Partner contracts and the minimum handover are documented in [docs/module-integration.md](docs/module-integration.md). The editable capability register is [data/wp_modules.json](data/wp_modules.json). The new code is split into `module_contracts.py` (registry and validated handovers), `workbench_data.py` (workspace identity and selection), and `workbench_views.py` (composable views). No new production dependency is required.
 
+### Partner integration walkthrough (14 November 2026)
+
+Choose **Integration demo** in the top shortcuts, or **WP Delivery → Integration Demo**. The walkthrough separates shared viewing, a declared model-output-to-input handover and linked execution. Inspect named provider/consumer variables and their units, references, object/time/space/scenario, baseline and versions. Compare illustrative aligned, missing-input/baseline, mismatched-reference/time and dynamic-feedback cases. **Preview execution order** shows blocking and pending acceptance without invoking partner models. Download the connection draft or partner handover template for a consortium discussion. All `demo:` content stays separate from observations and imported results.
+
+The delivery/data tab displays WP1–WP7 responsibilities and the existing source catalogue. Each consuming WP owns its internal semantic adaptation and input construction; WP2 supplies source access and quality evidence and adapts its own monitoring module. Provider/consumer pairs agree connections, WP4 T4.4 coordinates interoperability and WP3 T3.8 coordinates execution chains. Software integration/frontend/ID50/operations implementers still need appointment. Technical checks and example formulas do not provide scientific acceptance. `integration_demo.py` contains the pure checks and `integration_views.py` the UI; no new dependency is introduced.
+
 ## Monitoring and Research Workspace
 
 - **Monitoring** is the home section: Overview, GIS, Observation Explorer, Transport and Data Quality. **Data & Research** holds Research & Replay, Report Centre and the original catalogue/status/raw-data views. Existing partner-view filters remain prototype navigation rules, not institutional access control.
