@@ -1,4 +1,6 @@
-# CRDT-Port Data Visualisation Dashboard
+# CRDT port dashboard version 1
+
+The version 1 interface uses compact white engineering panels, a navy maritime map and relationship view, shorter object-navigation labels, and a shared object inspector. Browser, login, sidebar and application header use the same display name. Illustrative-data labels and full identities/provenance remain available throughout the semantic workspace.
 
 This repository contains an ontology-guided home demonstration and a separate live-monitoring workbench for CRDT-Port. The default Overview uses a local RDF vocabulary, typed fictional objects, declared relationships and synthetic products to demonstrate semantic navigation and linked views. Live Monitoring retains real-source observation, quality and SOSA/SHACL inspection. Executable partner models and formal WP1 ontology alignment remain pending.
 

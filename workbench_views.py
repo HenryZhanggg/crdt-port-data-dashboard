@@ -35,7 +35,7 @@ def apply_workbench_theme():
     .workbench-header {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
         gap:.5rem 1rem; background:#142a3a; color:#e5eef4; padding:.75rem 1rem; border-left:3px solid #43b8bd;}
     .workbench-header > div {display:flex; align-items:center; flex-wrap:wrap; gap:.4rem 1.2rem;}
-    .workbench-brand {font-size:.95rem; font-weight:600; letter-spacing:.08em;}
+    .workbench-brand {font-size:1.05rem; font-weight:600; letter-spacing:.01em;}
     .workbench-subtitle, .workbench-region {font: .72rem/1.5 Consolas,monospace; letter-spacing:.04em; color:#b9cbd7;}
     .workspace-meta {display:flex; flex-wrap:wrap; justify-content:space-between; gap:.4rem 1rem;
         color:#536b7b; background:transparent; border:0; border-bottom:1px solid #cbd5df; border-radius:0;
@@ -73,6 +73,25 @@ def apply_workbench_theme():
     .stPlotlyChart {border:0; padding:0;}
     [data-testid="stCaptionContainer"] {color:#5a7080;}
     [data-testid="stSidebar"] {background:#e5ebf0; border-right:1px solid #cbd5df;}
+    [data-testid="stSidebar"] h1 {font-size:1.2rem; line-height:1.4;}
+    .st-key-semantic_heading h3 {font-size:1.1rem; padding:.15rem 0;}
+    .st-key-semantic_heading [data-testid="stVerticalBlock"] {gap:.15rem;}
+    .st-key-semantic_context {background:#fff; border:1px solid #cbd5df; border-left:3px solid #157985;
+        border-radius:3px; padding:.45rem .75rem .6rem;}
+    .st-key-semantic_context [data-testid="stWidgetLabel"] p,
+    .st-key-semantic_spatial [data-testid="stWidgetLabel"] p,
+    .st-key-semantic_objects [data-testid="stWidgetLabel"] p {font-size:.75rem; color:#536b7b;}
+    .st-key-semantic_objects, .st-key-semantic_spatial, .st-key-semantic_inspector,
+    .st-key-semantic_content, .st-key-semantic_analysis {background:#fff; border-radius:3px;}
+    .st-key-semantic_objects, .st-key-semantic_inspector, .st-key-semantic_analysis {gap:.45rem;}
+    .st-key-semantic_objects [data-testid="stButton"] button,
+    .st-key-semantic_inspector [data-testid="stButton"] button {min-height:2.25rem; text-align:left;}
+    .st-key-semantic_objects [data-testid="stButton"] p,
+    .st-key-semantic_inspector [data-testid="stButton"] p {font-size:.8rem; line-height:1.35;}
+    [class*="st-key-semantic_"] [data-testid="stCaptionContainer"] p {color:#536b7b; font-size:.75rem; line-height:1.45;}
+    .st-key-semantic_inspector pre {white-space:pre-wrap; overflow-wrap:anywhere; font-size:.75rem;}
+    .st-key-semantic_content [data-testid="stTabs"] {gap:.35rem;}
+    .st-key-semantic_content [data-testid="stTab"] {font-size:.8rem;}
     @media (max-width:700px) {
         .block-container{padding-top:3rem;}
         .workbench-header {padding:.7rem;}

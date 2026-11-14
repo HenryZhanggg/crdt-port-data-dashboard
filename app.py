@@ -181,7 +181,7 @@ PROCESS_STATE_COLORS = {
 
 
 st.set_page_config(
-    page_title="CRDT-Port | Resilience Workbench",
+    page_title="CRDT port dashboard version 1",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -203,10 +203,10 @@ def require_dashboard_authorisation() -> bool:
     configured_password = get_dashboard_password()
     auth_panel = st.empty()
     with auth_panel.container():
-        st.title("CRDT-Port Data Visualisation Dashboard")
+        st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · Ontology-guided main demo")
+        st.caption("Interface update: 14 November 2026 · CRDT port dashboard version 1")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -1331,7 +1331,7 @@ def main() -> None:
     catalog = load_high_score_catalog()
     service_area = load_service_area()
 
-    st.sidebar.title("CRDT-Port")
+    st.sidebar.title("CRDT port dashboard version 1")
     if st.sidebar.button("Lock dashboard"):
         st.session_state["dashboard_authorised"] = False
         for field in ["partner_runs", "dependency_package", "current_run_id", "current_run_picker", "workbench_entity_id"]:
@@ -1385,7 +1385,7 @@ def main() -> None:
         st.session_state[view_key] = sections[section][0]
     page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
 
-    st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT / PORT SYSTEMS</span>'
+    st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT port dashboard version 1</span>'
         '<span class="workbench-subtitle">RESILIENCE WORKBENCH</span></div>'
         '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>', unsafe_allow_html=True)
     if page != "Overview":

@@ -54,25 +54,27 @@ def _spatial_view(entities, relations, selected, graph, revision):
         for relation in relations:
             a, b = positions[relation['source_id']], positions[relation['target_id']]
             fig.add_trace(go.Scatter(x=[a[0], b[0]], y=[a[1], b[1]], mode='lines',
-                                    line={'color':'#9aabb8','width':1.5}, hoverinfo='skip', showlegend=False))
+                                    line={'color':'#698b9e','width':1.5}, hoverinfo='skip', showlegend=False))
             fig.add_annotation(x=(a[0]+b[0])/2, y=(a[1]+b[1])/2, text=escape(relation['relation_label']),
-                               showarrow=False, font={'size':11,'color':'#526b7b'})
+                               showarrow=False, font={'size':11,'color':'#b9cfdb'})
             if relation['relation_type'] != 'demo:connectedTo':
                 fig.add_annotation(x=a[0]+.72*(b[0]-a[0]), y=a[1]+.72*(b[1]-a[1]),
                     ax=a[0]+.55*(b[0]-a[0]), ay=a[1]+.55*(b[1]-a[1]),
                     xref='x', yref='y', axref='x', ayref='y', text='', showarrow=True,
-                    arrowhead=2, arrowcolor='#6b8b9b', arrowsize=1)
+                    arrowhead=2, arrowcolor='#a1bdcc', arrowsize=1)
         fig.add_trace(go.Scatter(x=[positions[row['entity_id']][0] for row in entities],
             y=[positions[row['entity_id']][1] for row in entities], mode='markers+text',
-            text=[row['name'] for row in entities],
+            text=[row['type_label'] for row in entities], hovertext=[row['name'] for row in entities],
             textposition=['middle left' if positions[row['entity_id']][0]>.7 else
                           'middle right' if positions[row['entity_id']][0]<-.7 else 'top center' for row in entities],
             customdata=[[row['entity_id']] for row in entities],
             marker={'size':[24 if row['entity_id']==selected else 17 for row in entities],
-                    'color':['#087f8c' if row['entity_id']==selected else '#849cae' for row in entities]},
-            hovertemplate='%{text}<extra>Illustrative object</extra>', showlegend=False))
+                    'color':['#41c2cc' if row['entity_id']==selected else '#9ab6c9' for row in entities],
+                    'line':{'color':'#d9eef5','width':1}},
+            hovertemplate='%{hovertext}<br>%{customdata[0]}<extra>Illustrative object</extra>', showlegend=False))
         fig.update_xaxes(visible=False, range=[-1.5,1.5]); fig.update_yaxes(visible=False, range=[-1.4,1.5])
-        fig = chart_style(fig, 365).update_layout(hovermode='closest')
+        fig = chart_style(fig, 365).update_layout(hovermode='closest', paper_bgcolor='#112434',
+            plot_bgcolor='#112434', font={'color':'#d9e8ef','size':12})
         event = st.plotly_chart(fig, width='stretch', key=f'semantic_graph_{revision}',
                                on_select='rerun', selection_mode='points')
         return _selected_id(event, graph=True)
@@ -131,8 +133,9 @@ def render_semantic_demo():
         _choose_object(pending, ids[pending]['type_uri'])
     if st.session_state.get('semantic_entity_id') not in ids:
         st.session_state['semantic_entity_id'] = 'demo:terminal_a'
-    st.subheader('Ontology-guided port demo')
-    st.caption('ILLUSTRATIVE DEMO · local draft ontology · synthetic data dated 14 November 2026 · not operational evidence')
+    with st.container(key='semantic_heading'):
+        st.subheader('Ontology-guided workspace')
+        st.caption('ILLUSTRATIVE DATA · local draft ontology · sample day 14 November 2026')
     with st.container(key='semantic_context'):
         cols = st.columns([1.3,1.4,1.3], gap='small')
         period = cols[0].date_input('Demo period', value=(date(2026,11,14),date(2026,11,14)), key='semantic_period')
@@ -147,7 +150,7 @@ def render_semantic_demo():
     start, end = period
     left, centre, right = st.columns([.9,2.5,1.25], gap='small')
     with left, st.container(border=True, key='semantic_objects'):
-        st.markdown('**OBJECT TYPES & INSTANCES**')
+        st.markdown('<div class="workbench-panel-title">OBJECT REGISTER</div>', unsafe_allow_html=True)
         types = {'All':'All types', **{r['uri']:r['label'] for r in service.types()}}
         type_uri = st.selectbox('Object type', list(types), format_func=types.get, key='semantic_type',
                                 on_change=_change_type)
@@ -156,7 +159,7 @@ def render_semantic_demo():
             st.session_state['semantic_entity_id'] = candidates[0]['entity_id']
         selected = st.session_state['semantic_entity_id']
         for entity in candidates:
-            st.button(entity['name'], key='semantic_object_'+entity['entity_id'], width='stretch',
+            st.button(entity['name'].removesuffix(' (DEMO)'), key='semantic_object_'+entity['entity_id'], width='stretch',
                       type='primary' if entity['entity_id']==selected else 'secondary',
                       on_click=_choose_object, args=(entity['entity_id'],entity['type_uri']))
             st.caption(entity['type_label'])
@@ -176,15 +179,15 @@ def render_semantic_demo():
         st.caption(f"{len(relations)} declared illustrative relationships · {relation_labels[relation_type]}")
         st.caption('Approximate demo coordinates. Relationships are declared examples; they do not compute cascading impacts.')
     with right, st.container(border=True, key='semantic_inspector'):
-        st.markdown('**OBJECT INSPECTOR**')
-        st.markdown('**' + entity['name'] + '**')
+        st.markdown('<div class="workbench-panel-title">OBJECT INSPECTOR</div>', unsafe_allow_html=True)
+        st.markdown('**' + entity['name'].removesuffix(' (DEMO)') + '**')
         st.code(entity['entity_id']+'\n'+entity['type_uri'], language=None)
         st.caption('Source aliases: '+', '.join(entity['source_ids']))
         st.markdown('**RELATED OBJECTS**')
         related = service.related(selected, relation_type=relation_arg, start=start, end=end)
         for item in related:
             neighbor = ids[item['neighbor_id']]
-            st.button(item['display_relation']+' · '+item['neighbor_name'], width='stretch',
+            st.button(item['display_relation']+' · '+item['neighbor_name'].removesuffix(' (DEMO)'), width='stretch',
                       key='semantic_related_'+item['neighbor_id'], on_click=_choose_object,
                       args=(item['neighbor_id'],neighbor['type_uri']))
         if not related:
@@ -194,6 +197,7 @@ def render_semantic_demo():
         st.write(scenarios[scenario] if mode=='Scenario results' else 'Illustrative observations and state')
     content, analysis = st.columns([3.4,1.25], gap='small')
     with content, st.container(border=True, key='semantic_content'):
+        st.markdown('<div class="workbench-panel-title">OBJECT DATA & RESULTS</div>', unsafe_allow_html=True)
         profile = service.profile(selected)
         tabs = [t for t in profile['tabs'] if (t['kind']=='scenario') == (mode=='Scenario results')]
         if not tabs:
@@ -208,7 +212,7 @@ def render_semantic_demo():
                     if not products:
                         st.info('No sample product matches this object, view and period.')
     with analysis, st.container(border=True, key='semantic_analysis'):
-        st.markdown('**RELATED ANALYSES**')
+        st.markdown('<div class="workbench-panel-title">RELATED ANALYSES</div>', unsafe_allow_html=True)
         for model in service.models(selected):
             st.markdown('**'+model['name']+'**')
             st.caption(model['description'])
