@@ -1,6 +1,6 @@
 # CRDT port dashboard version 1
 
-The version 1 interface uses compact white engineering panels, a navy maritime map and relationship view, shorter object-navigation labels, and a shared object inspector. Browser, login, sidebar and application header use the same display name. Illustrative-data labels and full identities/provenance remain available throughout the semantic workspace.
+The version 1 interface uses compact white engineering panels, a navy maritime map and relationship view, shorter object-navigation labels, and a shared object inspector. Browser, login, sidebar, application header and inner page heading use the same display name. Selected-object links are emphasized, with a textual legend and labeled identity/time/evidence fields. Illustrative-data labels and full identities/provenance remain available throughout the semantic workspace.
 
 This repository contains an ontology-guided home demonstration and a separate live-monitoring workbench for CRDT-Port. The default Overview uses a local RDF vocabulary, typed fictional objects, declared relationships and synthetic products to demonstrate semantic navigation and linked views. Live Monitoring retains real-source observation, quality and SOSA/SHACL inspection. Executable partner models and formal WP1 ontology alignment remain pending.
 
@@ -22,13 +22,13 @@ Design references: [Rotterdam Weather & Tide](https://www.portofrotterdam.com/en
 
 Partner contracts and the minimum handover are documented in [docs/module-integration.md](docs/module-integration.md). The editable capability register is [data/wp_modules.json](data/wp_modules.json). The new code is split into `module_contracts.py` (registry and validated handovers), `workbench_data.py` (workspace identity and selection), and `workbench_views.py` (composable views). No new production dependency is required.
 
-### Ontology-guided home demo (14 November 2026)
+### Version 1 system overview (14 November 2026)
 
 Overview now opens the main-page semantic demo. Use **Object type** and the object buttons, select **Map / Relations**, filter a **Relationship**, and follow related-object buttons in the inspector. The shared selection changes the available view profile and data products. **Content mode** and **Scenario** switch to illustrative impact/recovery outputs. The fixed **Demo period** defaults to 14 November 2026; changing it outside sample coverage returns unavailable products rather than zero values. The demo does not depend on live feeds or the current calendar date.
 
 `semantic_service.py` queries RDF types, labels, relation instances, inverse labels and validity from `ontology/semantic_demo.ttl`. `data/semantic_demo.json` supplies type-to-view profiles, 20 synthetic products, two scenario contexts and non-executable model descriptors. `semantic_views.py` renders object navigation, map/graph picking, related-object jumps, product views and source/quality evidence. All demonstration objects and products use `demo:` identifiers. Coordinates are approximate and every source, relationship and numeric value is illustrative. The local draft is not the approved WP1 ontology, and relations do not trigger automatic impact propagation.
 
-The **Ontology demo** shortcut returns to Overview. **Monitor** opens **Live Monitoring**, with its original current/historical observation controls and source-derived object IDs. Demo selection and results do not replace live-object selection or imported partner packages. The previous **Integration Demo** teaching page and its implementation have been removed. Real partner result and dependency intake remains available through the existing model workspaces. No production dependency was added.
+The **System overview** shortcut returns to Overview. **Monitor** opens **Live Monitoring**, with its original current/historical observation controls and source-derived object IDs. Demo selection and results do not replace live-object selection or imported partner packages. The previous **Integration Demo** teaching page and its implementation have been removed. Real partner result and dependency intake remains available through the existing model workspaces. No production dependency was added.
 
 ## Monitoring and Research Workspace
 

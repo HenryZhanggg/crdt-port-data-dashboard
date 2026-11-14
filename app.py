@@ -206,7 +206,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · CRDT port dashboard version 1")
+        st.caption("Interface update: 14 November 2026 · Version 1 · System overview")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -1411,7 +1411,7 @@ def main() -> None:
         st.session_state["monitor_end"] = dates[1].isoformat()
 
     if page == "Overview":
-        st.markdown('<div class="workspace-meta"><span>ONTOLOGY-GUIDED DEMO / HOME</span>'
+        st.markdown('<div class="workspace-meta"><span>PORT SYSTEMS / OVERVIEW</span>'
                     '<span>ILLUSTRATIVE DATA · 14 NOVEMBER 2026</span></div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="workspace-meta"><span>{escape(section.upper())} / {escape(page.upper())}</span>'

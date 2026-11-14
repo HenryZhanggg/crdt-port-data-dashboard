@@ -53,15 +53,18 @@ def _spatial_view(entities, relations, selected, graph, revision):
         fig = go.Figure()
         for relation in relations:
             a, b = positions[relation['source_id']], positions[relation['target_id']]
+            active = selected in (relation['source_id'], relation['target_id'])
             fig.add_trace(go.Scatter(x=[a[0], b[0]], y=[a[1], b[1]], mode='lines',
-                                    line={'color':'#698b9e','width':1.5}, hoverinfo='skip', showlegend=False))
+                line={'color':'#41c2cc' if active else '#496374','width':2.4 if active else 1},
+                hoverinfo='skip', showlegend=False))
             fig.add_annotation(x=(a[0]+b[0])/2, y=(a[1]+b[1])/2, text=escape(relation['relation_label']),
-                               showarrow=False, font={'size':11,'color':'#b9cfdb'})
+                showarrow=False, bgcolor='#112434', borderpad=2,
+                font={'size':11,'color':'#d9eef5' if active else '#91aab9'})
             if relation['relation_type'] != 'demo:connectedTo':
                 fig.add_annotation(x=a[0]+.72*(b[0]-a[0]), y=a[1]+.72*(b[1]-a[1]),
                     ax=a[0]+.55*(b[0]-a[0]), ay=a[1]+.55*(b[1]-a[1]),
                     xref='x', yref='y', axref='x', ayref='y', text='', showarrow=True,
-                    arrowhead=2, arrowcolor='#a1bdcc', arrowsize=1)
+                    arrowhead=2, arrowcolor='#41c2cc' if active else '#678697', arrowsize=1)
         fig.add_trace(go.Scatter(x=[positions[row['entity_id']][0] for row in entities],
             y=[positions[row['entity_id']][1] for row in entities], mode='markers+text',
             text=[row['type_label'] for row in entities], hovertext=[row['name'] for row in entities],
@@ -79,12 +82,15 @@ def _spatial_view(entities, relations, selected, graph, revision):
                                on_select='rerun', selection_mode='points')
         return _selected_id(event, graph=True)
     points = [dict(row, color=[65,194,204] if row['entity_id']==selected else [154,182,201],
+                   label_border=1 if row['entity_id']==selected else 0,
                    label_anchor='start' if row['lon'] < -3.0165 else 'end') for row in entities]
     links = [{'source':[ids[r['source_id']]['lon'], ids[r['source_id']]['lat']],
               'target':[ids[r['target_id']]['lon'], ids[r['target_id']]['lat']],
-              'name':r['relation_label']} for r in relations]
+              'name':r['relation_label'],
+              'color':[65,194,204,240] if selected in (r['source_id'],r['target_id']) else [129,157,176,120],
+              'width':3 if selected in (r['source_id'],r['target_id']) else 1.2} for r in relations]
     layers = [pdk.Layer('LineLayer', links, get_source_position='source', get_target_position='target',
-                         get_color=[150,180,200,170], get_width=2, width_min_pixels=1),
+                         get_color='color', get_width='width', width_min_pixels=1),
               pdk.Layer('ScatterplotLayer', points, id='semantic_objects', get_position='[lon, lat]',
                          get_fill_color='color', get_radius=55, radius_min_pixels=7, pickable=True),
               pdk.Layer('ScatterplotLayer', [row for row in points if row['entity_id']==selected],
@@ -92,8 +98,11 @@ def _spatial_view(entities, relations, selected, graph, revision):
                          stroked=True, get_line_color=[255,255,255], line_width_min_pixels=2),
               pdk.Layer('TextLayer', points, id='semantic_labels', get_position='[lon, lat]', get_text='type_label',
                          get_color=[223,239,247], get_size=12, get_pixel_offset=[0,-19],
+                         font_family=pdk.types.String('Consolas, monospace'),
+                         background=True, get_background_color=[10,29,43,235], background_padding=[5,3],
+                         get_border_width='label_border', get_border_color=[65,194,204,255],
                          get_text_anchor='label_anchor', pickable=True)]
-    deck = pdk.Deck(layers=layers, initial_view_state=pdk.ViewState(latitude=53.4475,longitude=-3.0165,zoom=13.3),
+    deck = pdk.Deck(layers=layers, initial_view_state=pdk.ViewState(latitude=53.4475,longitude=-3.0165,zoom=13.15),
                     map_style=MARITIME_STYLE, tooltip={'html':'<b>{name}</b><br/>Illustrative object'})
     event = st.pydeck_chart(deck, height=365, width='stretch', key=f'semantic_map_{revision}', on_select='rerun',
                             selection_mode='single-object')
@@ -134,8 +143,9 @@ def render_semantic_demo():
     if st.session_state.get('semantic_entity_id') not in ids:
         st.session_state['semantic_entity_id'] = 'demo:terminal_a'
     with st.container(key='semantic_heading'):
-        st.subheader('Ontology-guided workspace')
-        st.caption('ILLUSTRATIVE DATA · local draft ontology · sample day 14 November 2026')
+        st.subheader('CRDT port dashboard version 1')
+        st.markdown('<div class="semantic-status"><span>ILLUSTRATIVE DATA</span>'
+            '<span>DRAFT ONTOLOGY</span><span>SAMPLE DAY · 14 NOV 2026</span></div>', unsafe_allow_html=True)
     with st.container(key='semantic_context'):
         cols = st.columns([1.3,1.4,1.3], gap='small')
         period = cols[0].date_input('Demo period', value=(date(2026,11,14),date(2026,11,14)), key='semantic_period')
@@ -165,6 +175,7 @@ def render_semantic_demo():
             st.caption(entity['type_label'])
     entity = ids[selected]
     with centre, st.container(border=True, key='semantic_spatial'):
+        st.markdown('<div class="workbench-panel-title">SPATIAL & RELATIONSHIP VIEW</div>', unsafe_allow_html=True)
         controls = st.columns([1,1.25], gap='small')
         view = controls[0].radio('Spatial view', ['Map','Relations'], key='semantic_spatial_view', horizontal=True)
         relation_labels = {'All':'All declared relationships', **{r['uri']:r['label'] for r in service.relation_types()}}
@@ -177,13 +188,17 @@ def render_semantic_demo():
             st.session_state['semantic_pending_entity'] = picked
             st.rerun()
         st.caption(f"{len(relations)} declared illustrative relationships · {relation_labels[relation_type]}")
-        st.caption('Approximate demo coordinates. Relationships are declared examples; they do not compute cascading impacts.')
+        st.markdown('<div class="semantic-legend"><span><i class="semantic-node"></i>Selected object</span>'
+            '<span><i class="semantic-edge"></i>Direct declared link</span>'
+            '<span><i class="semantic-edge semantic-muted"></i>Other declared link</span></div>', unsafe_allow_html=True)
     with right, st.container(border=True, key='semantic_inspector'):
         st.markdown('<div class="workbench-panel-title">OBJECT INSPECTOR</div>', unsafe_allow_html=True)
         st.markdown('**' + entity['name'].removesuffix(' (DEMO)') + '**')
-        st.code(entity['entity_id']+'\n'+entity['type_uri'], language=None)
+        st.markdown('<dl class="workbench-reference semantic-fields"><dt>Object ID</dt><dd>'
+            +escape(entity['entity_id'])+'</dd><dt>Type</dt><dd>'+escape(entity['type_uri'])+'</dd>'
+            '<dt>Evidence</dt><dd>Illustrative</dd></dl>', unsafe_allow_html=True)
         st.caption('Source aliases: '+', '.join(entity['source_ids']))
-        st.markdown('**RELATED OBJECTS**')
+        st.markdown('<div class="workbench-panel-title">RELATED OBJECTS</div>', unsafe_allow_html=True)
         related = service.related(selected, relation_type=relation_arg, start=start, end=end)
         for item in related:
             neighbor = ids[item['neighbor_id']]
@@ -192,9 +207,11 @@ def render_semantic_demo():
                       args=(item['neighbor_id'],neighbor['type_uri']))
         if not related:
             st.caption('No matching declared relationship in this selection; this does not establish independence.')
-        st.markdown('**VIEW CONTEXT**')
-        st.write(f'{start} to {end}')
-        st.write(scenarios[scenario] if mode=='Scenario results' else 'Illustrative observations and state')
+        st.markdown('<div class="workbench-panel-title">VIEW CONTEXT</div>', unsafe_allow_html=True)
+        st.markdown('<dl class="workbench-reference semantic-fields"><dt>Period</dt>'
+            f'<dd>{start}<br>to {end}</dd><dt>Content</dt><dd>'
+            +escape(scenarios[scenario] if mode=='Scenario results' else 'Illustrative observations and state')
+            +'</dd></dl>', unsafe_allow_html=True)
     content, analysis = st.columns([3.4,1.25], gap='small')
     with content, st.container(border=True, key='semantic_content'):
         st.markdown('<div class="workbench-panel-title">OBJECT DATA & RESULTS</div>', unsafe_allow_html=True)
@@ -215,15 +232,16 @@ def render_semantic_demo():
         st.markdown('<div class="workbench-panel-title">RELATED ANALYSES</div>', unsafe_allow_html=True)
         for model in service.models(selected):
             st.markdown('**'+model['name']+'**')
-            st.caption(model['description'])
-            st.caption('Required products: '+', '.join(model['required_products']))
+            st.markdown('<div class="semantic-status"><span>MODEL NOT CONNECTED</span></div>', unsafe_allow_html=True)
             st.button('Run model', key='semantic_run_'+model['model_id'], disabled=True, width='stretch')
-            st.caption(model['status_reason'])
+            with st.expander('Model requirements & status'):
+                st.caption(model['description'])
+                st.caption('Required products: '+', '.join(model['required_products']))
+                st.caption(model['status_reason'])
         st.button('View illustrative results', on_click=_show_scenario, width='stretch', key='semantic_view_results')
-    st.caption(f"Shared context: {selected} · {start} to {end} · "
-               + (scenario if mode=='Scenario results' else 'observations/state')+' · '+relation_labels[relation_type])
     with st.expander('Semantic definitions, products and relationship evidence'):
         st.write(service.metadata['ontology_status'])
+        st.caption(service.metadata['coordinate_note']+' '+service.metadata['relation_note'])
         st.dataframe(pd.DataFrame(relations), hide_index=True, width='stretch')
         st.download_button('Download this demo context', json.dumps({'entity_id':selected,'type_uri':entity['type_uri'],
             'start':str(start),'end':str(end),'mode':mode,'scenario_id':scenario if mode=='Scenario results' else None,

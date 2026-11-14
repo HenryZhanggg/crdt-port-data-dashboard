@@ -24,7 +24,7 @@ class SemanticViewTests(unittest.TestCase):
 
     def test_default_home_is_semantic_demo_without_fetching_live_feeds(self):
         app=self.app()
-        self.assertTrue(any('Ontology-guided workspace' in x.value for x in app.subheader))
+        self.assertTrue(any('CRDT port dashboard version 1' in x.value for x in app.subheader))
         self.assertTrue(any(x.label=='Object type' for x in app.selectbox))
         self.assertTrue(any(x.label=='Relationship' for x in app.selectbox))
         self.fetch.assert_not_called()
@@ -55,7 +55,7 @@ class SemanticViewTests(unittest.TestCase):
         next(x for x in app.button if x.key=='semantic_related_demo:power_a').click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['semantic_entity_id'],'demo:power_a')
-        self.assertTrue(any('UtilityFacility' in str(x.value) for x in app.code))
+        self.assertTrue(any('UtilityFacility' in str(x.value) for x in app.markdown))
 
     def test_scenario_and_graph_selection_are_available(self):
         app=self.app()

@@ -74,7 +74,7 @@ def apply_workbench_theme():
     [data-testid="stCaptionContainer"] {color:#5a7080;}
     [data-testid="stSidebar"] {background:#e5ebf0; border-right:1px solid #cbd5df;}
     [data-testid="stSidebar"] h1 {font-size:1.2rem; line-height:1.4;}
-    .st-key-semantic_heading h3 {font-size:1.1rem; padding:.15rem 0;}
+    .st-key-semantic_heading h3 {font-size:1.3rem; padding:.15rem 0;}
     .st-key-semantic_heading [data-testid="stVerticalBlock"] {gap:.15rem;}
     .st-key-semantic_context {background:#fff; border:1px solid #cbd5df; border-left:3px solid #157985;
         border-radius:3px; padding:.45rem .75rem .6rem;}
@@ -92,6 +92,21 @@ def apply_workbench_theme():
     .st-key-semantic_inspector pre {white-space:pre-wrap; overflow-wrap:anywhere; font-size:.75rem;}
     .st-key-semantic_content [data-testid="stTabs"] {gap:.35rem;}
     .st-key-semantic_content [data-testid="stTab"] {font-size:.8rem;}
+    .semantic-status {display:flex; flex-wrap:wrap; gap:.35rem .5rem; color:#466172;
+        font: .68rem/1.5 Consolas,monospace; letter-spacing:.025em;}
+    .semantic-status span {padding:.15rem .45rem; background:#eaf1f5; border:1px solid #ccdae3; border-radius:2px;}
+    .semantic-legend {display:flex; flex-wrap:wrap; gap:.35rem 1rem; color:#466172; font-size:.72rem;}
+    .semantic-legend span {display:inline-flex; align-items:center; gap:.4rem;}
+    .semantic-legend i {display:inline-block; flex-shrink:0; background:#157985;}
+    .semantic-node {width:8px; height:8px; border-radius:50%;}
+    .semantic-edge {width:18px; height:3px;}
+    .semantic-legend .semantic-muted {height:1px; background:#718a9a;}
+    .semantic-fields {grid-template-columns:64px minmax(0,1fr); margin:.15rem 0; gap:.4rem .5rem;}
+    [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .semantic-status),
+    [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .semantic-fields),
+    [class*="st-key-semantic_"] [data-testid="stMarkdownContainer"]:has(> .workbench-panel-title) {margin-bottom:0;}
+    .st-key-semantic_inspector .semantic-fields dt {font:.75rem/1.55 sans-serif;}
+    .st-key-semantic_inspector .semantic-fields dd {font:.78rem/1.55 Consolas,monospace;}
     @media (max-width:700px) {
         .block-container{padding-top:3rem;}
         .workbench-header {padding:.7rem;}
@@ -112,7 +127,7 @@ def navigate(section, page):
 
 
 def render_shortcuts(sections, current_page):
-    targets = [('Ontology demo', 'Monitoring', 'Overview'),
+    targets = [('System overview', 'Monitoring', 'Overview'),
                ('Monitor', 'Monitoring', 'Live Monitoring'),
                ('Objects & dependencies', 'Models & Dependencies', 'Objects & Dependencies'),
                ('Scenarios & runs', 'Models & Dependencies', 'Scenarios & Runs'),
