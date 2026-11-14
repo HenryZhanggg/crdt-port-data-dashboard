@@ -1,0 +1,54 @@
+@prefix demo: <https://example.invalid/crdt-demo/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+demo:ontology a owl:Ontology ;
+    rdfs:label "Local illustrative semantic demo" ;
+    rdfs:comment "Local illustrative semantic demo, not approved WP1 ontology. Every object, relation and evidence reference is synthetic; coordinates are approximate Liverpool-area demo positions. Relations do not establish real dependencies or automatic cascades." .
+
+demo:InfrastructureAsset a rdfs:Class ; rdfs:label "Infrastructure asset" .
+demo:Port a rdfs:Class ; rdfs:subClassOf demo:InfrastructureAsset ; rdfs:label "Port" .
+demo:Terminal a rdfs:Class ; rdfs:subClassOf demo:InfrastructureAsset ; rdfs:label "Terminal" .
+demo:Road a rdfs:Class ; rdfs:subClassOf demo:InfrastructureAsset ; rdfs:label "Road" .
+demo:MonitoringStation a rdfs:Class ; rdfs:subClassOf demo:InfrastructureAsset ; rdfs:label "Monitoring station" .
+demo:UtilityFacility a rdfs:Class ; rdfs:subClassOf demo:InfrastructureAsset ; rdfs:label "Utility facility" .
+demo:Relation a rdfs:Class ; rdfs:label "Illustrative relation assertion" .
+
+demo:partOf a rdf:Property ; rdfs:label "part of" ; demo:inverseLabel "contains" .
+demo:observesArea a rdf:Property ; rdfs:label "observes area" ; demo:inverseLabel "observed by" .
+demo:connectedTo a rdf:Property ; rdfs:label "connected to" ; demo:inverseLabel "connected to" .
+demo:dependsOn a rdf:Property ; rdfs:label "depends on" ; demo:inverseLabel "supports" .
+
+demo:port_a a demo:Port ; rdfs:label "Mersey Port A (DEMO)" ;
+    demo:lat 53.448 ; demo:lon -3.018 ; demo:source demo:fixture ;
+    demo:coordinateNote "Approximate Liverpool-area demo position; not a surveyed asset location." .
+demo:terminal_a a demo:Terminal ; rdfs:label "North Terminal A (DEMO)" ;
+    demo:lat 53.452 ; demo:lon -3.022 ; demo:source demo:fixture ;
+    demo:coordinateNote "Approximate Liverpool-area demo position; not a surveyed asset location." .
+demo:road_a a demo:Road ; rdfs:label "Dock Access Road A (DEMO)" ;
+    demo:lat 53.449 ; demo:lon -3.009 ; demo:source demo:fixture ;
+    demo:coordinateNote "Approximate Liverpool-area demo position; not a surveyed asset location." .
+demo:gauge_a a demo:MonitoringStation ; rdfs:label "Estuary Gauge A (DEMO)" ;
+    demo:lat 53.441 ; demo:lon -3.024 ; demo:source demo:fixture ;
+    demo:coordinateNote "Approximate Liverpool-area demo position; not a surveyed station location." .
+demo:power_a a demo:UtilityFacility ; rdfs:label "Power Facility A (DEMO)" ;
+    demo:lat 53.454 ; demo:lon -3.012 ; demo:source demo:fixture ;
+    demo:coordinateNote "Approximate Liverpool-area demo position; not a surveyed facility location." .
+
+demo:terminal_part_of_port a demo:Relation ; demo:sourceEntity demo:terminal_a ; demo:targetEntity demo:port_a ;
+    demo:relationType demo:partOf ; demo:validFrom "2026-11-14T00:00:00Z"^^xsd:dateTime ; demo:validTo "2026-11-14T23:59:59Z"^^xsd:dateTime ;
+    demo:evidenceRef demo:illustrative_layout ; demo:evidenceRole "illustrative" .
+demo:power_part_of_port a demo:Relation ; demo:sourceEntity demo:power_a ; demo:targetEntity demo:port_a ;
+    demo:relationType demo:partOf ; demo:validFrom "2026-11-14T00:00:00Z"^^xsd:dateTime ; demo:validTo "2026-11-14T23:59:59Z"^^xsd:dateTime ;
+    demo:evidenceRef demo:illustrative_layout ; demo:evidenceRole "illustrative" .
+demo:gauge_observes_port a demo:Relation ; demo:sourceEntity demo:gauge_a ; demo:targetEntity demo:port_a ;
+    demo:relationType demo:observesArea ; demo:validFrom "2026-11-14T00:00:00Z"^^xsd:dateTime ; demo:validTo "2026-11-14T23:59:59Z"^^xsd:dateTime ;
+    demo:evidenceRef demo:illustrative_layout ; demo:evidenceRole "illustrative" .
+demo:road_connected_to_terminal a demo:Relation ; demo:sourceEntity demo:road_a ; demo:targetEntity demo:terminal_a ;
+    demo:relationType demo:connectedTo ; demo:validFrom "2026-11-14T00:00:00Z"^^xsd:dateTime ; demo:validTo "2026-11-14T23:59:59Z"^^xsd:dateTime ;
+    demo:evidenceRef demo:illustrative_layout ; demo:evidenceRole "illustrative" .
+demo:terminal_depends_on_power a demo:Relation ; demo:sourceEntity demo:terminal_a ; demo:targetEntity demo:power_a ;
+    demo:relationType demo:dependsOn ; demo:validFrom "2026-11-14T00:00:00Z"^^xsd:dateTime ; demo:validTo "2026-11-14T23:59:59Z"^^xsd:dateTime ;
+    demo:evidenceRef demo:illustrative_dependency ; demo:evidenceRole "illustrative" .

@@ -19,6 +19,8 @@ class WorkbenchViewTests(unittest.TestCase):
         self.addCleanup(self.fetch.stop)
         app = AppTest.from_file('app.py', default_timeout=30)
         app.session_state['dashboard_authorised'] = True
+        app.session_state['workspace_section'] = 'Monitoring'
+        app.session_state['workspace_view_Monitoring'] = 'Live Monitoring'
         return app.run()
 
     def test_home_has_shared_inspector_and_composable_panels(self):

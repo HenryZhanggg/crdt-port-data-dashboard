@@ -1,5 +1,7 @@
 # Partner integration demo implementation plan
 
+Superseded: the teaching page and implementation were removed in favour of the ontology-guided Overview. See 2026-11-14-semantic-home-demo.md. Historical verification below describes the retired version.
+
 > **For agentic workers:** Use subagent-driven-development for the connection checks, followed by independent review and application verification.
 
 **Goal:** Extend the existing workbench with an English-language partner walkthrough of shared viewing, explicit output-to-input handovers and conditional execution-order previews.

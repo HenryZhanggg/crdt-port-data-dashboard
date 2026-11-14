@@ -93,11 +93,11 @@ def navigate(section, page):
 
 
 def render_shortcuts(sections, current_page):
-    targets = [('Monitor', 'Monitoring', 'Overview'),
+    targets = [('Ontology demo', 'Monitoring', 'Overview'),
+               ('Monitor', 'Monitoring', 'Live Monitoring'),
                ('Objects & dependencies', 'Models & Dependencies', 'Objects & Dependencies'),
                ('Scenarios & runs', 'Models & Dependencies', 'Scenarios & Runs'),
                ('Data & evidence', 'Data & Research', 'Dataset Catalogue'),
-               ('Integration demo', 'WP Delivery', 'Integration Demo'),
                ('WP modules', 'WP Delivery', 'Module Registry')]
     available = [(label, section, page) for label, section, page in targets if page in sections.get(section, [])]
     if not available:
@@ -523,7 +523,7 @@ def _apply_task(name):
     st.session_state['workbench_panel_preset'] = TASKS[name][2]
     st.session_state.pop('workbench_panels', None)
     st.session_state['demonstrator_task'] = name
-    navigate('Monitoring', 'Overview')
+    navigate('Monitoring', 'Live Monitoring')
 
 
 def render_demonstrators():

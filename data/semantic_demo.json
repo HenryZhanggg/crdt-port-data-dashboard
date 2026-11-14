@@ -1,0 +1,1238 @@
+{
+  "metadata": {
+    "name": "Ontology-guided port demonstration",
+    "ontology_status": "local illustrative semantic demo, not approved WP1 ontology",
+    "coordinate_note": "Approximate Liverpool-area demo coordinates; all entities are fictional.",
+    "reference_time": "2026-11-14T16:00:00Z",
+    "time_coverage": {
+      "start": "2026-11-14T00:00:00Z",
+      "end": "2026-11-14T23:59:59Z"
+    },
+    "relation_note": "Illustrative assertions only; no real source dependencies, inferred real dependencies, or automatic cascades.",
+    "source_note": "All source references point to local illustrative fixtures."
+  },
+  "sources": [
+    {
+      "source_id": "demo:fixture",
+      "name": "Local synthetic observations and statistics",
+      "role": "illustrative",
+      "description": "Finite hand-authored samples dated 2026-11-14; no live observations or real source attribution."
+    },
+    {
+      "source_id": "demo:illustrative_layout",
+      "name": "Illustrative object layout",
+      "role": "illustrative",
+      "description": "Hand-authored object membership, connectivity and observation-area assertions."
+    },
+    {
+      "source_id": "demo:illustrative_dependency",
+      "name": "Illustrative dependency assertion",
+      "role": "illustrative",
+      "description": "Fictional terminal-to-power relation for browsing; no real-world dependency claim."
+    },
+    {
+      "source_id": "demo:scenario_fixture",
+      "name": "Local synthetic scenario results",
+      "role": "illustrative",
+      "description": "Hand-authored impact and recovery values for result viewing only; no model was executed."
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "demo:weather",
+      "name": "Illustrative weather disruption",
+      "description": "Fictional weather context with fixed impact and recovery outputs dated 2026-11-14."
+    },
+    {
+      "scenario_id": "demo:service",
+      "name": "Illustrative service interruption",
+      "description": "Fictional service context with distinct fixed impact and recovery outputs dated 2026-11-14."
+    }
+  ],
+  "profiles": {
+    "demo:Port": {
+      "label": "Mersey Port view profile",
+      "tabs": [
+        {
+          "id": "activity",
+          "label": "Port activity",
+          "kind": "interval"
+        },
+        {
+          "id": "scenario",
+          "label": "Scenario results",
+          "kind": "scenario"
+        },
+        {
+          "id": "overview",
+          "label": "Object overview",
+          "kind": "summary"
+        }
+      ]
+    },
+    "demo:Terminal": {
+      "label": "North Terminal view profile",
+      "tabs": [
+        {
+          "id": "state",
+          "label": "Terminal state",
+          "kind": "state"
+        },
+        {
+          "id": "scenario",
+          "label": "Scenario results",
+          "kind": "scenario"
+        },
+        {
+          "id": "overview",
+          "label": "Object overview",
+          "kind": "summary"
+        }
+      ]
+    },
+    "demo:Road": {
+      "label": "Dock view profile",
+      "tabs": [
+        {
+          "id": "traffic",
+          "label": "Traffic",
+          "kind": "series"
+        },
+        {
+          "id": "scenario",
+          "label": "Scenario results",
+          "kind": "scenario"
+        },
+        {
+          "id": "overview",
+          "label": "Object overview",
+          "kind": "summary"
+        }
+      ]
+    },
+    "demo:MonitoringStation": {
+      "label": "Estuary Gauge view profile",
+      "tabs": [
+        {
+          "id": "observations",
+          "label": "Water level",
+          "kind": "series"
+        },
+        {
+          "id": "scenario",
+          "label": "Scenario results",
+          "kind": "scenario"
+        },
+        {
+          "id": "overview",
+          "label": "Object overview",
+          "kind": "summary"
+        }
+      ]
+    },
+    "demo:UtilityFacility": {
+      "label": "Power Facility view profile",
+      "tabs": [
+        {
+          "id": "state",
+          "label": "Facility state",
+          "kind": "state"
+        },
+        {
+          "id": "scenario",
+          "label": "Scenario results",
+          "kind": "scenario"
+        },
+        {
+          "id": "overview",
+          "label": "Object overview",
+          "kind": "summary"
+        }
+      ]
+    }
+  },
+  "products": [
+    {
+      "product_id": "demo:port_a_overview",
+      "entity_id": "demo:port_a",
+      "title": "Mersey Port A overview (DEMO)",
+      "view_id": "overview",
+      "kind": "summary",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "state": "Illustrative baseline",
+          "coverage": "2026-11-14 only"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "State",
+          "unit": "category"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:terminal_a_overview",
+      "entity_id": "demo:terminal_a",
+      "title": "North Terminal A overview (DEMO)",
+      "view_id": "overview",
+      "kind": "summary",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "state": "Illustrative baseline",
+          "coverage": "2026-11-14 only"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "State",
+          "unit": "category"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:road_a_overview",
+      "entity_id": "demo:road_a",
+      "title": "Dock Access Road A overview (DEMO)",
+      "view_id": "overview",
+      "kind": "summary",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "state": "Illustrative baseline",
+          "coverage": "2026-11-14 only"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "State",
+          "unit": "category"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:gauge_a_overview",
+      "entity_id": "demo:gauge_a",
+      "title": "Estuary Gauge A overview (DEMO)",
+      "view_id": "overview",
+      "kind": "summary",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "state": "Illustrative baseline",
+          "coverage": "2026-11-14 only"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "State",
+          "unit": "category"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:power_a_overview",
+      "entity_id": "demo:power_a",
+      "title": "Power Facility A overview (DEMO)",
+      "view_id": "overview",
+      "kind": "summary",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "state": "Illustrative baseline",
+          "coverage": "2026-11-14 only"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "State",
+          "unit": "category"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:gauge_a_level",
+      "entity_id": "demo:gauge_a",
+      "title": "Synthetic water level (DEMO)",
+      "view_id": "observations",
+      "kind": "series",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T08:00:00Z",
+          "level": 1.2
+        },
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "level": 1.5
+        },
+        {
+          "timestamp": "2026-11-14T10:00:00Z",
+          "level": null
+        },
+        {
+          "timestamp": "2026-11-14T11:00:00Z",
+          "level": 2.1
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "level": 2.4
+        },
+        {
+          "timestamp": "2026-11-14T13:00:00Z",
+          "level": 2.2
+        },
+        {
+          "timestamp": "2026-11-14T14:00:00Z",
+          "level": 1.8
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "level": 1.4
+        },
+        {
+          "timestamp": "2026-11-14T16:00:00Z",
+          "level": 1.1
+        }
+      ],
+      "metrics": [
+        {
+          "key": "level",
+          "label": "Water level",
+          "unit": "m",
+          "datum": "demo local datum (illustrative)"
+        }
+      ],
+      "role": "Illustrative observation",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 1,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:road_a_traffic",
+      "entity_id": "demo:road_a",
+      "title": "Synthetic road flow and speed (DEMO)",
+      "view_id": "traffic",
+      "kind": "series",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T08:00:00Z",
+          "flow": 420,
+          "speed": 38
+        },
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "flow": 510,
+          "speed": 33
+        },
+        {
+          "timestamp": "2026-11-14T10:00:00Z",
+          "flow": null,
+          "speed": null
+        },
+        {
+          "timestamp": "2026-11-14T11:00:00Z",
+          "flow": 370,
+          "speed": 42
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "flow": 310,
+          "speed": 45
+        },
+        {
+          "timestamp": "2026-11-14T13:00:00Z",
+          "flow": 290,
+          "speed": 47
+        },
+        {
+          "timestamp": "2026-11-14T14:00:00Z",
+          "flow": 350,
+          "speed": 43
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "flow": 410,
+          "speed": 39
+        },
+        {
+          "timestamp": "2026-11-14T16:00:00Z",
+          "flow": 460,
+          "speed": 36
+        }
+      ],
+      "metrics": [
+        {
+          "key": "flow",
+          "label": "Vehicle flow",
+          "unit": "vehicles/hour"
+        },
+        {
+          "key": "speed",
+          "label": "Mean speed",
+          "unit": "km/h"
+        }
+      ],
+      "role": "Illustrative observation",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 1,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:port_a_activity",
+      "entity_id": "demo:port_a",
+      "title": "Synthetic port interval statistics (DEMO)",
+      "view_id": "activity",
+      "kind": "interval",
+      "rows": [
+        {
+          "interval_start": "2026-11-14T08:00:00Z",
+          "interval_end": "2026-11-14T12:00:00Z",
+          "vessel_movements": 12,
+          "cargo": 1800
+        },
+        {
+          "interval_start": "2026-11-14T12:00:00Z",
+          "interval_end": "2026-11-14T16:00:00Z",
+          "vessel_movements": 9,
+          "cargo": 1450
+        }
+      ],
+      "metrics": [
+        {
+          "key": "vessel_movements",
+          "label": "Vessel movements in interval",
+          "unit": "movements/interval"
+        },
+        {
+          "key": "cargo",
+          "label": "Cargo handled in interval",
+          "unit": "tonnes/interval"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:terminal_a_state",
+      "entity_id": "demo:terminal_a",
+      "title": "Synthetic asset states (DEMO)",
+      "view_id": "state",
+      "kind": "state",
+      "rows": [
+        {
+          "interval_start": "2026-11-14T08:00:00Z",
+          "interval_end": "2026-11-14T11:00:00Z",
+          "state": "available",
+          "availability": 100
+        },
+        {
+          "interval_start": "2026-11-14T11:00:00Z",
+          "interval_end": "2026-11-14T13:00:00Z",
+          "state": "restricted",
+          "availability": 75
+        },
+        {
+          "interval_start": "2026-11-14T13:00:00Z",
+          "interval_end": "2026-11-14T16:00:00Z",
+          "state": "available",
+          "availability": 100
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "Asset state",
+          "unit": "category"
+        },
+        {
+          "key": "availability",
+          "label": "Illustrative availability",
+          "unit": "%"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:power_a_state",
+      "entity_id": "demo:power_a",
+      "title": "Synthetic asset states (DEMO)",
+      "view_id": "state",
+      "kind": "state",
+      "rows": [
+        {
+          "interval_start": "2026-11-14T08:00:00Z",
+          "interval_end": "2026-11-14T11:00:00Z",
+          "state": "available",
+          "availability": 100
+        },
+        {
+          "interval_start": "2026-11-14T11:00:00Z",
+          "interval_end": "2026-11-14T13:00:00Z",
+          "state": "maintenance",
+          "availability": 75
+        },
+        {
+          "interval_start": "2026-11-14T13:00:00Z",
+          "interval_end": "2026-11-14T16:00:00Z",
+          "state": "available",
+          "availability": 100
+        }
+      ],
+      "metrics": [
+        {
+          "key": "state",
+          "label": "Asset state",
+          "unit": "category"
+        },
+        {
+          "key": "availability",
+          "label": "Illustrative availability",
+          "unit": "%"
+        }
+      ],
+      "role": "Illustrative statistic",
+      "provenance": {
+        "source_id": "demo:fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored finite synthetic fixture",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      }
+    },
+    {
+      "product_id": "demo:port_a_weather_results",
+      "entity_id": "demo:port_a",
+      "title": "Mersey Port A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 25,
+          "recovery_hours": 4
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 12.5,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:weather",
+      "model_id": "demo:port_a_preview_model"
+    },
+    {
+      "product_id": "demo:port_a_service_results",
+      "entity_id": "demo:port_a",
+      "title": "Mersey Port A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 40,
+          "recovery_hours": 3
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 20.0,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:service",
+      "model_id": "demo:port_a_preview_model"
+    },
+    {
+      "product_id": "demo:terminal_a_weather_results",
+      "entity_id": "demo:terminal_a",
+      "title": "North Terminal A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 30,
+          "recovery_hours": 4
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 15.0,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:weather",
+      "model_id": "demo:terminal_a_preview_model"
+    },
+    {
+      "product_id": "demo:terminal_a_service_results",
+      "entity_id": "demo:terminal_a",
+      "title": "North Terminal A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 35,
+          "recovery_hours": 3
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 17.5,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:service",
+      "model_id": "demo:terminal_a_preview_model"
+    },
+    {
+      "product_id": "demo:road_a_weather_results",
+      "entity_id": "demo:road_a",
+      "title": "Dock Access Road A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 35,
+          "recovery_hours": 4
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 17.5,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:weather",
+      "model_id": "demo:road_a_preview_model"
+    },
+    {
+      "product_id": "demo:road_a_service_results",
+      "entity_id": "demo:road_a",
+      "title": "Dock Access Road A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 30,
+          "recovery_hours": 3
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 15.0,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:service",
+      "model_id": "demo:road_a_preview_model"
+    },
+    {
+      "product_id": "demo:gauge_a_weather_results",
+      "entity_id": "demo:gauge_a",
+      "title": "Estuary Gauge A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 40,
+          "recovery_hours": 4
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 20.0,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:weather",
+      "model_id": "demo:gauge_a_preview_model"
+    },
+    {
+      "product_id": "demo:gauge_a_service_results",
+      "entity_id": "demo:gauge_a",
+      "title": "Estuary Gauge A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 25,
+          "recovery_hours": 3
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 12.5,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:service",
+      "model_id": "demo:gauge_a_preview_model"
+    },
+    {
+      "product_id": "demo:power_a_weather_results",
+      "entity_id": "demo:power_a",
+      "title": "Power Facility A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 45,
+          "recovery_hours": 4
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 22.5,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:weather",
+      "model_id": "demo:power_a_preview_model"
+    },
+    {
+      "product_id": "demo:power_a_service_results",
+      "entity_id": "demo:power_a",
+      "title": "Power Facility A impact and recovery preview (DEMO)",
+      "view_id": "scenario",
+      "kind": "scenario",
+      "rows": [
+        {
+          "timestamp": "2026-11-14T09:00:00Z",
+          "impact": 20,
+          "recovery_hours": 3
+        },
+        {
+          "timestamp": "2026-11-14T12:00:00Z",
+          "impact": 10.0,
+          "recovery_hours": 1
+        },
+        {
+          "timestamp": "2026-11-14T15:00:00Z",
+          "impact": 0,
+          "recovery_hours": 0
+        }
+      ],
+      "metrics": [
+        {
+          "key": "impact",
+          "label": "Illustrative service availability loss",
+          "unit": "%"
+        },
+        {
+          "key": "recovery_hours",
+          "label": "Illustrative remaining recovery",
+          "unit": "hours"
+        }
+      ],
+      "role": "Illustrative model output",
+      "provenance": {
+        "source_id": "demo:scenario_fixture",
+        "reference_time": "2026-11-14T16:00:00Z",
+        "method": "Hand-authored synthetic scenario output; result viewing only",
+        "scope": "Illustrative local demo; no real asset or live source claims"
+      },
+      "quality": {
+        "missing_sample_count": 0,
+        "note": "Synthetic fixture; missing samples remain null and are not zero-filled.",
+        "quality_flags": [
+          "illustrative",
+          "finite_fixture"
+        ]
+      },
+      "scenario_id": "demo:service",
+      "model_id": "demo:power_a_preview_model"
+    }
+  ],
+  "models": [
+    {
+      "model_id": "demo:port_a_preview_model",
+      "name": "Mersey Port A scenario preview",
+      "description": "Views hand-authored impact and recovery outputs for the selected scenario. No dependency propagation is computed.",
+      "applicability_types": [
+        "demo:Port"
+      ],
+      "required_products": [
+        "demo:port_a_activity"
+      ],
+      "status": "not executable",
+      "status_reason": "Local result fixture only; no executable model, external API, or approved calibration is supplied."
+    },
+    {
+      "model_id": "demo:terminal_a_preview_model",
+      "name": "North Terminal A scenario preview",
+      "description": "Views hand-authored impact and recovery outputs for the selected scenario. No dependency propagation is computed.",
+      "applicability_types": [
+        "demo:Terminal"
+      ],
+      "required_products": [
+        "demo:terminal_a_state"
+      ],
+      "status": "not executable",
+      "status_reason": "Local result fixture only; no executable model, external API, or approved calibration is supplied."
+    },
+    {
+      "model_id": "demo:road_a_preview_model",
+      "name": "Dock Access Road A scenario preview",
+      "description": "Views hand-authored impact and recovery outputs for the selected scenario. No dependency propagation is computed.",
+      "applicability_types": [
+        "demo:Road"
+      ],
+      "required_products": [
+        "demo:road_a_traffic"
+      ],
+      "status": "not executable",
+      "status_reason": "Local result fixture only; no executable model, external API, or approved calibration is supplied."
+    },
+    {
+      "model_id": "demo:gauge_a_preview_model",
+      "name": "Estuary Gauge A scenario preview",
+      "description": "Views hand-authored impact and recovery outputs for the selected scenario. No dependency propagation is computed.",
+      "applicability_types": [
+        "demo:MonitoringStation"
+      ],
+      "required_products": [
+        "demo:gauge_a_level"
+      ],
+      "status": "not executable",
+      "status_reason": "Local result fixture only; no executable model, external API, or approved calibration is supplied."
+    },
+    {
+      "model_id": "demo:power_a_preview_model",
+      "name": "Power Facility A scenario preview",
+      "description": "Views hand-authored impact and recovery outputs for the selected scenario. No dependency propagation is computed.",
+      "applicability_types": [
+        "demo:UtilityFacility"
+      ],
+      "required_products": [
+        "demo:power_a_state"
+      ],
+      "status": "not executable",
+      "status_reason": "Local result fixture only; no executable model, external API, or approved calibration is supplied."
+    }
+  ]
+}

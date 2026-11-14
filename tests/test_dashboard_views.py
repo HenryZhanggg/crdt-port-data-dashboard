@@ -65,6 +65,8 @@ class DashboardViewTests(unittest.TestCase):
         with patch("api_connectors.fetch_raw_data_bundle", return_value=bundle):
             app = AppTest.from_file("app.py", default_timeout=30)
             app.session_state["dashboard_authorised"] = True
+            app.session_state["workspace_section"] = "Monitoring"
+            app.session_state["workspace_view_Monitoring"] = "Live Monitoring"
             app.run()
             self.assertTrue(any("<strong>Stale</strong>" in item.value for item in app.markdown))
 
@@ -124,6 +126,8 @@ class DashboardViewTests(unittest.TestCase):
         with patch("api_connectors.fetch_raw_data_bundle", return_value=bundle), patch("monitoring_views.st.pydeck_chart", side_effect=capture):
             app = AppTest.from_file("app.py", default_timeout=30)
             app.session_state["dashboard_authorised"] = True
+            app.session_state["workspace_section"] = "Monitoring"
+            app.session_state["workspace_view_Monitoring"] = "Live Monitoring"
             app.run()
         self.assertEqual(len(app.exception), 0, str(app.exception))
         points = next(layer.data for layer in decks[-1].layers if layer.id == "monitoring-points")

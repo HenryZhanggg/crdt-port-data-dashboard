@@ -19,7 +19,7 @@ from monitoring_views import (
     render_monitoring_weather,
 )
 from research_views import render_report_centre, render_research_workspace
-from integration_views import render_integration_demo
+from semantic_views import render_semantic_demo
 from workbench_views import (
     apply_workbench_theme,
     render_demonstrators,
@@ -206,7 +206,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT-Port Data Visualisation Dashboard")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · Integration demo")
+        st.caption("Interface update: 14 November 2026 · Ontology-guided main demo")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -1343,33 +1343,15 @@ def main() -> None:
     render_access_banner(partner)
     views = allowed_views(partner)
 
-    st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT / PORT SYSTEMS</span>'
-        '<span class="workbench-subtitle">RESILIENCE WORKBENCH</span></div>'
-        '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>', unsafe_allow_html=True)
-    with st.container(key="workspace_toolbar"):
-        context = st.columns([1.35, 1.35, .5], vertical_alignment="bottom", gap="small")
-        mode = context[0].radio("Time mode", ["Recent observations", "Historical browsing"], key="monitor_mode", horizontal=True,
-            help="Recent observations requests yesterday and today. Feeds are cached; this view does not poll continuously.")
-        today = pd.Timestamp.now(tz="UTC").date()
-        first = (pd.Timestamp(today) - pd.Timedelta(days=1 if mode == "Recent observations" else 6)).date()
-        dates = context[1].date_input("Observation dates", value=(first, today), max_value=today,
-            disabled=mode == "Recent observations", key=f"monitor_dates_{mode}")
-        if context[2].button("Refresh data", width="stretch", help="Clear cached responses and request the feeds used by this view."):
-            st.cache_data.clear()
-            st.rerun()
-    st.sidebar.caption("Dates: water uses UTC; traffic retains its unverified source timezone. Up to seven days per request.")
-    if len(dates) != 2:
-        st.info("Select both a start date and an end date.")
-        st.stop()
-    if (dates[1] - dates[0]).days > 6:
-        st.info("Choose a period of up to seven days to keep monitoring charts responsive.")
-        st.stop()
-    st.session_state["monitor_start"] = dates[0].isoformat()
-    st.session_state["monitor_end"] = dates[1].isoformat()
+    if st.session_state.get("workspace_view_WP Delivery") == "Integration Demo":
+        st.session_state.pop("workspace_view_WP Delivery", None)
+        st.session_state["workspace_section"] = "Monitoring"
+        st.session_state["workspace_view_Monitoring"] = "Overview"
 
     available_pages = []
     if "overview" in views:
         available_pages.append("Overview")
+        available_pages.append("Live Monitoring")
     if "gis" in views:
         available_pages.append("GIS")
     if "weather" in views:
@@ -1389,23 +1371,58 @@ def main() -> None:
         available_pages.append("Research & Replay")
 
     st.sidebar.divider()
-    monitoring = [name for name in ["Overview", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
+    monitoring = [name for name in ["Overview", "Live Monitoring", "GIS", "Observation Explorer", "Transport", "Data Quality"] if name in available_pages]
     research = [name for name in ["Research & Replay", "Report Centre", "Dataset Catalogue", "Data Status", "Raw Data"] if name in available_pages]
     models = ["Objects & Dependencies", "Scenarios & Runs"] if "gis" in views else []
-    modules = ["Integration Demo", "Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
+    modules = ["Module Registry", "Demonstrator Tasks", "Governance Handover"] if "dataset_catalog" in views else []
     sections = {name: pages for name, pages in [("Monitoring", monitoring), ("Models & Dependencies", models),
         ("Data & Research", research), ("WP Delivery", modules)] if pages}
+    if st.session_state.get("workspace_section") not in sections:
+        st.session_state["workspace_section"] = next(iter(sections))
     section = st.sidebar.radio("Workspace", list(sections), key="workspace_section")
+    view_key = f"workspace_view_{section}"
+    if st.session_state.get(view_key) not in sections[section]:
+        st.session_state[view_key] = sections[section][0]
     page = st.sidebar.radio("View", sections[section], index=0, key=f"workspace_view_{section}", label_visibility="collapsed")
-    st.markdown(f'<div class="workspace-meta"><span>{escape(section.upper())} / {escape(page.upper())}</span>'
-        f'<span>OBSERVATION WINDOW · {dates[0].strftime("%d %b %Y")} — {dates[1].strftime("%d %b %Y")}</span></div>', unsafe_allow_html=True)
+
+    st.markdown('<header class="workbench-header"><div><span class="workbench-brand" role="heading" aria-level="1">CRDT / PORT SYSTEMS</span>'
+        '<span class="workbench-subtitle">RESILIENCE WORKBENCH</span></div>'
+        '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>', unsafe_allow_html=True)
+    if page != "Overview":
+        with st.container(key="workspace_toolbar"):
+            context = st.columns([1.35, 1.35, .5], vertical_alignment="bottom", gap="small")
+            mode = context[0].radio("Time mode", ["Recent observations", "Historical browsing"], key="monitor_mode", horizontal=True,
+                help="Recent observations requests yesterday and today. Feeds are cached; this view does not poll continuously.")
+            today = pd.Timestamp.now(tz="UTC").date()
+            first = (pd.Timestamp(today) - pd.Timedelta(days=1 if mode == "Recent observations" else 6)).date()
+            dates = context[1].date_input("Observation dates", value=(first, today), max_value=today,
+                disabled=mode == "Recent observations", key=f"monitor_dates_{mode}")
+            if context[2].button("Refresh data", width="stretch", help="Clear cached responses and request the feeds used by this view."):
+                st.cache_data.clear()
+                st.rerun()
+        st.sidebar.caption("Dates: water uses UTC; traffic retains its unverified source timezone. Up to seven days per request.")
+        if len(dates) != 2:
+            st.info("Select both a start date and an end date.")
+            st.stop()
+        if (dates[1] - dates[0]).days > 6:
+            st.info("Choose a period of up to seven days to keep monitoring charts responsive.")
+            st.stop()
+        st.session_state["monitor_start"] = dates[0].isoformat()
+        st.session_state["monitor_end"] = dates[1].isoformat()
+
+    if page == "Overview":
+        st.markdown('<div class="workspace-meta"><span>ONTOLOGY-GUIDED DEMO / HOME</span>'
+                    '<span>ILLUSTRATIVE DATA · 14 NOVEMBER 2026</span></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="workspace-meta"><span>{escape(section.upper())} / {escape(page.upper())}</span>'
+            f'<span>OBSERVATION WINDOW · {dates[0].strftime("%d %b %Y")} — {dates[1].strftime("%d %b %Y")}</span></div>', unsafe_allow_html=True)
     render_shortcuts(sections, page)
-    if st.session_state.get("demonstrator_task"):
+    if page != "Overview" and st.session_state.get("demonstrator_task"):
         st.caption(st.session_state["demonstrator_task"])
-    if st.session_state.get("current_run_id"):
+    if page != "Overview" and st.session_state.get("current_run_id"):
         st.text(f"Current imported run: {st.session_state['current_run_id']}. Its output valid times are separate from observation dates.")
     st.session_state["monitor_sources"] = {
-        "Overview": ("water_level", "webtris"), "GIS": ("water_level", "webtris"),
+        "Live Monitoring": ("water_level", "webtris"), "GIS": ("water_level", "webtris"),
         "Observation Explorer": ("water_level",), "Transport": ("webtris",),
         "Data Quality": ("water_level", "webtris"), "Research & Replay": ("water_level",),
         "Report Centre": ("water_level", "webtris"),
@@ -1413,11 +1430,13 @@ def main() -> None:
     }.get(page, ("dft", "ons", "ea", "water_level", "naptan", "webtris"))
 
     bundle = None
-    if page in {"Overview", "GIS", "Observation Explorer", "Transport", "Data Quality", "Research & Replay", "Report Centre", "Objects & Dependencies"}:
+    if page in {"Live Monitoring", "GIS", "Observation Explorer", "Transport", "Data Quality", "Research & Replay", "Report Centre", "Objects & Dependencies"}:
         with st.spinner("Retrieving the feeds used by this view"):
             bundle = load_api_raw_bundle()
 
     if page == "Overview":
+        render_semantic_demo()
+    elif page == "Live Monitoring":
         render_workbench(bundle, assets, service_area, transport)
     elif page == "GIS":
         render_monitoring_map(bundle, assets, service_area)
@@ -1442,8 +1461,6 @@ def main() -> None:
         render_objects(bundle, assets)
     elif page == "Scenarios & Runs":
         render_runs()
-    elif page == "Integration Demo":
-        render_integration_demo(catalog)
     elif page == "Module Registry":
         render_modules()
     elif page == "Demonstrator Tasks":
