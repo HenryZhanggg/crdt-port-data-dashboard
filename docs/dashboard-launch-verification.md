@@ -16,7 +16,7 @@ Verified locally on 14 November 2026 against Streamlit 1.57.0 and Starlette 0.52
 - Browser QA at 1600×1100 and 390×900: photo decoding, lazy video player, update filter, saved reference selection, native geographic node click, manual/search selection reset, relationship filtering, canonical connection evidence, separate observed mode and More / Observations navigation passed. Mobile panels were checked to span at least 330 pixels and avoid document overflow.
 - Browser tests used an authenticated local QA wrapper and captured official-source responses, not a production authentication bypass. No new provider requests were made for those replay checks. The production entry remains `app.py`.
 - Independent requirements and code-quality reviews completed; findings on visible video copyright, navigation documentation, observation gaps and source check times were resolved.
-- Protected interactions were verified locally. Deployment verification is limited to the remote revision and unauthenticated version/login surface unless separately recorded.
+- Release code `617c3ed` was pushed without force to `main`; remote main matched the local revision. The deployed Network monitor & waterfront media marker and completed password form were observed on 14 November 2026, with no Streamlit exception. Protected interactions were verified locally; online validation covered the unauthenticated login surface.
 
 ## Browser findings resolved
 

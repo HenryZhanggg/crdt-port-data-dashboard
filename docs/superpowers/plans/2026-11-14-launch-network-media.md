@@ -51,5 +51,7 @@ Files: daily_views.py, a small public-media JSON and local previews, tests/test_
 - [x] Run .venv/Scripts/python.exe -m unittest discover -s tests -q and inspect all failures.
 - [x] Run local authenticated preview with fixture and captured actual source data; inspect screenshots, native map selections, navigation, video load and mobile overflow.
 - [x] Independent spec then quality review; fix material findings and rerun affected checks.
-- [ ] Check remote main against baseline before non-force push HEAD:main; preserve unrelated untracked plan.
-- [ ] Observe deployed version marker and completed login form. Report authenticated local versus unauthenticated online validation accurately.
+- [x] Check remote main against baseline before non-force push HEAD:main; preserve unrelated untracked plan.
+- [x] Observe deployed version marker and completed login form. Report authenticated local versus unauthenticated online validation accurately.
+
+Release code 617c3ed was pushed without force to main. The deployed new version marker and completed password form were observed on 14 November 2026; protected interactions were verified locally.
