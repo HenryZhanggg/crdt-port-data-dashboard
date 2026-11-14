@@ -17,7 +17,7 @@ The public navigation now contains three workspace buttons. The old Workspace/Vi
 - Authenticated local browser QA, 1600×1100 and 390×900: three routes; compact Overview and media; geographic example/scenario; real water/traffic selection and CSV; traffic comparisons and historical dates; NaPTAN preview CSV; quality report ZIP and Turtle; two native JSON uploads and A/B delta export; project draft ZIP; mobile stacking/no document overflow.
 - Browser inputs used recorded official daily responses plus clearly labelled synthetic connector/package fixtures. No new provider availability claims are made by those replay checks. Deployment entry remains `app.py`; the QA wrapper is not published.
 - Independent requirements and quality reviews passed. Findings on selected source quality, traffic selection, scoped refresh and catalogue metadata were fixed and rechecked.
-- Online verification is recorded after deployment; protected interactions are tested locally and the remote unauthenticated version/login surface is checked separately.
+- Code revision bc41983 was pushed without force to main. The deployed Overview / Monitor / Data marker and complete password form were observed on 14 November 2026 with no Streamlit exception. Protected interactions were verified locally; the online check covered the unauthenticated login surface.
 
 ## Interpretation retained
 

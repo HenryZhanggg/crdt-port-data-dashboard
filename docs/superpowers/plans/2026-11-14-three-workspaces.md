@@ -42,8 +42,10 @@ Files: dashboard_theme.py only if new container styles need them, README.md, doc
 - [x] Run unittest suite from .venv/Scripts/python.exe; replace obsolete navigation assertions with capability-preserving checks rather than dropping coverage.
 - [x] Browser verify default daily home, native map/selection, water and traffic history, run import/comparison, Data source previews and exports, archived downloads, lazy media, and readable 390px layout.
 - [x] Independent requirements then code-quality review; fix material findings.
-- [ ] Verify remote main remains compatible with baseline aa0b7d9, non-force push to Streamlit's main branch, observe updated version marker and completed login form. Protected online interactions require credentials; local authenticated QA remains distinct.
+- [x] Verify remote main remains compatible with baseline aa0b7d9, non-force push to Streamlit's main branch, observe updated version marker and completed login form. Protected online interactions require credentials; local authenticated QA remains distinct.
 
 ## Explicit preservation rules
 
 No changes to funding monitoring or research source files outside this dashboard. Preserve unrelated untracked visual-navigation-layout.md. No external contacts. Source time/unit/datum and missing-vs-zero semantics remain intact. Source-derived identifiers do not become approved ontology IDs. Uploaded packages remain data only and session local; no calls to uploaded URLs or model code.
+
+Release code bc41983 was pushed without force to main. The remote Overview / Monitor / Data version marker and complete password form were observed on 14 November 2026; protected interactions were verified locally.
