@@ -13,7 +13,7 @@ class GeographicNetworkTests(unittest.TestCase):
         service = SemanticDemo()
         with patch('streamlit.pydeck_chart', return_value={'selection':{}}) as chart:
             _spatial_view(service.entities(), service.relations() if relations is None else relations,
-                          selected, False, 0)
+                          selected, 0)
         return json.loads(chart.call_args.args[0].to_json())
 
     def test_five_existing_assets_have_distinct_category_icons_at_source_coordinates(self):

@@ -1,239 +1,187 @@
+import json
 import unittest
-from datetime import date
 from unittest.mock import patch
 
+import pandas as pd
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from test_dashboard_views import observation_fixture
-from test_daily_views import daily_fixture
+from semantic_service import SemanticDemo
 
 
 class SemanticViewTests(unittest.TestCase):
-    def app(self, standalone=False, **state):
+    def app(self, **state):
         st.cache_data.clear()
-        fetch=patch('api_connectors.fetch_raw_data_bundle', return_value=observation_fixture())
-        self.fetch=fetch.start()
+        fetch = patch('api_connectors.fetch_raw_data_bundle')
+        self.fetch = fetch.start()
         self.addCleanup(fetch.stop)
-        daily=patch('daily_service.load_daily_snapshot', return_value=daily_fixture())
-        self.daily=daily.start()
+        daily = patch('daily_service.load_daily_snapshot')
+        self.daily = daily.start()
         self.addCleanup(daily.stop)
-        app=(AppTest.from_string('from semantic_views import render_semantic_demo\nrender_semantic_demo()', default_timeout=30)
-             if standalone else AppTest.from_file('app.py', default_timeout=30))
-        app.session_state['dashboard_authorised']=True
-        app.session_state['workspace_section']='Models & Dependencies'
-        app.session_state['workspace_view_Models & Dependencies']='Port connections example'
-        for key,value in state.items():
-            app.session_state[key]=value
+        app = AppTest.from_string('from semantic_views import render_semantic_demo\nrender_semantic_demo()', default_timeout=30)
+        for key, value in state.items():
+            app.session_state[key] = value
         app.run()
         self.assertFalse(app.exception)
         return app
 
-    def test_semantic_example_remains_available_without_fetching_live_feeds(self):
-        app=self.app()
-        self.assertTrue(any('CRDT port dashboard version 1' in x.value for x in app.subheader))
-        self.assertTrue(any(x.label=='Object type' for x in app.selectbox))
-        self.assertTrue(any(x.label=='Relationship' for x in app.selectbox))
+    def test_example_uses_fixed_sample_day_and_no_live_feeds(self):
+        app = self.app()
+        self.assertTrue(any(x.label == 'Object type' for x in app.selectbox))
+        self.assertTrue(any(x.label == 'Relationship' for x in app.selectbox))
+        text = ' '.join(str(x.value) for x in list(app.markdown) + list(app.caption))
+        self.assertIn('14 NOV 2026', text.upper())
+        self.assertIn('ILLUSTRATIVE', text.upper())
+        self.assertIn('DRAFT ONTOLOGY', text.upper())
+        self.assertFalse(app.date_input)
         self.fetch.assert_not_called()
-        self.assertFalse(app.session_state.filtered_state.get('partner_runs',{}))
+        self.daily.assert_not_called()
+        self.assertFalse(app.session_state.filtered_state.get('partner_runs', {}))
 
-    def test_type_selection_changes_object_and_view_profile(self):
-        app=self.app()
-        next(x for x in app.selectbox if x.label=='Object type').set_value('demo:MonitoringStation').run()
+    def test_one_map_and_four_object_tabs_replace_duplicate_modes_and_panels(self):
+        app = self.app()
+        self.assertEqual([tab.label for tab in app.tabs], ['Readings', 'Connections', 'Results', 'Sources'])
+        self.assertFalse(any(x.label in {'Network data', 'Content mode', 'Spatial view'} for x in app.radio))
+        self.assertFalse(any(x.label in {'Run model', 'View illustrative results'} for x in app.button))
+        self.assertEqual(len(app.get('deck_gl_json_chart')), 1)
+
+    def test_type_selection_changes_object_and_reading_products(self):
+        app = self.app()
+        next(x for x in app.selectbox if x.label == 'Object type').set_value('demo:MonitoringStation').run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:gauge_a')
-        self.assertTrue(any(x.label=='Water level' for x in app.tabs))
-        next(x for x in app.selectbox if x.label=='Object type').set_value('demo:Terminal').run()
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:gauge_a')
+        gauge_titles = {product['title'] for product in SemanticDemo().products('demo:gauge_a', 'observations')}
+        self.assertTrue(any(title in x.value for title in gauge_titles for x in app.markdown))
+        next(x for x in app.selectbox if x.label == 'Object type').set_value('demo:Terminal').run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:terminal_a')
-        self.assertTrue(any(x.label=='Terminal state' for x in app.tabs))
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:terminal_a')
+        state_titles = {product['title'] for product in SemanticDemo().products('demo:terminal_a', 'state')}
+        self.assertTrue(any(title in x.value for title in state_titles for x in app.markdown))
 
     def test_relation_filter_changes_declared_links(self):
-        app=self.app()
-        next(x for x in app.selectbox if x.label=='Relationship').set_value('demo:dependsOn').run()
+        app = self.app()
+        next(x for x in app.selectbox if x.label == 'Relationship').set_value('demo:dependsOn').run()
         self.assertFalse(app.exception)
-        text=' '.join(str(x.value) for x in app.caption)
-        self.assertIn('1 declared',text)
-        self.assertTrue(any(x.key=='semantic_related_demo:power_a' for x in app.button))
+        text = ' '.join(str(x.value) for x in app.caption)
+        self.assertIn('1 declared', text)
+        self.assertTrue(any(x.key == 'semantic_related_demo:power_a' for x in app.button))
 
     def test_related_jump_uses_same_selection_context(self):
-        app=self.app()
-        next(x for x in app.selectbox if x.label=='Relationship').set_value('demo:dependsOn').run()
-        next(x for x in app.button if x.key=='semantic_related_demo:power_a').click().run()
+        app = self.app()
+        next(x for x in app.selectbox if x.label == 'Relationship').set_value('demo:dependsOn').run()
+        next(x for x in app.button if x.key == 'semantic_related_demo:power_a').click().run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:power_a')
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:power_a')
         self.assertTrue(any('UtilityFacility' in str(x.value) for x in app.markdown))
 
-    def test_scenario_and_graph_selection_are_available(self):
-        app=self.app()
-        next(x for x in app.radio if x.label=='Content mode').set_value('Scenario results').run()
-        next(x for x in app.selectbox if x.label=='Scenario').set_value('demo:service').run()
-        next(x for x in app.radio if x.label=='Spatial view').set_value('Relations').run()
+    def test_scenario_selector_lives_in_results_and_changes_synthetic_outputs(self):
+        app = self.app()
+        self.assertIn('Results', [tab.label for tab in app.tabs])
+        results = next(tab for tab in app.tabs if tab.label == 'Results')
+        self.assertTrue(any(x.label == 'Scenario' and not x.disabled for x in results.selectbox))
+        next(x for x in app.selectbox if x.label == 'Scenario').set_value('demo:service').run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['semantic_scenario'],'demo:service')
-        self.assertTrue(app.get('plotly_chart'))
-        self.assertTrue(any(x.label=='Run model' and x.disabled for x in app.button))
-
-    def test_live_monitoring_remains_accessible(self):
-        app=self.app()
-        next(x for x in app.button if x.label=='Observations').click().run()
-        self.assertFalse(app.exception)
-        self.assertTrue(any(x.label=='Inspect an object' for x in app.selectbox))
-        self.fetch.assert_called()
-
-    def test_previous_demo_navigation_is_removed_and_stale_state_recovers(self):
-        app=self.app(workspace_section='WP Delivery', **{'workspace_view_WP Delivery':'Integration Demo'})
-        self.assertFalse(any(x.label=='Integration demo' for x in app.button))
-        self.assertNotIn('Integration Demo',next(x for x in app.radio if x.label=='View').options)
+        self.assertEqual(app.session_state['semantic_scenario'], 'demo:service')
+        expected = SemanticDemo().products('demo:terminal_a', 'scenario', scenario_id='demo:service')
+        results = next(tab for tab in app.tabs if tab.label == 'Results')
+        self.assertTrue(any(expected[0]['title'] in x.value for x in results.markdown))
+        self.assertTrue(any('synthetic' in str(x.value).casefold() or 'illustrative' in str(x.value).casefold()
+                            for x in results.caption))
 
     def test_demo_source_entities_do_not_replace_live_selection(self):
-        app=self.app(workbench_entity_id='water:E70139')
-        next(x for x in app.selectbox if x.label=='Object type').set_value('demo:Road').run()
+        app = self.app(workbench_entity_id='water:E70139')
+        next(x for x in app.selectbox if x.label == 'Object type').set_value('demo:Road').run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['workbench_entity_id'],'water:E70139')
+        self.assertEqual(app.session_state['workbench_entity_id'], 'water:E70139')
 
     def test_native_map_pick_updates_shared_object(self):
-        event={'selection':{'objects':{'semantic_objects':[{'entity_id':'demo:gauge_a'}]}}}
+        event = {'selection': {'objects': {'semantic_objects': [{'entity_id': 'demo:gauge_a'}]}}}
         with patch('streamlit.pydeck_chart', return_value=event):
-            app=self.app()
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:gauge_a')
-        self.assertTrue(any(x.label=='Water level' for x in app.tabs))
+            app = self.app()
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:gauge_a')
+        self.assertTrue(any('demo:gauge_a' in str(x.value) for x in app.caption))
 
-    def test_native_graph_pick_clears_an_incompatible_type_filter(self):
-        event={'selection':{'points':[{'customdata':['demo:power_a']}]}}
-        with patch('streamlit.plotly_chart', return_value=event):
-            app=self.app(semantic_spatial_view='Relations',semantic_type='demo:Terminal')
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:power_a')
-        self.assertEqual(app.session_state['semantic_type'],'All')
-
-    def test_graph_picks_the_closest_node_in_both_dimensions(self):
-        with patch('streamlit.plotly_chart', return_value={'selection':{}}) as chart:
-            self.app(semantic_spatial_view='Relations')
-        self.assertEqual(chart.call_args_list[0].args[0].layout.hovermode, 'closest')
+    def test_native_map_pick_clears_an_incompatible_type_and_search_filter(self):
+        event = {'selection': {'objects': {'semantic_labels': [{'entity_id': 'demo:power_a'}]}}}
+        with patch('streamlit.pydeck_chart', return_value=event):
+            app = self.app(semantic_type='demo:Terminal', semantic_search='terminal')
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:power_a')
+        self.assertEqual(app.session_state['semantic_type'], 'All')
+        self.assertEqual(app.session_state['semantic_search'], '')
 
     def test_type_change_clears_a_previous_native_selection(self):
-        event={'selection':{'objects':{'semantic_objects':[{'entity_id':'demo:terminal_a'}]}}}
-        def selected_only_on_original_chart(deck, **kwargs):
-            return event if kwargs['key']=='semantic_map_0' else {'selection':{'objects':{}}}
-        with patch('streamlit.pydeck_chart', side_effect=selected_only_on_original_chart):
-            app=self.app()
-            next(x for x in app.selectbox if x.label=='Object type').set_value('demo:Road').run()
+        event = {'selection': {'objects': {'semantic_objects': [{'entity_id': 'demo:terminal_a'}]}}}
+        def chart(deck, **kwargs):
+            return event if kwargs['key'] == 'semantic_map_0' else {'selection': {'objects': {}}}
+        with patch('streamlit.pydeck_chart', side_effect=chart):
+            app = self.app()
+            next(x for x in app.selectbox if x.label == 'Object type').set_value('demo:Road').run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:road_a')
-        self.assertEqual(app.session_state['semantic_type'],'demo:Road')
-
-    def test_period_outside_sample_coverage_shows_no_matching_products(self):
-        app=self.app()
-        next(x for x in app.date_input if x.label=='Demo period').set_value((date(2026,11,10),date(2026,11,11))).run()
-        self.assertFalse(app.exception)
-        self.assertTrue(any('No sample product matches' in x.value for x in app.info))
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:road_a')
+        self.assertEqual(app.session_state['semantic_type'], 'demo:Road')
 
     def test_search_selects_a_matching_asset_and_handles_no_match(self):
-        app=self.app(standalone=True)
-        self.assertTrue(any(x.label=='Search assets' for x in app.text_input))
-        search=next(x for x in app.text_input if x.label=='Search assets')
-        search.set_value('gauge').run()
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:gauge_a')
-        next(x for x in app.text_input if x.label=='Search assets').set_value('no-such-asset').run()
+        app = self.app()
+        next(x for x in app.text_input if x.label == 'Search assets').set_value('gauge').run()
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:gauge_a')
+        next(x for x in app.text_input if x.label == 'Search assets').set_value('no-such-asset').run()
         self.assertFalse(app.exception)
         self.assertTrue(any('No assets match' in x.value for x in app.info))
 
     def test_manual_choice_clears_a_retained_native_pick(self):
-        event={'selection':{'objects':{'semantic_objects':[{'entity_id':'demo:terminal_a'}]}}}
+        event = {'selection': {'objects': {'semantic_objects': [{'entity_id': 'demo:terminal_a'}]}}}
         def chart(deck, **kwargs):
-            return event if kwargs['key']=='semantic_map_0' else {'selection':{'objects':{}}}
-        with patch('streamlit.pydeck_chart',side_effect=chart):
-            app=self.app(standalone=True)
-            next(x for x in app.button if x.key=='semantic_object_demo:gauge_a').click().run()
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:gauge_a')
+            return event if kwargs['key'] == 'semantic_map_0' else {'selection': {'objects': {}}}
+        with patch('streamlit.pydeck_chart', side_effect=chart):
+            app = self.app()
+            next(x for x in app.button if x.key == 'semantic_object_demo:gauge_a').click().run()
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:gauge_a')
 
     def test_search_change_clears_a_retained_native_pick(self):
-        event={'selection':{'objects':{'semantic_objects':[{'entity_id':'demo:terminal_a'}]}}}
+        event = {'selection': {'objects': {'semantic_objects': [{'entity_id': 'demo:terminal_a'}]}}}
         def chart(deck, **kwargs):
-            return event if kwargs['key']=='semantic_map_0' else {'selection':{'objects':{}}}
-        with patch('streamlit.pydeck_chart',side_effect=chart):
-            app=self.app(standalone=True)
-            self.assertTrue(any(x.label=='Search assets' for x in app.text_input))
-            next(x for x in app.text_input if x.label=='Search assets').set_value('road').run()
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:road_a')
+            return event if kwargs['key'] == 'semantic_map_0' else {'selection': {'objects': {}}}
+        with patch('streamlit.pydeck_chart', side_effect=chart):
+            app = self.app()
+            next(x for x in app.text_input if x.label == 'Search assets').set_value('road').run()
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:road_a')
 
-    def test_observation_mode_is_lazy_and_never_binds_real_gauges_to_demo(self):
-        app=self.app(standalone=True)
-        self.daily.assert_not_called()
-        self.assertTrue(any(x.label=='Network data' for x in app.radio))
-        next(x for x in app.radio if x.label=='Network data').set_value('Available observations').run()
-        self.daily.assert_called_once()
-        self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['semantic_entity_id'],'demo:terminal_a')
-        self.assertEqual(app.session_state['semantic_observed_id'],'gauge:a')
-        self.assertTrue(any('Ordnance Datum Newlyn' in x.value for x in app.caption))
-        self.assertFalse(any(x.label=='Run model' for x in app.button))
-        text=' '.join(str(x.value) for x in app.caption)
-        self.assertIn('No asset dependency links',text)
+    def test_connections_expose_canonical_direction_and_local_evidence_provider(self):
+        app = self.app(semantic_relation='demo:dependsOn')
+        connections = next(tab for tab in app.tabs if tab.label == 'Connections')
+        text = ' '.join(str(x.value) for x in connections.caption)
+        self.assertIn('demo:terminal_a → demo:power_a', text)
+        self.assertIn('Illustrative dependency assertion', text)
+        self.assertIn('2026-11-14', text)
 
-    def test_connections_exposes_canonical_direction_and_local_evidence_provider(self):
-        app=self.app(standalone=True,semantic_relation='demo:dependsOn')
-        self.assertTrue(any(x.label=='Connections' for x in app.tabs))
-        text=' '.join(str(x.value) for x in app.caption)
-        self.assertIn('demo:terminal_a → demo:power_a',text)
-        self.assertIn('Illustrative dependency assertion',text)
-        self.assertIn('2026-11-14',text)
+    def test_example_map_retains_all_five_assets_and_geographic_arrows(self):
+        with patch('streamlit.pydeck_chart', return_value={'selection': {}}) as chart:
+            self.app(semantic_relation='demo:dependsOn')
+        deck = json.loads(chart.call_args.args[0].to_json())
+        layers = {layer['id']: layer for layer in deck['layers']}
+        service = SemanticDemo()
+        self.assertEqual({row['entity_id'] for row in layers['semantic_objects']['data']},
+                         {row['entity_id'] for row in service.entities()})
+        links = layers['semantic_links']['data']
+        self.assertEqual([(edge['source_id'], edge['target_id']) for edge in links],
+                         [('demo:terminal_a', 'demo:power_a')])
+        self.assertEqual(len(layers['semantic_arrows']['data']), 1)
+        source = service.entity('demo:terminal_a')
+        target = service.entity('demo:power_a')
+        self.assertEqual(links[0]['source'], [source['lon'], source['lat']])
+        self.assertEqual(links[0]['target'], [target['lon'], target['lat']])
 
-    def test_observed_map_contains_source_gauges_and_no_dependencies(self):
-        import json
-        with patch('streamlit.pydeck_chart',return_value={'selection':{}}) as chart:
-            self.app(standalone=True,semantic_network_mode='Available observations')
-        deck=json.loads(chart.call_args.args[0].to_json())
-        layers={layer['id']:layer for layer in deck['layers']}
-        self.assertEqual({row['entity_id'] for row in layers['semantic_objects']['data']}, {'gauge:a','gauge:b'})
-        self.assertEqual(layers['semantic_links']['data'],[])
-        self.assertEqual(layers['semantic_arrows']['data'],[])
-        self.assertEqual(len({tuple(row['label_offset']) for row in layers['semantic_labels']['data']}),2)
-
-    def test_observed_manual_choice_clears_a_retained_source_pick(self):
-        event={'selection':{'objects':{'semantic_labels':[{'entity_id':'gauge:a'}]}}}
-        def chart(deck, **kwargs):
-            return event if kwargs['key']=='semantic_observed_map_0' else {'selection':{'objects':{}}}
-        with patch('streamlit.pydeck_chart',side_effect=chart):
-            app=self.app(standalone=True,semantic_network_mode='Available observations')
-            next(x for x in app.selectbox if x.label=='Water reference').set_value('gauge:b').run()
-        self.assertEqual(app.session_state['semantic_observed_id'],'gauge:b')
-        self.assertTrue(any('Local tide gauge datum' in x.value for x in app.caption))
-
-    def test_missing_observations_has_source_status_without_fake_map(self):
-        snapshot=daily_fixture()
-        snapshot['tide'].update(status='unavailable',series=[],message='Water observations temporarily unavailable.')
-        app=self.app(standalone=True)
-        self.daily.return_value=snapshot
-        next(x for x in app.radio if x.label=='Network data').set_value('Available observations').run()
-        self.assertTrue(any('temporarily unavailable' in x.value for x in app.info))
-        self.assertFalse(app.get('deck_gl_json_chart'))
-
-    def test_observation_chart_breaks_at_missing_sampling_intervals(self):
-        import pandas as pd
-        app=self.app(standalone=True)
-        snapshot=daily_fixture()
-        now=pd.Timestamp.now(tz='UTC').floor('min')
-        snapshot['tide']['series'][0]['rows']=[{'time':(now-pd.Timedelta(hours=2)).isoformat(),'value':1},
-                                             {'time':now.isoformat(),'value':2}]
-        self.daily.return_value=snapshot
-        with patch('streamlit.plotly_chart',return_value={'selection':{}}) as chart:
-            next(x for x in app.radio if x.label=='Network data').set_value('Available observations').run()
-        values=list(chart.call_args.args[0].data[0].y)
-        self.assertTrue(any(pd.isna(value) for value in values))
-        self.assertEqual([value for value in values if not pd.isna(value)],[1,2])
-
-    def test_observation_source_check_uses_tide_check_time(self):
-        app=self.app(standalone=True)
-        snapshot=daily_fixture()
-        snapshot['checked_at']='2026-11-14T20:30:00Z'
-        snapshot['tide']['checked_at']='2026-11-13T06:00:00Z'
-        self.daily.return_value=snapshot
-        next(x for x in app.radio if x.label=='Network data').set_value('Available observations').run()
-        text=' '.join(str(x.value) for x in app.caption)
-        self.assertIn('Checked 13 Nov, 06:00 UTC',text)
-        self.assertNotIn('Source checked 14 Nov',text)
+    def test_gauge_readings_keep_declared_datum_and_gap_values(self):
+        with patch('streamlit.plotly_chart', return_value={'selection': {}}) as chart:
+            app = self.app(semantic_type='demo:MonitoringStation')
+        expected = SemanticDemo().products('demo:gauge_a', 'observations')[0]
+        expected_values = [row[expected['metrics'][0]['key']] for row in expected['rows']]
+        values = list(chart.call_args_list[0].args[0].data[0].y)
+        self.assertEqual([None if pd.isna(value) else value for value in values], expected_values)
+        reference = expected['metrics'][0].get('datum')
+        if reference:
+            self.assertTrue(any(reference in x.value for x in app.caption))
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     unittest.main()

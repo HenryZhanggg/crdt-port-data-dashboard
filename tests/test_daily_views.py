@@ -54,7 +54,9 @@ class DailyViewTests(unittest.TestCase):
     def test_everyday_home_has_plain_sections_and_no_technical_controls(self):
         app=self.app()
         self.assertTrue(any(x.value=='Around Liverpool' for x in app.subheader))
-        self.assertTrue({'Weather','Tides & water','Travel','Port news','My places'} <= {x.label for x in app.tabs})
+        self.assertEqual({x.label for x in app.tabs},{'Photos','Video'})
+        self.assertEqual({x.label for x in app.metric}, {'Weather outlook','Latest water level','Weather & flood'})
+        self.assertTrue({'Weather forecast details','Water observation details'} <= {x.label for x in app.expander})
         labels={x.label for x in app.selectbox}
         self.assertIn('Water level',labels)
         self.assertFalse({'Object type','Relationship','Scenario'} & labels)
@@ -105,10 +107,10 @@ class DailyViewTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['daily_place_id'],'gauge:b')
 
-    def test_place_can_be_saved_without_changing_other_workspaces(self):
+    def test_overview_does_not_create_saved_places_or_change_other_workspaces(self):
         app=self.app(semantic_entity_id='demo:terminal_a',workbench_entity_id='water:old')
-        next(x for x in app.button if x.label=='Save this place').click().run()
-        self.assertEqual(app.session_state['daily_saved_places'],['gauge:a'])
+        self.assertFalse({'Save this place','Remove saved place'} & {x.label for x in app.button})
+        self.assertNotIn('daily_saved_places',app.session_state)
         self.assertEqual(app.session_state['semantic_entity_id'],'demo:terminal_a')
         self.assertEqual(app.session_state['workbench_entity_id'],'water:old')
 
@@ -137,9 +139,61 @@ class DailyViewTests(unittest.TestCase):
         snapshot=daily_fixture()
         snapshot['port_news']['items'][0]['published_at']='2026-11-13'
         app=self.app(snapshot)
-        published=[x.value for x in app.caption if 'Published' in x.value]
+        published=[x.value for x in app.markdown if 'Published' in x.value]
         self.assertTrue(any('Published 13 Nov 2026' in value for value in published))
         self.assertFalse(any('00:00' in value or 'UTC' in value for value in published))
+
+    def test_updates_appear_once_and_official_notices_remain_reachable(self):
+        app=self.app()
+        text=' '.join(x.value for x in app.markdown)
+        self.assertEqual(text.count('Port services update'),1)
+        self.assertTrue(any(x.label=='Open Peel Ports · port notices' for x in app.get('link_button')))
+        self.assertTrue(any('Automatic notice feed not connected' in x.value for x in app.caption))
+
+    def test_only_two_trends_preserve_water_gaps_and_stale_reading(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC')
+        snapshot['tide']['series'][0]['rows']=[
+            {'time':(now-pd.Timedelta(hours=3)).isoformat(),'value':1.0},
+            {'time':(now-pd.Timedelta(hours=2,minutes=30)).isoformat(),'value':1.2}]
+        with patch('streamlit.plotly_chart',return_value={}) as chart:
+            app=self.app(snapshot)
+        self.assertEqual([call.kwargs['key'] for call in chart.call_args_list],
+                         ['daily_weather_mini','daily_water_mini'])
+        water=chart.call_args_list[1].args[0].data[0]
+        self.assertFalse(water.connectgaps)
+        self.assertTrue(pd.isna(water.y[1]))
+        self.assertTrue(any('older than one hour' in x.value for x in app.info))
+
+    def test_record_details_keep_forecast_fields_and_observation_reference(self):
+        app=self.app()
+        forecasts=next(x.value for x in app.dataframe if 'Outlook' in x.value.columns)
+        self.assertEqual(set(forecasts.columns),
+                         {'Time','Outlook','Temperature (°C)','Wind (m/s)','Rain, next hour (mm)'})
+        self.assertEqual(set(forecasts['Outlook']),{'Cloudy'})
+        records=[x.value for x in app.dataframe if 'Observed time (UTC)' in x.value.columns]
+        self.assertEqual(len(records),1)
+        observations=records[0]
+        self.assertEqual(list(observations['Water level (mAOD)']),[1.0,1.1,1.2])
+        self.assertTrue(any('Ordnance Datum Newlyn' in x.value for x in app.caption))
+        self.assertTrue(any('Environment Agency' in x.value and 'Checked' in x.value for x in app.caption))
+        self.assertTrue(any(x.label=='Download water observations CSV' for x in app.get('download_button')))
+
+    def test_missing_water_values_remain_missing_in_record_details(self):
+        snapshot=daily_fixture()
+        snapshot['tide']['series'][0]['rows'][1]['value']=None
+        app=self.app(snapshot)
+        records=[x.value for x in app.dataframe if 'Observed time (UTC)' in x.value.columns]
+        self.assertEqual(len(records),1)
+        observations=records[0]
+        self.assertTrue(pd.isna(observations['Water level (mAOD)'].iloc[1]))
+
+    def test_water_source_link_keeps_section_fallback(self):
+        snapshot=daily_fixture()
+        snapshot['tide']['series'][0].pop('source_url')
+        app=self.app(snapshot)
+        self.assertTrue(any(x.label=='Open Environment Agency water information' and
+                            x.url==snapshot['tide']['source_url'] for x in app.get('link_button')))
 
     def test_forecast_attribution_links_the_data_licence(self):
         app=self.app()

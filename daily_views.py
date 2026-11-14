@@ -81,16 +81,6 @@ def _choose_place(place_id):
     _change_place()
 
 
-def _save_place(place_id):
-    saved = list(st.session_state.get('daily_saved_places', []))
-    if place_id not in saved and len(saved)<4:
-        st.session_state['daily_saved_places'] = saved+[place_id]
-
-
-def _remove_place(place_id):
-    st.session_state['daily_saved_places'] = [x for x in st.session_state.get('daily_saved_places', []) if x!=place_id]
-
-
 def _water_frame(series, now):
     frame = pd.DataFrame(series.get('rows', []))
     if frame.empty:
@@ -149,29 +139,6 @@ def _map(series, chosen, place):
     return None
 
 
-def _items(section, empty_message='No items returned by this source.', limit=3):
-    _source(section)
-    if section.get('status')=='unavailable':
-        st.info(_plain(section.get('message')) or 'Source temporarily unavailable.')
-    elif section.get('status')=='link_only':
-        st.caption(_plain(section.get('message')) or 'Open the official source for current information.')
-    elif not section.get('items'):
-        st.caption(empty_message)
-    for item in section.get('items', [])[:limit]:
-        st.markdown('<div class="daily-update-title">'+escape(_plain(item.get('title')) or 'Official update')+'</div>', unsafe_allow_html=True)
-        details = [_plain(item.get('area')), _plain(item.get('status'))]
-        if item.get('published_at'):
-            details.append('Published '+_when(item['published_at']))
-        if item.get('valid_from') or item.get('valid_to'):
-            details.append('Valid '+_when(item.get('valid_from'))+' to '+_when(item.get('valid_to')))
-        st.caption(' · '.join(x for x in details if x))
-        if item.get('description'):
-            st.caption(_plain(item['description'])[:320])
-        _link('Read original', item.get('url'))
-    if section.get('feed_updated_at'):
-        st.caption('Feed timestamp: '+_when(section['feed_updated_at']))
-
-
 _UPDATE_SECTIONS = [('port_notices','Port'),('port_news','Port'),
                     ('weather_warnings','Weather'),('flood_warnings','Weather'),('traffic','Travel')]
 
@@ -195,7 +162,7 @@ def _update_feed(snapshot, category):
             title = '<a href="'+escape(url,quote=True)+'" target="_blank" rel="noopener noreferrer">'+title+'</a>'
         st.markdown('<article class="daily-update"><span class="daily-category">'+item['category']+'</span>'
             '<div class="daily-update-title">'+title+'</div><div class="daily-source">'
-            +escape(_plain(section['source_name']))+' · '+escape(_when(item.get('published_at')))
+            +escape(_plain(section['source_name']))+' · '+escape('Published '+_when(item['published_at']) if item.get('published_at') else 'Publication date not supplied')
             +'</div></article>',unsafe_allow_html=True)
         if item.get('valid_from') or item.get('valid_to'):
             st.caption('Validity: '+_when(item.get('valid_from'))+' → '+_when(item.get('valid_to')))
@@ -264,7 +231,7 @@ def render_daily_home(snapshot):
         st.subheader('Around Liverpool')
         st.caption(now.tz_convert('Europe/London').strftime('%A, %d %B %Y')+' · Liverpool & Merseyside · Last checked '+_when(snapshot.get('checked_at')))
     with st.container(key='daily_summary'):
-        cards = st.columns(4, gap='small')
+        cards = st.columns(3, gap='small')
         cards[0].metric('Weather outlook', _number(next_hour['temp_c'])+' °C' if next_hour is not None and _number(next_hour['temp_c'])!='Not available' else 'Not available')
         cards[0].caption('Forecast '+_when(next_hour['time'])+' · Wind '+_number(next_hour.get('wind_m_s'))+' m/s' if next_hour is not None else 'Weather forecast not available')
         cards[1].metric('Latest water level', _number(latest['value'],2)+' '+selected.get('unit','') if latest is not None else 'Not available')
@@ -274,9 +241,6 @@ def render_daily_home(snapshot):
         listed = sum(len(s.get('items',[])) for s in warning_sections)
         cards[2].metric('Weather & flood', (str(listed)+' listed' if listed else 'None listed') if complete else 'Check sources')
         cards[2].caption('North West weather / Liverpool-area flood feeds')
-        notices = snapshot['port_notices']
-        cards[3].metric('Port notices', str(len(notices.get('items',[])))+' listed' if notices.get('status')=='available' else 'Official list')
-        cards[3].caption('Peel Ports · check each notice for validity')
     left, right = st.columns([1.85,1], gap='small')
     with left, st.container(border=True, key='daily_spatial'):
         st.markdown('**Explore the waterfront**')
@@ -292,52 +256,33 @@ def render_daily_home(snapshot):
             st.caption('Reference: '+_plain(selected.get('datum','Unknown reference'))+' · '+_plain(selected.get('unit','')))
     with right, st.container(border=True, key='daily_updates'):
         st.markdown('**Latest updates**')
-        reminders, saved = st.tabs(['Updates','My places'])
-        with reminders:
-            category = st.radio('Latest updates',['All','Port','Weather','Travel'],horizontal=True,
-                label_visibility='collapsed',key='daily_update_category')
-            with st.container(height=390, border=False):
-                _update_feed(snapshot,category)
-        with saved, st.container(key='daily_places'):
-            st.caption('Keep up to four water references here during this visit.')
-            pins = st.session_state.get('daily_saved_places', [])
-            st.button('Save this place', key='daily_pin_place', disabled=not selected or (selected and selected['id'] in pins) or len(pins)>=4,
-                on_click=_save_place, args=(selected['id'] if selected else None,), width='stretch')
-            for place_id in pins:
-                entry = lookup.get(place_id)
-                st.button(_place_label(entry) if entry else 'Saved reference temporarily unavailable', key='daily_saved_'+place_id,
-                    disabled=entry is None, on_click=_choose_place, args=(place_id,), width='stretch')
-                st.button('Remove saved place', key='daily_remove_'+place_id, on_click=_remove_place, args=(place_id,))
+        category = st.radio('Latest updates',['All','Port','Weather','Travel'],horizontal=True,
+            label_visibility='collapsed',key='daily_update_category')
+        with st.container(height=390, border=False):
+            _update_feed(snapshot,category)
     _compact_trends(forecast,frame,selected)
-    render_public_media()
-    with st.container(border=True, key='daily_content'):
-        weather_tab, tide_tab, travel_tab, news_tab = st.tabs(['Weather','Tides & water','Travel','Port news'])
-        with weather_tab:
-            st.markdown('**Weather outlook**')
+    weather_details, water_details = st.columns(2, gap='small')
+    with weather_details:
+        with st.expander('Weather forecast details'):
             _source(weather)
             st.caption('Forecast model estimates from MET Norway · valid times shown in UTC · CC BY 4.0')
             if forecast.empty:
                 st.info(_plain(weather.get('message')) or 'No future forecast hours returned.')
             else:
-                cols = st.columns(2, gap='small')
-                for column,key,label,unit in [(cols[0],'temp_c','Temperature','°C'),(cols[1],'wind_m_s','Wind speed','m/s')]:
-                    values = pd.to_numeric(forecast[key],errors='coerce')
-                    fig = go.Figure(go.Scatter(x=forecast['time'],y=values,mode='lines+markers',connectgaps=False,line={'color':'#7C83FD','width':2}))
-                    fig.update_layout(xaxis_title='Forecast time (UTC)', yaxis_title=label+' ('+unit+')')
-                    column.plotly_chart(chart_style(fig,225),width='stretch',key='daily_forecast_'+key)
                 table = forecast[['time','description','temp_c','wind_m_s','rain_mm']].copy()
                 table['time'] = table['time'].dt.strftime('%d %b %H:%M UTC')
                 st.dataframe(table.rename(columns={'time':'Time','description':'Outlook','temp_c':'Temperature (°C)','wind_m_s':'Wind (m/s)','rain_mm':'Rain, next hour (mm)'}), hide_index=True,width='stretch')
             st.caption('Forecast updated: '+_when(weather.get('updated_at')))
             _link('Weather data and attribution', weather.get('source_url'))
             _link('CC BY 4.0 licence', weather.get('license_url','https://creativecommons.org/licenses/by/4.0/'))
-        with tide_tab:
-            st.markdown('**Tides & water levels**')
+    with water_details:
+        with st.expander('Water observation details'):
             _source(tide)
+            if selected:
+                st.caption(_place_label(selected))
             if latest is None:
                 st.info(_plain(tide.get('message')) or 'No water readings returned.')
             else:
-                st.write(_place_label(selected))
                 st.caption('Observed '+_when(latest['date_time'])+' · Reference: '+_plain(selected.get('datum','Unknown reference')))
                 if now-latest['date_time']>pd.Timedelta(hours=1):
                     st.info('The latest available reading is older than one hour.')
@@ -345,23 +290,22 @@ def render_daily_home(snapshot):
                 if len(tail)==2 and tail['value'].notna().all() and tail['date_time'].diff().iloc[-1]==pd.Timedelta(minutes=15):
                     change = tail['value'].iloc[-1]-tail['value'].iloc[0]
                     st.caption('Rose between latest readings' if change>0 else 'Fell between latest readings' if change<0 else 'Unchanged between latest readings')
-                chart = water_chart_series(frame)
-                fig = go.Figure(go.Scatter(x=chart.index,y=chart.values,mode='lines',connectgaps=False,line={'color':'#62B8C9','width':2.5}))
-                fig.update_layout(xaxis_title='Observation time (UTC)',yaxis_title='Water level ('+selected.get('unit','')+')')
-                st.plotly_chart(chart_style(fig,260),width='stretch',key='daily_water_history')
-                st.caption('Recent readings returned by the source. Tide predictions and next high/low times are not connected.')
-            _link('Open Environment Agency water information', tide.get('source_url'))
-        with travel_tab:
-            st.markdown('**Nearby travel**')
-            _items(snapshot['traffic'], limit=4)
-            _link('Check traffic updates and planned closures', snapshot['traffic'].get('source_url'))
-        with news_tab:
-            st.markdown('**Port news**')
-            _items(snapshot['port_news'],limit=4)
-            st.caption('Peel Ports Group news; stories may concern ports outside Liverpool.')
-            _link('Latest stories on Peel Ports', snapshot['port_news'].get('source_url'))
+            if not frame.empty:
+                table = frame[['date_time','value']].copy()
+                table['date_time'] = table['date_time'].dt.strftime('%d %b %Y %H:%M UTC')
+                table = table.rename(columns={'date_time':'Observed time (UTC)','value':'Water level ('+selected.get('unit','')+')'})
+                st.dataframe(table,hide_index=True,width='stretch')
+                export = frame[['date_time','value']].assign(reference=_plain(selected['name']),
+                    unit=selected.get('unit',''),datum=selected.get('datum','Unknown reference'),
+                    source_url=selected.get('source_url') or tide.get('source_url'))
+                st.download_button('Download water observations CSV',export.to_csv(index=False),
+                    file_name='water-observations.csv',mime='text/csv',key='daily_water_csv')
+            st.caption('Recent readings returned by the source. Tide predictions and next high/low times are not connected.')
+            _link('Open Environment Agency water information', (selected.get('source_url') if selected else None) or tide.get('source_url'))
+    render_public_media()
     with st.expander('About these updates'):
         st.caption('Forecasts, water observations and official notices keep their own dates and sources. No port operating status or flood impact is inferred from a water reading or an empty alert feed.')
+        st.caption('Peel Ports Group news may concern ports outside Liverpool. Check each port notice for validity.')
         for key in ['weather','tide','weather_warnings','flood_warnings','port_notices','port_news','traffic']:
             section = snapshot[key]
             st.caption(_plain(section['source_name'])+' · '+section['status']+' · '+_when(section.get('checked_at')))

@@ -2,67 +2,17 @@
 from html import escape
 from hashlib import sha1
 import json
-import math
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import pydeck as pdk
 import streamlit as st
 
 from data_quality import quality_table
-from module_contracts import compare_run_outputs, load_module_registry, package_template, validate_package
+from module_contracts import compare_run_outputs, package_template, validate_package
 from monitoring_views import chart_style, select_water_series, state_badge, utc_label, water_level_figure
 from port_map import MAP_LEGEND, MARITIME_STYLE, monitoring_layers, selected_map_object
 from workbench_data import build_entities, choose_entity
-from workspace_data import quality_findings
-
-
-PANELS = ['Selected observations', 'Events & restrictions', 'Data quality', 'Dependencies', 'Scenario & impact', 'Module readiness', 'Source evidence']
-DEFAULT_PANELS = ['Selected observations', 'Data quality', 'Events & restrictions', 'Module readiness']
-TASKS = {
-    'Transport congestion & logistics': ('T6.1', ['WP2', 'WP3', 'WP4'], ['Selected observations', 'Events & restrictions', 'Dependencies', 'Data quality']),
-    'Incident response & recovery': ('T6.2', ['WP2', 'WP3', 'WP4', 'WP5'], ['Events & restrictions', 'Dependencies', 'Scenario & impact', 'Data quality']),
-    'Severe-weather management': ('T6.3', ['WP2', 'WP3', 'WP5'], ['Selected observations', 'Events & restrictions', 'Scenario & impact', 'Data quality']),
-    'Supply-chain disruption': ('T6.4', ['WP2', 'WP3', 'WP4'], ['Dependencies', 'Scenario & impact', 'Source evidence', 'Data quality']),
-}
-
-
-def apply_workbench_theme():
-    from dashboard_theme import apply_dashboard_theme
-    apply_dashboard_theme()
-
-
-def navigate(section, page):
-    st.session_state['workspace_section'] = section
-    st.session_state[f'workspace_view_{section}'] = page
-
-
-def render_shortcuts(sections, current_page):
-    targets = [('Overview', 'Monitoring', 'Overview'),
-               ('Monitor', 'Monitoring', 'Monitor'),
-               ('Observations', 'Monitoring', 'Live Monitoring'),
-               ('Objects & dependencies', 'Models & Dependencies', 'Objects & Dependencies'),
-               ('Scenarios & runs', 'Models & Dependencies', 'Scenarios & Runs'),
-               ('Data & evidence', 'Data & Research', 'Dataset Catalogue'),
-               ('WP modules', 'WP Delivery', 'Module Registry')]
-    available = [(label, section, page) for label, section, page in targets if page in sections.get(section, [])]
-    if not available:
-        return
-    primary = [target for target in available if target[2] in {'Overview', 'Monitor'}]
-    secondary = [target for target in available if target not in primary]
-    with st.container(key='workspace_shortcuts'):
-        columns = st.columns(len(primary) + bool(secondary), gap='small')
-        for column, (label, section, page) in zip(columns, primary):
-            column.button(label, key=f'shortcut_{page}', width='stretch',
-                          type='primary' if page == current_page else 'secondary',
-                          on_click=navigate, args=(section, page))
-        if secondary:
-            with columns[-1].popover('More', width='stretch'):
-                for label, section, page in secondary:
-                    st.button(label, key=f'shortcut_{page}', width='stretch',
-                              type='primary' if page == current_page else 'secondary',
-                              on_click=navigate, args=(section, page))
 
 
 def _remember_object():
@@ -74,10 +24,6 @@ def _remember_layer(name, key):
     settings = dict(st.session_state.get('workbench_layers', {}))
     settings[name] = st.session_state[key]
     st.session_state['workbench_layers'] = settings
-
-
-def _remember_panels():
-    st.session_state['workbench_panel_preset'] = list(st.session_state['workbench_panels'])
 
 
 def _remember_map_object(key):
@@ -92,7 +38,7 @@ def _pick_object(entities, map_id=None):
     st.session_state['workbench_entity_id'] = chosen
     st.session_state['workbench_last_map_id'] = map_id
     if chosen is None:
-        st.info('No monitoring objects are available for this selection. Review the source responses or enable illustrative assets.')
+        st.info('No monitoring objects are available for this selection. Review the source responses and observation dates.')
         return None
     labels = entities.set_index('entity_id')['name'].to_dict()
     st.session_state['workbench_entity_picker'] = chosen
@@ -102,15 +48,15 @@ def _pick_object(entities, map_id=None):
     return entities[entities['entity_id'].eq(entity_id)].iloc[0].to_dict()
 
 
-def _map(bundle, assets, service_area):
-    controls = st.columns(3)
+def _map(bundle, assets, service_area, allow_demo=True):
+    controls = st.columns(3 if allow_demo else 2)
     settings = st.session_state.get('workbench_layers', {})
     water = controls[0].checkbox('Water gauges', value=settings.get('water', True), key='workbench_layer_water',
         on_change=_remember_layer, args=('water', 'workbench_layer_water'))
     traffic = controls[1].checkbox('Traffic counters', value=settings.get('traffic', True), key='workbench_layer_traffic',
         on_change=_remember_layer, args=('traffic', 'workbench_layer_traffic'))
-    demo = controls[2].checkbox('Demonstration assets', value=settings.get('demo', False), key='workbench_layer_demo',
-        on_change=_remember_layer, args=('demo', 'workbench_layer_demo'))
+    demo = (controls[2].checkbox('Demonstration assets', value=settings.get('demo', False), key='workbench_layer_demo',
+        on_change=_remember_layer, args=('demo', 'workbench_layer_demo')) if allow_demo else False)
     visible_bundle = dict(bundle)
     if not water:
         visible_bundle['water_levels'] = pd.DataFrame()
@@ -181,7 +127,7 @@ def _inspect(entity, bundle):
             with st.expander('Evidence & provenance'):
                 st.json({key: str(latest.get(key, 'Not provided')) for key in
                     ['station_reference', 'unit', 'datum', 'datum_uri', 'api_endpoint', 'retrieved_at_utc']})
-                st.caption('SOSA/SHACL checks are available in Data Quality. Project-wide WP1 identity/ontology alignment is pending.')
+                st.caption('Detailed SOSA/SHACL checks are available in Data. Project-wide WP1 identity/ontology alignment is pending.')
     elif entity['kind'] == 'Traffic':
         state_badge(entity['state'], 'A road counter is not a direct measurement of port-gate queues.')
         frame = bundle.get('webtris_daily', pd.DataFrame())
@@ -222,7 +168,7 @@ def _display_results(frame):
 def _result_panel(entity=None):
     run = _current_run()
     if run is None:
-        st.info('No partner run selected. Import a WP3/4/5 result package in Scenarios & Runs to inspect published outputs.')
+        st.info('No partner run selected. Add a published result package in Data, then choose its run here.')
         return
     st.text(f"{run['model_name']} · {run['evidence_role'].upper()}")
     st.text(f"Scenario {run['scenario_id']} | Run {run['run_id']} | Model {run['model_version']}")
@@ -236,7 +182,7 @@ def _result_panel(entity=None):
     st.caption('Provider-supplied results use their own valid times. Observation-date filters do not resample model outputs.')
 
 
-def _relations(entities, entity=None, graph=False):
+def _relations(entities, entity=None):
     package = st.session_state.get('dependency_package')
     if package is None:
         st.info('No WP4 dependency package loaded. Shared types and spatial proximity do not establish an operational dependency.')
@@ -257,87 +203,7 @@ def _relations(entities, entity=None, graph=False):
     known = set(entities['entity_id'])
     frame = frame.copy()
     frame['Endpoint alignment'] = frame.apply(lambda row: 'Both in workspace' if {row['source_id'], row['target_id']} <= known else 'Unmatched endpoint', axis=1)
-    if graph:
-        displayed = frame.head(30)
-        nodes = sorted(set(displayed['source_id']) | set(displayed['target_id']))
-        positions = {node: (math.cos(2 * math.pi * i / len(nodes)), math.sin(2 * math.pi * i / len(nodes))) for i, node in enumerate(nodes)}
-        fig = go.Figure()
-        for _, row in displayed.iterrows():
-            x0, y0 = positions[row['source_id']]; x1, y1 = positions[row['target_id']]
-            fig.add_annotation(x=x1, y=y1, ax=x0, ay=y0, xref='x', yref='y', axref='x', ayref='y',
-                showarrow=True, arrowhead=2, arrowsize=1.2, arrowcolor='#6b8b9b', text='')
-            if row['direction'] == 'bidirectional':
-                fig.add_annotation(x=x0, y=y0, ax=x1, ay=y1, xref='x', yref='y', axref='x', ayref='y',
-                    showarrow=True, arrowhead=2, arrowsize=1.2, arrowcolor='#6b8b9b', text='')
-        fig.add_trace(go.Scatter(x=[positions[n][0] for n in nodes], y=[positions[n][1] for n in nodes],
-            mode='markers+text', text=[escape(n) for n in nodes], textposition='top center',
-            marker={'size': 18, 'color': ['#267f86' if n in known else '#a6adb8' for n in nodes]}, hoverinfo='text'))
-        fig.update_xaxes(visible=False, range=[-1.4, 1.4]); fig.update_yaxes(visible=False, range=[-1.4, 1.4])
-        st.plotly_chart(chart_style(fig, 360), width='stretch')
-        st.caption(f'Graph: first {len(displayed)} matching relationships; directions come from the supplied package. No cascade or severity is inferred.')
     st.dataframe(frame, hide_index=True, width='stretch')
-
-
-def render_workbench(bundle, assets, service_area, transport):
-    table = quality_table(bundle, pd.DataFrame(), pd.DataFrame())
-    observations = table[table['Kind'].eq('Observation')]
-    findings = quality_findings(observations)
-    with st.container(key='workbench_summary'):
-        cards = st.columns(4, gap='small')
-        cards[0].metric('Water measurement references', int(observations['Source'].str.startswith('Water ').sum()))
-        cards[1].metric('Traffic reference locations', len(bundle.get('webtris_sites', pd.DataFrame())))
-        cards[2].metric('Data checks to review', len(findings))
-        cards[3].metric('Partner runs in session', len(st.session_state.get('partner_runs', {})))
-    with st.expander('Workspace panels', expanded=False):
-        visible = st.multiselect('Visible panels', PANELS, default=st.session_state.get('workbench_panel_preset', DEFAULT_PANELS),
-                                key='workbench_panels', on_change=_remember_panels)
-    left, right = st.columns([2.2, 1], gap='small')
-    with left:
-        with st.container(border=True, key='workbench_spatial'):
-            st.markdown('<div class="workbench-panel-title">SPATIAL SITUATION <span>OBSERVATIONS / REFERENCE LOCATIONS</span></div>', unsafe_allow_html=True)
-            entities, map_id = _map(bundle, assets, service_area)
-        trend_slot = st.container(border=True, key='workbench_panel_trend') if 'Selected observations' in visible else None
-    with right, st.container(border=True, key='workbench_inspector'):
-        st.markdown('<div class="workbench-panel-title">OBJECT INSPECTOR <span>SELECTED REFERENCE</span></div>', unsafe_allow_html=True)
-        entity = _pick_object(entities, map_id)
-        selected = _inspect(entity, bundle)
-    if trend_slot is not None:
-        with trend_slot:
-            st.markdown('<div class="workbench-panel-title">SELECTED OBSERVATIONS <span>ACTUAL SOURCE TIMESTAMPS</span></div>', unsafe_allow_html=True)
-            if entity and entity['kind'] == 'Water' and not selected.empty:
-                st.plotly_chart(water_level_figure(selected, 230), width='stretch', key='workbench_observation_plot')
-                st.caption('Observed values; gaps retained. Open Observation Explorer for interval export.')
-            elif entity and entity['kind'] == 'Traffic' and not selected.empty and 'Total Volume' in selected:
-                fig = px.line(selected, x='timestamp', y='Total Volume', labels={'timestamp': 'Source time (timezone unverified)'})
-                st.plotly_chart(chart_style(fig, 230), width='stretch')
-            else:
-                st.info('Select a monitoring object with returned observations to view its trend.')
-    panels = [panel for panel in visible if panel != 'Selected observations']
-    for first in range(0, len(panels), 2):
-        for column, panel in zip(st.columns(2, gap='small'), panels[first:first + 2]):
-            with column, st.container(border=True, key=f'workbench_panel_{panel.replace(" ", "_")}'):
-                st.markdown(f'<div class="workbench-panel-title">{escape(panel.upper())}</div>', unsafe_allow_html=True)
-                if panel == 'Events & restrictions':
-                    st.info('An operational incident / restriction feed is not connected. No live event or closure is inferred from data age.')
-                    if st.session_state.get('workbench_layer_demo'):
-                        st.caption('Illustrative transport events have their own sample dates and an unspecified timezone.')
-                        st.dataframe(transport, hide_index=True, width='stretch', height=230)
-                elif panel == 'Data quality':
-                    if findings.empty:
-                        st.success('No configured findings in the returned observation streams.')
-                    else:
-                        st.dataframe(findings[['Priority', 'Source', 'Finding']], hide_index=True, width='stretch', height=260)
-                    st.caption('Checks describe data usability; missing, stale and invalid values remain distinct.')
-                elif panel == 'Dependencies':
-                    _relations(entities, entity)
-                elif panel == 'Scenario & impact':
-                    _result_panel(entity)
-                elif panel == 'Module readiness':
-                    st.dataframe(pd.DataFrame([{'Module': row['module_id'], 'Delivery': row['title'], 'Status': row['implementation_status']} for row in load_module_registry()]), hide_index=True, width='stretch', height=270)
-                else:
-                    status = bundle.get('status', pd.DataFrame())
-                    st.dataframe(status.reindex(columns=['source', 'status', 'records', 'last_call_utc']), hide_index=True, width='stretch')
-                    st.caption('These are the feeds requested by this view, not a global availability check.')
 
 
 def _import_package(key):
@@ -373,36 +239,14 @@ def _import_package(key):
             st.rerun()
 
 
-def render_objects(bundle, assets):
-    st.subheader('Objects & dependencies')
-    st.caption('WP1 types and identity rules · WP2 source alignment · WP4 dependency evidence and interoperability')
-    demo = st.checkbox('Include illustrative assets', value=False, key='objects_demo')
-    entities = build_entities(bundle, assets, demo)
-    left, right = st.columns([1, 1.5])
-    with left, st.container(border=True):
-        entity = _pick_object(entities)
-        _inspect(entity, bundle)
-    with right, st.container(border=True):
-        st.markdown('**DECLARED RELATIONSHIPS**')
-        _relations(entities, entity, graph=True)
-    with st.expander('Source-derived object register', expanded=False):
-        st.dataframe(entities.drop(columns=['source_url'], errors='ignore'), hide_index=True, width='stretch')
-        st.caption('Workspace IDs support this prototype. Matching names or coordinates do not establish WP1 identity equivalence.')
-    _import_package('objects')
-
-
 def _remember_run():
     st.session_state['current_run_id'] = st.session_state['current_run_picker']
 
 
-def render_runs():
-    st.subheader('Scenarios & runs')
-    st.caption('WP3 model-chain outputs · WP4 cross-sector results · WP5 impact interpretation')
-    st.info('Live scenario / recovery models are not connected. Import published partner outputs to inspect and compare; importing does not launch a model.')
-    _import_package('runs')
+def render_runs(entity=None):
     runs = st.session_state.get('partner_runs', {})
     if not runs:
-        st.caption('No run packages in this session. Archived research remains available in Research & Replay.')
+        st.caption('No published run packages in this session. Add a partner result package in Data to inspect and compare its outputs.')
         return
     options = [None] + list(runs)
     current = st.session_state.get('current_run_id')
@@ -411,7 +255,10 @@ def render_runs():
         format_func=lambda value: 'No run selected' if value is None else f"{value} | {runs[value]['scenario_id']}")
     run = _current_run()
     if run:
-        _result_panel()
+        _result_panel(entity)
+        if entity:
+            with st.expander('All outputs in the selected run'):
+                st.dataframe(_display_results(pd.DataFrame(run['outputs'], dtype=object)), hide_index=True, width='stretch')
         with st.expander('Run inputs, versions and provider claims'):
             st.json({k: v for k, v in run.items() if k != 'outputs'})
             st.caption('Provider validation status is a declaration, not CRDT acceptance. Inspect matching entity IDs and metric meanings before use.')
@@ -446,71 +293,3 @@ def render_runs():
                       labels={'valid_time': 'Result valid time (UTC)', 'value': escape(f'{metric[1]} ({metric[2]})')})
         st.plotly_chart(chart_style(fig), width='stretch')
     st.download_button('Download run comparison CSV', compared.to_csv(index=False), 'CRDT_run_comparison.csv', 'text/csv')
-
-
-def render_modules():
-    st.subheader('WP module handovers')
-    st.caption('WP responsibility register: a WP may deliver multiple data products, models and views. Each consuming team owns its internal adaptation. Status describes this application, not consortium task completion.')
-    modules = load_module_registry()
-    selected = st.selectbox('Module', [row['module_id'] for row in modules], format_func=lambda value: next(f"{r['module_id']} · {r['title']}" for r in modules if r['module_id'] == value))
-    module = next(row for row in modules if row['module_id'] == selected)
-    st.markdown(f"**{module['owner']}** | {' · '.join(module['tasks'])}")
-    st.caption(f"{module['delivery_type']} · {module['implementation_status']}")
-    left, right = st.columns(2)
-    with left, st.container(border=True):
-        st.markdown('**AVAILABLE IN THIS APPLICATION**')
-        for item in module['available']:
-            st.write('• ' + item)
-        st.markdown('**INPUT CONTRACT**')
-        for item in module['inputs']:
-            st.write('• ' + item)
-    with right, st.container(border=True):
-        st.markdown('**PARTNER HANDOVER STILL NEEDED**')
-        for item in module['pending']:
-            st.write('• ' + item)
-        st.markdown('**OUTPUT CONTRACT**')
-        for item in module['outputs']:
-            st.write('• ' + item)
-    st.download_button('Download module handover register', json.dumps(modules, indent=2), 'CRDT_WP_module_handovers.json', 'application/json')
-    _import_package('modules')
-
-
-def _apply_task(name):
-    st.session_state['workbench_panel_preset'] = TASKS[name][2]
-    st.session_state.pop('workbench_panels', None)
-    st.session_state['demonstrator_task'] = name
-    navigate('Monitoring', 'Live Monitoring')
-
-
-def render_demonstrators():
-    st.subheader('Demonstrator tasks')
-    st.caption('WP6 · T6.1–T6.5 · Draft task packages for a shared system; real-world demonstrations remain to be validated.')
-    name = st.selectbox('Demonstrator task', list(TASKS))
-    task, required, panels = TASKS[name]
-    st.markdown(f'**{task} · {name}**')
-    st.write('Required module contributions: ' + ', '.join(required))
-    st.write('Suggested workbench panels: ' + ', '.join(panels))
-    st.info('These presets organise inspection. Validated crisis, impact and recovery models, operational inputs and partner acceptance evidence are still required for an end-to-end demonstration.')
-    st.button('Open this task in the workbench', type='primary', on_click=_apply_task, args=(name,))
-    draft = {'status': 'DRAFT - not an accepted demonstration', 'task_id': task, 'task': name,
-             'required_modules': required, 'panels': panels,
-             'acceptance_requirements': ['Confirm user decision and permitted interventions with operational partners',
-                 'Validate the required data coverage, units and time alignment', 'Record model versions, inputs and scientific validation',
-                 'Check evidence distinctions, missing inputs and access constraints', 'Record user feedback and assign each issue to its module owner']}
-    st.download_button('Download draft task package', json.dumps(draft, indent=2), f'CRDT_{task}_task_draft.json', 'application/json')
-
-
-def render_governance():
-    st.subheader('Governance handover')
-    st.caption('WP7 · T7.1 deployment/management · T7.3 data governance (Lancaster and partners)')
-    st.info('The shared password and partner-view selector do not provide institutional identity or server-side role authorisation.')
-    controls = pd.DataFrame([
-        {'Area': 'Application access', 'Implemented': 'Password gate before loading data', 'Handover needed': 'Institutional identity, server-side authorisation and audit ownership'},
-        {'Area': 'Partner views', 'Implemented': 'Prototype navigation rules', 'Handover needed': 'Approved roles, per-product access and data-owner permission'},
-        {'Area': 'Partner packages', 'Implemented': 'Schema checks; session-local data intake; no uploaded code execution', 'Handover needed': 'Provider identity, semantic alignment and scientific review'},
-        {'Area': 'Data provenance', 'Implemented': 'Source/time metadata, diagnostics, observation/report exports', 'Handover needed': 'Reviewed retention, licences and cross-partner sharing rules'},
-        {'Area': 'Service ownership', 'Implemented': 'Streamlit application and connector code', 'Handover needed': 'Named hosting, release, incident response and long-term maintenance teams'},
-    ])
-    st.dataframe(controls, hide_index=True, width='stretch')
-    st.download_button('Download governance handover', json.dumps({'status': 'DRAFT - policy decisions pending', 'controls': controls.to_dict(orient='records')}, indent=2),
-                       'CRDT_governance_handover_draft.json', 'application/json')

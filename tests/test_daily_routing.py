@@ -51,7 +51,8 @@ class DailyRoutingTests(unittest.TestCase):
     def test_monitor_refresh_keeps_the_provider_weather_cache(self):
         from daily_service import load_weather
         app = self.app()
-        next(item for item in app.button if item.label == 'Observations').click().run()
+        next(item for item in app.button if item.label == 'Monitor').click().run()
+        next(item for item in app.radio if item.label == 'Data view').set_value('Connected observations').run()
         moment = datetime.now(timezone.utc)
         payload = {'properties':{'meta':{'updated_at':moment.isoformat()},'timeseries':[
             {'time':(moment+timedelta(hours=1)).isoformat(), 'data':{'instant':{'details':
@@ -64,6 +65,50 @@ class DailyRoutingTests(unittest.TestCase):
             load_weather()
         self.assertEqual(download.call_count, 1)
         load_weather.clear()
+
+    def test_only_three_workspace_buttons_replace_the_old_navigation_trees(self):
+        app=self.app()
+        self.assertTrue({'Overview','Monitor','Data'} <= {item.label for item in app.button})
+        self.assertFalse(any(item.label in {'Workspace','View'} for item in app.radio))
+        self.assertFalse(any(item.label in {'More','Observations','WP modules'} for item in app.button))
+
+    def test_data_catalogue_has_no_global_observation_dates_and_is_feed_free(self):
+        app=self.app()
+        next(item for item in app.button if item.label=='Data').click().run()
+        self.assertFalse(app.exception)
+        self.assertFalse(app.date_input)
+        self.feeds.assert_not_called()
+        self.assertTrue(any(item.label=='Data source' for item in app.selectbox))
+
+    def test_water_refresh_keeps_unrelated_port_statistics_cache(self):
+        app=self.app()
+        next(x for x in app.button if x.label=='Data').click().run()
+        next(x for x in app.selectbox if x.label=='Data source').set_value('HS001').run()
+        next(x for x in app.checkbox if x.label=='Browse connected records').check().run()
+        next(x for x in app.button if x.label=='Monitor').click().run()
+        next(x for x in app.radio if x.label=='Data view').set_value('Connected observations').run()
+        next(x for x in app.multiselect if x.label=='Observation sources').set_value(['water_level']).run()
+        next(x for x in app.button if x.label=='Refresh data').click().run()
+        next(x for x in app.button if x.label=='Data').click().run()
+        requested=[call.kwargs.get('sources') for call in self.feeds.call_args_list]
+        self.assertEqual(requested.count(('dft',)),1)
+
+    def test_selected_source_status_does_not_include_unrequested_deferred_connectors(self):
+        import pandas as pd
+        from api_connectors import status_row
+        app=self.app()
+        bundle=observation_fixture()
+        bundle['status']=pd.concat([bundle['status'],pd.DataFrame([status_row(
+            'private_sensor','Unrequested private feed','Partner','requires_partner_agreement',0,
+            'https://example.org','Not requested')])],ignore_index=True)
+        self.feeds.return_value=bundle
+        next(x for x in app.button if x.label=='Data').click().run()
+        next(x for x in app.selectbox if x.label=='Data source').set_value('HS004').run()
+        next(x for x in app.checkbox if x.label=='Browse connected records').check().run()
+        self.assertFalse(app.exception)
+        statuses=[x.value for x in app.dataframe if 'status' in x.value]
+        self.assertTrue(statuses)
+        self.assertFalse(any(frame['status'].eq('requires_partner_agreement').any() for frame in statuses))
 
 
 if __name__ == '__main__':

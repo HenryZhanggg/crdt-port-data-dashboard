@@ -17,18 +17,31 @@ class WorkbenchViewTests(unittest.TestCase):
         self.fetch = patch('api_connectors.fetch_raw_data_bundle', return_value=observation_fixture() if bundle is None else bundle)
         self.fetch.start()
         self.addCleanup(self.fetch.stop)
-        app = AppTest.from_file('app.py', default_timeout=30)
-        app.session_state['dashboard_authorised'] = True
-        app.session_state['workspace_section'] = 'Monitoring'
-        app.session_state['workspace_view_Monitoring'] = 'Live Monitoring'
+        app = AppTest.from_string('''
+import pandas as pd
+from api_connectors import fetch_raw_data_bundle
+from monitor_workspace import render_monitor_workspace
+def load_bundle(start, end, sources):
+    return fetch_raw_data_bundle(start, end, sources=sources)
+render_monitor_workspace(load_bundle, pd.DataFrame(), {})
+''', default_timeout=30)
+        app.session_state['monitor_data_mode'] = 'Connected observations'
         return app.run()
 
-    def test_home_has_shared_inspector_and_composable_panels(self):
+    def results_app(self, runs, current=None):
+        app = AppTest.from_string('from workbench_views import render_runs\nrender_runs()', default_timeout=30)
+        app.session_state['partner_runs'] = runs
+        if current is not None:
+            app.session_state['current_run_id'] = current
+        return app.run()
+
+    def test_monitor_has_shared_inspector_and_fixed_detail_tabs(self):
         app = self.app()
         self.assertFalse(app.exception)
         self.assertTrue(any('SPATIAL SITUATION' in x.value for x in app.markdown))
         self.assertTrue(any(x.label == 'Inspect an object' for x in app.selectbox))
-        self.assertTrue(any(x.label == 'Visible panels' for x in app.multiselect))
+        self.assertEqual([tab.label for tab in app.tabs], ['Readings', 'Connections', 'Results', 'Sources'])
+        self.assertFalse(any(x.label == 'Visible panels' for x in app.multiselect))
 
     def test_recent_observations_are_a_query_window_and_history_keeps_date_control(self):
         app = self.app()
@@ -71,19 +84,12 @@ class WorkbenchViewTests(unittest.TestCase):
         ring = next(layer for layer in decks[-1].layers if layer.id == 'selected-object')
         self.assertEqual(ring.data[0]['entity_id'], 'water:E70124')
 
-    def test_new_workspaces_are_usable_without_partner_models(self):
+    def test_monitor_is_usable_without_partner_models(self):
         app = self.app()
-        for section, page in [('Models & Dependencies', 'Objects & Dependencies'),
-                              ('Models & Dependencies', 'Scenarios & Runs'),
-                              ('WP Delivery', 'Module Registry'),
-                              ('WP Delivery', 'Demonstrator Tasks'),
-                              ('WP Delivery', 'Governance Handover')]:
-            workspace = next(x for x in app.radio if x.label == 'Workspace')
-            self.assertIn(section, workspace.options)
-            workspace.set_value(section).run()
-            next(x for x in app.radio if x.label == 'View').set_value(page).run()
-            self.assertFalse(app.exception, f'{page}: {app.exception}')
-        self.assertTrue(any('institutional' in str(x.value).lower() for x in app.info))
+        self.assertFalse(app.exception)
+        self.assertTrue(any('No published run packages' in str(x.value) for x in app.caption))
+        self.assertTrue(any('No WP4 dependency package' in str(x.value) for x in app.info))
+        self.assertFalse(app.file_uploader)
 
     def test_empty_feeds_do_not_create_assets_or_impact_results(self):
         app = self.app(empty_bundle())
@@ -92,16 +98,15 @@ class WorkbenchViewTests(unittest.TestCase):
         self.assertIsNone(app.session_state['workbench_entity_id'])
         self.assertTrue(any('No monitoring objects' in str(x.value) for x in app.info))
 
-    def test_demo_assets_are_opt_in_and_do_not_show_operational_warning(self):
+    def test_example_assets_have_their_own_mode_and_selection(self):
         app = self.app()
-        self.assertTrue(any(x.label == 'Demonstration assets' for x in app.checkbox))
-        next(x for x in app.checkbox if x.label == 'Demonstration assets').check().run()
-        self.assertTrue(any(x.label == 'Inspect an object' for x in app.selectbox))
-        picker = next(x for x in app.selectbox if x.label == 'Inspect an object')
-        picker.set_value('demo:gate_north').run()
+        self.assertFalse(any(x.label == 'Demonstration assets' for x in app.checkbox))
+        real_id = app.session_state['workbench_entity_id']
+        next(x for x in app.radio if x.label == 'Data view').set_value('Example network').run()
+        next(x for x in app.button if x.key == 'semantic_object_demo:road_a').click().run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['workbench_entity_id'], 'demo:gate_north')
-        self.assertTrue(any('Illustrative asset' in str(x.value) for x in app.info))
+        self.assertEqual(app.session_state['workbench_entity_id'], real_id)
+        self.assertEqual(app.session_state['semantic_entity_id'], 'demo:road_a')
 
     def test_password_gate_prevents_loading_data(self):
         st.cache_data.clear()
@@ -133,72 +138,54 @@ class WorkbenchViewTests(unittest.TestCase):
         self.assertEqual(point['state'], 'Stale')
         self.assertEqual(point['datum_uri'], 'datum:old')
 
-    def test_panel_and_layer_choices_survive_deep_analysis(self):
+    def test_layer_choices_survive_switching_example_context(self):
         app = self.app()
-        next(x for x in app.multiselect if x.label == 'Visible panels').set_value(['Dependencies']).run()
-        next(x for x in app.checkbox if x.label == 'Demonstration assets').check().run()
-        next(x for x in app.button if x.label == 'Objects & dependencies').click().run()
-        next(x for x in app.button if x.label == 'Observations').click().run()
+        next(x for x in app.checkbox if x.label == 'Traffic counters').uncheck().run()
+        next(x for x in app.radio if x.label == 'Data view').set_value('Example network').run()
+        next(x for x in app.radio if x.label == 'Data view').set_value('Connected observations').run()
         self.assertFalse(app.exception)
-        self.assertEqual(next(x for x in app.multiselect if x.label == 'Visible panels').value, ['Dependencies'])
-        self.assertTrue(next(x for x in app.checkbox if x.label == 'Demonstration assets').value)
+        self.assertFalse(next(x for x in app.checkbox if x.label == 'Traffic counters').value)
 
     def test_run_id_can_match_the_empty_selection_label(self):
-        app = self.app()
         package = validate_package(dict(package_template('model_run'), run_id='No run selected'))
-        app.session_state['partner_runs'] = {'No run selected': package}
-        next(x for x in app.radio if x.label == 'Workspace').set_value('Models & Dependencies').run()
-        next(x for x in app.radio if x.label == 'View').set_value('Scenarios & Runs').run()
+        app = self.results_app({'No run selected': package})
         next(x for x in app.selectbox if x.label == 'Current run').set_value('No run selected').run()
         self.assertFalse(app.exception)
         self.assertIn('current_run_id', app.session_state)
         self.assertEqual(app.session_state['current_run_id'], 'No run selected')
 
     def test_deeply_nested_upload_is_rejected_without_crashing(self):
-        app = self.app()
         with patch('streamlit.file_uploader', return_value=BytesIO(('[' * 20000 + '0' + ']' * 20000).encode())):
-            next(x for x in app.radio if x.label == 'Workspace').set_value('Models & Dependencies').run()
-            next(x for x in app.radio if x.label == 'View').set_value('Scenarios & Runs').run()
+            app = AppTest.from_string("from workbench_views import _import_package\n_import_package('data')", default_timeout=30).run()
             next(x for x in app.button if x.label == 'Validate & add to this session').click().run()
         self.assertFalse(app.exception)
         self.assertTrue(any('Package rejected' in x.value for x in app.error))
 
     def test_imported_metadata_is_not_rendered_as_markdown_images(self):
-        app = self.app()
         injected = 'Injected ![remote](https://invalid.example/metadata)'
         package = validate_package(dict(package_template('model_run'), model_name=injected, run_id=injected, scenario_id=injected))
-        app.session_state['partner_runs'] = {injected: package}
-        app.session_state['current_run_id'] = injected
-        next(x for x in app.radio if x.label == 'Workspace').set_value('Models & Dependencies').run()
-        next(x for x in app.radio if x.label == 'View').set_value('Scenarios & Runs').run()
+        app = self.results_app({injected: package}, injected)
         self.assertFalse(app.exception)
         self.assertFalse(any('![remote]' in str(x.value) for x in list(app.markdown) + list(app.caption)))
 
     def test_large_partner_values_remain_inspectable_without_chart_overflow(self):
-        app = self.app()
         first = package_template('model_run')
         first['outputs'][0]['value'] = 10 ** 400
         second = package_template('model_run')
         second['run_id'] = 'large-b'
         second['outputs'][0]['value'] = 10 ** 400 + 1
-        app.session_state['partner_runs'] = {first['run_id']: validate_package(first), second['run_id']: validate_package(second)}
-        app.session_state['current_run_id'] = first['run_id']
-        next(x for x in app.radio if x.label == 'Workspace').set_value('Models & Dependencies').run()
-        next(x for x in app.radio if x.label == 'View').set_value('Scenarios & Runs').run()
+        app = self.results_app({first['run_id']: validate_package(first), second['run_id']: validate_package(second)}, first['run_id'])
         self.assertFalse(app.exception)
         self.assertTrue(any(str(10 ** 400) in [str(v) for v in x.value.to_numpy().flat] for x in app.dataframe))
         self.assertTrue(any('chart' in x.value.lower() and 'range' in x.value.lower() for x in app.info))
 
     def test_comparison_errors_render_provider_ids_as_plain_text(self):
-        app = self.app()
         first = package_template('model_run')
         injected = 'Injected ![remote](https://invalid.example/metadata)'
         first['run_id'] = injected
         first['outputs'].append(dict(first['outputs'][0]))
         second = package_template('model_run')
-        app.session_state['partner_runs'] = {injected: validate_package(first), second['run_id']: validate_package(second)}
-        next(x for x in app.radio if x.label == 'Workspace').set_value('Models & Dependencies').run()
-        next(x for x in app.radio if x.label == 'View').set_value('Scenarios & Runs').run()
+        app = self.results_app({injected: validate_package(first), second['run_id']: validate_package(second)})
         self.assertFalse(app.exception)
         self.assertTrue(app.warning)
         self.assertFalse(any('![remote]' in str(x.value) for x in app.warning))

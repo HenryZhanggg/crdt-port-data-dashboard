@@ -17,6 +17,14 @@ class DataQualityTests(unittest.TestCase):
     def setUp(self):
         self.now = pd.Timestamp("2026-10-06T12:00:00Z")
 
+    def test_requested_scope_does_not_label_unqueried_streams_unavailable(self):
+        table=quality_table({},pd.DataFrame(),pd.DataFrame(),now=self.now,requested_sources=('water_level',))
+        self.assertEqual(table['Source'].tolist(),['Liverpool water level'])
+        self.assertEqual(table['State'].tolist(),['Unavailable'])
+        table=quality_table({},pd.DataFrame(),pd.DataFrame(),now=self.now,requested_sources=('webtris',))
+        self.assertEqual(table['Source'].tolist(),['A5036 traffic'])
+        self.assertEqual(table['State'].tolist(),['Unavailable'])
+
     def test_connected_old_observations_are_stale(self):
         frame = pd.DataFrame({"time": ["2024-05-01T12:00:00Z"]})
         result = assess_series("Traffic", frame, "time", "Observation", self.now, 180)

@@ -90,7 +90,7 @@ def compatibility(left, right):
     return True, "Same location, property, datum and unit; timestamps still require alignment"
 
 
-def quality_table(bundle, weather, transport, now=None):
+def quality_table(bundle, weather, transport, now=None, requested_sources=None):
     rows = []
     water = bundle.get("water_levels", pd.DataFrame())
     if not water.empty:
@@ -118,6 +118,11 @@ def quality_table(bundle, weather, transport, now=None):
     queried_shipping = "connector_id" in status and status["connector_id"].astype(str).str.startswith("ons").any()
     if not shipping.empty or queried_shipping:
         rows.append(assess_series("ONS shipping", shipping, "week_ending", "Statistics", now))
+    if requested_sources is not None:
+        rows=[row for row in rows if
+              ('water_level' in requested_sources and row['Source'].startswith(('Water ','Liverpool water level')))
+              or ('webtris' in requested_sources and row['Source'].startswith(('Traffic ','A5036 traffic')))
+              or ('ons' in requested_sources and row['Source']=='ONS shipping')]
     return pd.DataFrame(rows)
 
 
