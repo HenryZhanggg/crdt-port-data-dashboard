@@ -11,7 +11,7 @@
 - [x] Render the selected object's evidence graph, details and JSON download in Connections; retain exact source/reference/date handoffs and existing dependency-package display.
 - [x] Show valid nearby objects as explicitly labelled candidates within a fixed, displayed five-kilometre rule; support inspecting a candidate without manufacturing dependencies or changing source permissions.
 - [x] Run focused and full unittest suites; independently review correctness and scope. Verify native graph rendering, downloads, object/reference changes, existing page handoffs and responsive layout in desktop/mobile browsers.
-- [ ] Update documentation/release marker, push scoped changes without force to the existing GitHub main branch, and observe the deployed version/login surface.
+- [x] Update documentation/release marker, push scoped changes without force to the existing GitHub main branch, and observe the deployed version/login surface.
 
 ## Acceptance boundaries
 
