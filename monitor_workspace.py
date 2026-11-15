@@ -11,6 +11,7 @@ from monitoring_views import chart_style, utc_label, water_level_figure
 from semantic_views import render_semantic_demo
 from workbench_views import _inspect, _map, _pick_object, _relations, render_runs
 from workspace_data import quality_findings
+from data_relation_views import render_data_relations
 from workspace_links import (clear_context, context_allowed, context_label, filter_context_bundle,
                              open_data_context, reference_key)
 
@@ -197,6 +198,8 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
             _traffic_readings(selected, bundle, entity)
     with connections:
         if 'gis' in allowed:
+            render_data_relations(bundle, selected_context, entities)
+            st.markdown('**Partner-declared dependencies**')
             _relations(entities, entity)
         else:
             st.caption('Dependency inspection is not enabled for this partner view.')

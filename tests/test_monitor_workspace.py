@@ -37,6 +37,28 @@ class MonitorWorkspaceTests(unittest.TestCase):
     def connected(self, **state):
         return self.app(monitor_data_mode='Connected observations', **state)
 
+    def test_connections_show_actual_data_evidence_without_a_partner_dependency_package(self):
+        app=self.connected()
+        connections=next(tab for tab in app.tabs if tab.label=='Connections')
+        self.assertTrue(connections.get('graphviz_chart'))
+        self.assertTrue(any('No WP4 dependency package' in x.value for x in connections.info))
+        self.assertTrue(any(x.label=='Download connection evidence' for x in connections.get('download_button')))
+
+    def test_nearby_inspection_changes_the_main_selected_object(self):
+        app=self.connected()
+        next(x for x in app.selectbox if x.label=='Nearby object').set_value('traffic:6806').run()
+        next(x for x in app.button if x.label=='Inspect nearby object').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['workbench_entity_id'],'traffic:6806')
+        self.assertTrue(any('Mapping unverified' in x.value for x in app.info))
+        self.assertTrue(any(x.label=='Download selected traffic observations' for x in app.get('download_button')))
+
+    def test_connections_respect_existing_partner_gis_visibility(self):
+        app=self.connected(allowed_views={'weather'})
+        connections=next(tab for tab in app.tabs if tab.label=='Connections')
+        self.assertFalse(connections.get('graphviz_chart'))
+        self.assertFalse(connections.get('download_button'))
+
     def handoff(self, **changes):
         from workspace_links import open_water_observations
         rows = observation_fixture()['water_levels']

@@ -304,6 +304,7 @@ def fetch_liverpool_tide_water_levels(session: requests.Session, start_date=None
                 except requests.RequestException:
                     pass  # Missing datum metadata remains visible as a validation failure.
         station_lookup[station_reference] = {
+            "station_uri": item.get("@id") or "",
             "station_label": item.get("label", "Liverpool"),
             "lat": lat,
             "lon": lon,
@@ -321,6 +322,7 @@ def fetch_liverpool_tide_water_levels(session: requests.Session, start_date=None
         response.raise_for_status()
         for reading in response.json().get("items", []):
             measure = reading.get("measure", {}) or {}
+            measure_uri = measure if isinstance(measure, str) else measure.get("@id") or ""
             if isinstance(measure, str):
                 measure = station["measures"].get(measure, {})
             else:
@@ -330,6 +332,9 @@ def fetch_liverpool_tide_water_levels(session: requests.Session, start_date=None
             rows.append(
                 {
                     "station_reference": station_reference,
+                    "station_uri": station.get("station_uri", ""),
+                    "measure_uri": measure_uri,
+                    "reading_uri": reading.get("@id") or "",
                     "station_label": station.get("station_label", "Liverpool"),
                     "date_time": reading.get("dateTime", ""),
                     "parameter": measure.get("parameter", ""),
@@ -352,7 +357,7 @@ def fetch_liverpool_tide_water_levels(session: requests.Session, start_date=None
         water_levels["date_time"] = pd.to_datetime(water_levels["date_time"], errors="coerce")
         water_levels["value"] = normalise_numeric(water_levels["value"])
         water_levels = water_levels.drop_duplicates(
-            subset=["station_reference", "date_time", "unit", "value"]
+            subset=["station_reference", "date_time", "parameter", "qualifier", "unit", "datum_uri", "measure_uri", "reading_uri", "value"]
         ).sort_values(["station_reference", "date_time"])
 
     return water_levels, status_row(
