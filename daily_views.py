@@ -13,6 +13,7 @@ import streamlit as st
 from monitoring_views import chart_style
 from port_map import MARITIME_STYLE
 from workspace_data import clean_water_series, water_chart_series
+from workspace_links import water_handoff_context, open_water_observations
 from public_media import render_public_media
 
 
@@ -62,9 +63,26 @@ def _link(label, url):
 
 def _source(section):
     label = _plain(section.get('source_name', 'Official source'))
-    if section.get('checked_at'):
+    checked = pd.notna(_time(section.get('checked_at')))
+    if section.get('status')=='link_only':
+        label += ' · Link only · Not checked'
+    elif section.get('status')=='unavailable':
+        label += ' · Unavailable · '+('Attempted '+_when(section['checked_at']) if checked else 'Not checked')
+    elif section.get('status')=='available' and checked:
         label += ' · Checked ' + _when(section['checked_at'])
+    else:
+        label += ' · Not checked'
     st.caption(label)
+    if section.get('forecast_only'):
+        st.caption('Forecast issued '+_when(section.get('updated_at')))
+    if 'feed_updated_at' in section:
+        st.caption('Feed published '+_when(section.get('feed_updated_at')))
+
+
+def _observation_age(moment, now):
+    minutes = max(0, int((now-moment).total_seconds()//60))
+    hours, minutes = divmod(minutes,60)
+    return (f'{hours}h {minutes:02d}m' if hours else f'{minutes}m')+' old'
 
 
 def _place_label(series):
@@ -150,11 +168,49 @@ def update_items(snapshot, category='All'):
     def published(row):
         moment = _time(row.get('published_at'))
         return moment.value if pd.notna(moment) else -1
-    return sorted(rows, key=published, reverse=True)
+    return sorted(rows, key=lambda row:(row['source_key']!='port_news',published(row)), reverse=True)
+
+
+def _validity(item, now):
+    start, end = _time(item.get('valid_from')), _time(item.get('valid_to'))
+    if (pd.notna(end) and end<now) or item.get('severity_level')==4:
+        return 'Historical / expired · Check the official source for current notices'
+    if pd.notna(start) and start>now:
+        return 'Upcoming · Check stated validity in the official source'
+    if pd.notna(start) and pd.notna(end):
+        return 'Within stated validity · Confirm details in the official source'
+    return 'Validity unconfirmed · Check the official source'
 
 
 def _update_feed(snapshot, category):
-    for item in update_items(snapshot, category)[:6]:
+    links = [(key,group) for key,group in _UPDATE_SECTIONS
+             if key in {'port_notices','traffic'} and category in ('All',group)]
+    if links:
+        columns = st.columns(len(links),gap='small')
+        for column,(key,group) in zip(columns,links):
+            with column:
+                section = snapshot[key]
+                _source(section)
+                st.caption(_plain(section.get('message')) or 'Check the official source for current notices.')
+                _link('Open '+_plain(section['source_name'])+' · '+('port notices' if key=='port_notices' else 'travel'),section.get('source_url'))
+    for key,group in _UPDATE_SECTIONS:
+        if key in {'port_notices','traffic'} or category not in ('All',group):
+            continue
+        section = snapshot[key]
+        _source(section)
+        if key=='port_news':
+            published = [item['published_at'] for item in section.get('items',[]) if pd.notna(_time(item.get('published_at')))]
+            st.caption('Latest publication '+_when(max(published,key=_time) if published else None))
+        if section.get('status')!='available' or not section.get('items'):
+            if section.get('status')=='unavailable':
+                st.info(_plain(section.get('message')) or 'Source temporarily unavailable.')
+            elif section.get('status')=='link_only':
+                st.caption(_plain(section.get('message')) or 'Automatic feed not connected.')
+            elif not section.get('items'):
+                st.caption('No items returned by '+_plain(section['source_name'])+'. Check the source for current coverage.')
+            _link('Open '+_plain(section['source_name'])+' · '+group.lower(),section.get('source_url'))
+    rows = [item for item in update_items(snapshot, category) if snapshot[item['source_key']].get('status')!='link_only']
+    for item in rows[:6]:
         section = snapshot[item['source_key']]
         title = escape(_plain(item.get('title')) or 'Source update')
         url = _safe_url(item.get('url'))
@@ -164,25 +220,12 @@ def _update_feed(snapshot, category):
             '<div class="daily-update-title">'+title+'</div><div class="daily-source">'
             +escape(_plain(section['source_name']))+' · '+escape('Published '+_when(item['published_at']) if item.get('published_at') else 'Publication date not supplied')
             +'</div></article>',unsafe_allow_html=True)
+        if item['source_key']!='port_news':
+            st.caption(_validity(item,pd.Timestamp.now(tz='UTC')))
         if item.get('valid_from') or item.get('valid_to'):
             st.caption('Validity: '+_when(item.get('valid_from'))+' → '+_when(item.get('valid_to')))
         if item.get('description'):
             st.caption(_plain(item['description'])[:240])
-    for key,group in _UPDATE_SECTIONS:
-        if category not in ('All',group):
-            continue
-        section = snapshot[key]
-        _source(section)
-        if section.get('status')=='unavailable':
-            st.info(_plain(section.get('message')) or 'Source temporarily unavailable.')
-        elif section.get('status')=='link_only':
-            st.caption(_plain(section.get('message')) or 'Automatic feed not connected.')
-        elif not section.get('items'):
-            st.caption('No items returned by '+_plain(section['source_name'])+'. Check the source for current coverage.')
-        if section.get('feed_updated_at'):
-            st.caption('Feed timestamp: '+_when(section['feed_updated_at']))
-        if key in {'port_notices','traffic'} or not section.get('items'):
-            _link('Open '+_plain(section['source_name'])+' · '+('port notices' if key=='port_notices' else group.lower()),section.get('source_url'))
 
 
 def _compact_trends(forecast, frame, selected):
@@ -208,6 +251,8 @@ def _compact_trends(forecast, frame, selected):
             fig.update_layout(yaxis_title='Water level ('+selected.get('unit','')+')',xaxis_title='Observation time (UTC)')
             st.plotly_chart(chart_style(fig,175),width='stretch',key='daily_water_mini')
             st.caption(_place_label(selected))
+        st.button('Explore readings',on_click=open_water_observations,args=(selected,),
+            disabled=water_handoff_context(selected) is None,key='daily_explore_water')
 
 
 def render_daily_home(snapshot):
@@ -229,18 +274,27 @@ def render_daily_home(snapshot):
     next_hour = forecast.iloc[0] if not forecast.empty else None
     with st.container(key='daily_heading'):
         st.subheader('Around Liverpool')
-        st.caption(now.tz_convert('Europe/London').strftime('%A, %d %B %Y')+' · Liverpool & Merseyside · Last checked '+_when(snapshot.get('checked_at')))
+        st.caption(now.tz_convert('Europe/London').strftime('%A, %d %B %Y')+' · Liverpool & Merseyside · Sources checked separately')
     with st.container(key='daily_summary'):
         cards = st.columns(3, gap='small')
         cards[0].metric('Weather outlook', _number(next_hour['temp_c'])+' °C' if next_hour is not None and _number(next_hour['temp_c'])!='Not available' else 'Not available')
-        cards[0].caption('Forecast '+_when(next_hour['time'])+' · Wind '+_number(next_hour.get('wind_m_s'))+' m/s' if next_hour is not None else 'Weather forecast not available')
+        cards[0].caption('Forecast valid '+_when(next_hour['time'])+' · Wind '+_number(next_hour.get('wind_m_s'))+' m/s' if next_hour is not None else 'Weather forecast not available')
+        with cards[0]:
+            _source(weather)
         cards[1].metric('Latest water level', _number(latest['value'],2)+' '+selected.get('unit','') if latest is not None else 'Not available')
-        cards[1].caption('Observed '+_when(latest['date_time']) if latest is not None else 'No current reading returned')
+        cards[1].caption('Observed '+_when(latest['date_time'])+' · '+_observation_age(latest['date_time'],now) if latest is not None else 'No current reading returned')
+        if latest is not None and now-latest['date_time']>pd.Timedelta(hours=1):
+            cards[1].info('Late · older than one hour')
+        with cards[1]:
+            _source(tide)
         warning_sections = [snapshot['weather_warnings'],snapshot['flood_warnings']]
-        complete = all(s.get('status')=='available' for s in warning_sections)
+        complete = all(s.get('status')=='available' and pd.notna(_time(s.get('checked_at'))) for s in warning_sections)
         listed = sum(len(s.get('items',[])) for s in warning_sections)
         cards[2].metric('Weather & flood', (str(listed)+' listed' if listed else 'None listed') if complete else 'Check sources')
         cards[2].caption('North West weather / Liverpool-area flood feeds')
+        with cards[2]:
+            for section in warning_sections:
+                _source(section)
     left, right = st.columns([1.85,1], gap='small')
     with left, st.container(border=True, key='daily_spatial'):
         st.markdown('**Explore the waterfront**')
@@ -284,8 +338,6 @@ def render_daily_home(snapshot):
                 st.info(_plain(tide.get('message')) or 'No water readings returned.')
             else:
                 st.caption('Observed '+_when(latest['date_time'])+' · Reference: '+_plain(selected.get('datum','Unknown reference')))
-                if now-latest['date_time']>pd.Timedelta(hours=1):
-                    st.info('The latest available reading is older than one hour.')
                 tail = frame.tail(2)
                 if len(tail)==2 and tail['value'].notna().all() and tail['date_time'].diff().iloc[-1]==pd.Timedelta(minutes=15):
                     change = tail['value'].iloc[-1]-tail['value'].iloc[0]

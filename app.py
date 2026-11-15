@@ -39,7 +39,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 14 November 2026 · Overview / Monitor / Data")
+        st.caption("Interface update: 15 November 2026 · Linked views & source freshness")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -150,6 +150,19 @@ def _navigate(page):
     st.session_state['dashboard_page']=page
 
 
+def _preserve_workspace_widgets():
+    keys={'daily_place_id','daily_update_category','monitor_data_mode','monitor_mode',
+          'monitor_source_choice','workbench_reference','workbench_layer_water','workbench_layer_traffic',
+          'data_workspace_tab','data_source_id','data_source_search','data_quality_scope',
+          'data_preview_mode','data_quality_mode',
+          'monitor_dates_Historical browsing','data_preview_dates_Historical browsing',
+          'data_quality_dates_Historical browsing'}
+    for key in list(st.session_state):
+        if key in keys or key.startswith(('data_table_','data_browse_')):
+            # Detach off-page widget values from Streamlit's widget cleanup.
+            st.session_state[key]=st.session_state[key]
+
+
 def _migrate_navigation():
     if 'dashboard_page' in st.session_state:
         return
@@ -179,6 +192,7 @@ def main():
     apply_dashboard_theme()
     if not require_dashboard_authorisation():
         st.stop()
+    _preserve_workspace_widgets()
     partners=load_csv('partners.csv')
     st.sidebar.title('CRDT port dashboard version 1')
     if st.sidebar.button('Lock dashboard'):

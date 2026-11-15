@@ -18,6 +18,8 @@ def daily_fixture():
     tide = section('Environment Agency', 'https://environment.data.gov.uk/flood-monitoring')
     tide['series'] = [{'id':sid, 'name':name, 'lat':53.44967, 'lon':-3.01815,
         'unit':unit, 'datum':datum, 'source_url':tide['source_url'],
+        'station_reference':'E70139' if sid=='gauge:a' else 'E70124',
+        'datum_uri':'http://environment.data.gov.uk/flood-monitoring/def/core/datumAOD' if sid=='gauge:a' else 'https://example.org/test/local-datum',
         'rows':[{'time':(now-pd.Timedelta(minutes=15*(2-i))).isoformat(), 'value':base+i/10}
                 for i in range(3)]}
         for sid,name,unit,datum,base in [('gauge:a','Liverpool A','mAOD','Ordnance Datum Newlyn',1),
@@ -50,6 +52,96 @@ class DailyViewTests(unittest.TestCase):
 
     def metric(self, app, label):
         return next(x for x in app.metric if x.label==label)
+
+    def visible_text(self, app):
+        def values(node):
+            if node.type=='expander':
+                return []
+            if hasattr(node,'children'):
+                return [value for child in node.children.values() for value in values(child)]
+            if node.type=='link_button':
+                return [node.label]
+            return [str(node.value)] if node.type in {'caption','markdown','info','warning'} else []
+        return '\n'.join(values(app.main))
+
+    def test_mixed_source_times_and_failures_are_visible_without_opening_details(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC').floor('min')
+        snapshot['weather'].update(checked_at=(now-pd.Timedelta(hours=2)).isoformat(),
+                                   updated_at=(now-pd.Timedelta(hours=4)).isoformat())
+        snapshot['tide']['series'][0]['rows']=[{'time':(now-pd.Timedelta(hours=3)).isoformat(),'value':1.2}]
+        snapshot['weather_warnings'].update(checked_at=None)
+        snapshot['flood_warnings'].update(status='unavailable',message='Flood source unavailable.')
+        snapshot['port_news']['checked_at']=(now-pd.Timedelta(hours=1)).isoformat()
+        app=self.app(snapshot)
+        text=self.visible_text(app)
+        self.assertNotIn('Last checked',text)
+        self.assertIn('Sources checked separately',text)
+        self.assertIn('Forecast valid',text)
+        self.assertIn('Forecast issued '+(now-pd.Timedelta(hours=4)).strftime('%d %b, %H:%M UTC'),text)
+        self.assertIn('MET Norway · Checked '+(now-pd.Timedelta(hours=2)).strftime('%d %b, %H:%M UTC'),text)
+        self.assertIn('Observed '+(now-pd.Timedelta(hours=3)).strftime('%d %b, %H:%M UTC')+' · 3h',text)
+        self.assertIn('Late · older than one hour',text)
+        self.assertIn('Met Office · Not checked',text)
+        self.assertIn('Environment Agency · Unavailable',text)
+        self.assertIn('Peel Ports · Link only · Not checked',text)
+        self.assertIn('National Highways · Link only · Not checked',text)
+        self.assertIn('Peel Ports Group · Checked '+(now-pd.Timedelta(hours=1)).strftime('%d %b, %H:%M UTC'),text)
+        self.assertEqual(self.metric(app,'Weather & flood').value,'Check sources')
+
+    def test_old_feed_publication_is_shown_without_invalidating_a_fresh_check(self):
+        app=self.app()
+        text=self.visible_text(app)
+        self.assertIn('Feed published',text)
+        self.assertNotIn('feed is stale',text.lower())
+        self.assertEqual(self.metric(app,'Weather & flood').value,'None listed')
+
+    def test_official_reminders_precede_six_newer_group_news_items(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC')
+        snapshot['port_news']['items']=[{**snapshot['port_news']['items'][0], 'id':str(i),'title':'Group story '+str(i)} for i in range(6)]
+        snapshot['weather_warnings']['items']=[{'title':'Check regional wind notice',
+            'published_at':(now-pd.Timedelta(days=2)).isoformat(), 'valid_from':None,'valid_to':None}]
+        app=self.app(snapshot)
+        text=self.visible_text(app)
+        self.assertIn('Check regional wind notice',text)
+        self.assertLess(text.index('Check regional wind notice'),text.index('Group story 0'))
+        self.assertIn('Validity unconfirmed',text)
+        self.assertNotIn('Active',text)
+        self.assertLess(text.index('Open Peel Ports · port notices'),text.index('Check regional wind notice'))
+        self.assertLess(text.index('Open National Highways · travel'),text.index('Check regional wind notice'))
+
+    def test_expired_official_item_is_labelled_historical(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC')
+        snapshot['weather_warnings']['items']=[{'title':'Earlier rain notice',
+            'published_at':(now-pd.Timedelta(hours=3)).isoformat(),
+            'valid_from':(now-pd.Timedelta(hours=3)).isoformat(),
+            'valid_to':(now-pd.Timedelta(hours=1)).isoformat(),'status':'Actual'}]
+        app=self.app(snapshot)
+        text=self.visible_text(app)
+        self.assertIn('Historical / expired',text)
+        self.assertNotIn('Active',text)
+
+    def test_news_source_dates_remain_visible_when_official_reminders_fill_feed(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC').floor('min')
+        snapshot['port_news']['items'][0]['published_at']='2026-11-10'
+        snapshot['weather_warnings']['items']=[{'title':'Official reminder '+str(i)} for i in range(6)]
+        app=self.app(snapshot)
+        text=self.visible_text(app)
+        self.assertIn('Peel Ports Group · Checked '+now.strftime('%d %b, %H:%M UTC'),text)
+        self.assertIn('Latest publication 10 Nov 2026',text)
+
+    def test_explore_readings_is_enabled_only_for_an_exact_water_reference(self):
+        app=self.app()
+        buttons=[x for x in app.button if x.label=='Explore readings']
+        self.assertEqual(len(buttons),1)
+        self.assertFalse(buttons[0].disabled)
+        snapshot=daily_fixture()
+        snapshot['tide']['series'][0].pop('station_reference')
+        app=self.app(snapshot)
+        self.assertTrue(next(x for x in app.button if x.label=='Explore readings').disabled)
 
     def test_everyday_home_has_plain_sections_and_no_technical_controls(self):
         app=self.app()
@@ -205,14 +297,14 @@ class DailyViewTests(unittest.TestCase):
                       'https://www.peelports.com.evil.example/news/', 'https://www.peelports.com:123/news/']:
             self.assertIsNone(_safe_url(value))
 
-    def test_updates_are_sorted_by_publication_and_filter_by_category(self):
+    def test_updates_prioritize_official_reminders_and_filter_by_category(self):
         from daily_views import update_items
         snapshot=daily_fixture()
         snapshot['port_news']['items'][0]['published_at']='2026-11-10'
         snapshot['weather_warnings']['items']=[{'title':'Weather bulletin','published_at':'2026-11-12T10:00:00Z'}]
         snapshot['traffic']['items']=[{'title':'No timestamp'}]
         self.assertEqual([x['title'] for x in update_items(snapshot,'All')],
-                         ['Weather bulletin','Port services update','No timestamp'])
+                         ['Weather bulletin','No timestamp','Port services update'])
         self.assertEqual([x['title'] for x in update_items(snapshot,'Port')],['Port services update'])
 
     def test_update_filter_keeps_unconnected_travel_visible(self):

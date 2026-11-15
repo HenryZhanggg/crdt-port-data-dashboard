@@ -20,7 +20,7 @@ def load(start,end,sources):
     st.session_state['requested_sources']=list(sources)
     return st.session_state['test_bundle']
 catalog=pd.read_csv('data/high_score_dataset_catalog.csv').fillna('')
-render_data_workspace(catalog,load,{'weather','transport','raw_data','data_status','dataset_catalog','gis'})
+render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weather','transport','raw_data','data_status','dataset_catalog','gis'}))
 """,default_timeout=30)
         app.session_state['test_bundle']=observation_fixture()
         for key,value in state.items():
@@ -29,11 +29,108 @@ render_data_workspace(catalog,load,{'weather','transport','raw_data','data_statu
         self.assertFalse(app.exception)
         return app
 
+    def handoff(self, tab='Sources', **changes):
+        from workspace_links import open_data_context
+        dates=observation_fixture()['water_levels']['date_time']
+        context={'source':'water_level','source_id':'HS004','entity_id':'water:E70124',
+            'station_reference':'E70124','unit':'m','datum_uri':'https://example.org/test/local-datum',
+            'start':dates.min().date().isoformat(),'end':dates.max().date().isoformat()}
+        context.update(changes)
+        state={}
+        with patch('workspace_links.st.session_state',state):
+            open_data_context(context,tab)
+        return state
+
+    def test_source_handoff_filters_csv_to_exact_reference_without_mutating_cache(self):
+        with patch('streamlit.download_button') as download:
+            app=self.app(**self.handoff())
+        self.assertEqual(app.session_state['requested_sources'],['water_level'])
+        exported=next(call for call in download.call_args_list if call.args[0]=='Download dataset CSV')
+        rows=pd.read_csv(io.BytesIO(exported.args[1]))
+        self.assertEqual(set(rows['station_reference']),{'E70124'})
+        self.assertEqual(set(rows['datum_uri']),{'https://example.org/test/local-datum'})
+        self.assertEqual(len(app.session_state['test_bundle']['water_levels']),24)
+        self.assertTrue(any('Observation context' in x.value for x in app.caption))
+        self.assertTrue(any(x.label=='Clear observation context' for x in app.button))
+
+    def test_quality_handoff_filters_table_report_and_graph_to_exact_reference(self):
+        with patch('streamlit.download_button') as download, patch('streamlit.delta_generator.DeltaGenerator.download_button', download):
+            app=self.app(**self.handoff('Quality'))
+        self.assertEqual(app.session_state['requested_sources'],['water_level'])
+        quality=next(call for call in download.call_args_list if call.args[0]=='Download quality CSV')
+        rows=pd.read_csv(io.BytesIO(quality.args[1]))
+        self.assertEqual(rows['Source'].tolist(),['Water E70124 | m'])
+        report=next(call for call in download.call_args_list if call.args[0]=='Export observation report')
+        with zipfile.ZipFile(io.BytesIO(report.args[1])) as archive:
+            observations=pd.read_csv(io.BytesIO(archive.read('water_observations.csv')))
+            self.assertEqual(set(observations['station_reference']),{'E70124'})
+            self.assertTrue(pd.read_csv(io.BytesIO(archive.read('traffic_observations.csv'))).empty)
+        graph=next(call for call in download.call_args_list if call.args[0]=='Download observation graph (Turtle)')
+        self.assertIn('E70124',graph.args[1])
+        self.assertNotIn('E70139',graph.args[1])
+
+    def test_missing_context_reference_has_clear_action_and_no_alternative_export(self):
+        app=self.app(**self.handoff(datum_uri='datum:not-returned'))
+        self.assertTrue(any('requested measurement reference' in x.value.lower() for x in app.info))
+        self.assertFalse(any(x.label=='Download dataset CSV' for x in app.get('download_button')))
+        next(x for x in app.button if x.label=='Clear observation context').click().run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('data_handoff',app.session_state)
+        self.assertTrue(any(x.label=='Download dataset CSV' for x in app.get('download_button')))
+
+    def test_empty_response_keeps_requested_quality_context_without_generic_exports(self):
+        from api_connectors import empty_bundle
+        app=self.app(test_bundle=empty_bundle(),**self.handoff('Quality'))
+        self.assertTrue(any('requested measurement reference' in x.value.lower() for x in app.info))
+        self.assertEqual(app.session_state['data_handoff']['station_reference'],'E70124')
+        self.assertFalse(any(x.label in {'Download quality CSV','Export observation report'} for x in app.get('download_button')))
+
+    def test_context_permissions_prevent_forbidden_family_request(self):
+        app=self.app(allowed_views={'transport','raw_data','dataset_catalog'},**self.handoff())
+        self.assertNotIn('requested_sources',app.session_state)
+        self.assertTrue(any('outside this partner view' in x.value for x in app.info))
+
+    def test_quality_handoff_preserves_existing_quality_permission_without_raw_preview(self):
+        app=self.app(allowed_views={'weather','data_status'},**self.handoff('Quality'))
+        self.assertEqual(app.session_state['requested_sources'],['water_level'])
+        self.assertTrue(any(x.label=='Download quality CSV' for x in app.get('download_button')))
+
+    def test_user_source_table_and_quality_scope_changes_clear_context(self):
+        for tab,label,value in [('Sources','Data source','HS007'),
+                                ('Sources','Dataset','ea_stations'),
+                                ('Quality','Check data','Road traffic')]:
+            with self.subTest(label=label):
+                app=self.app(**self.handoff(tab))
+                next(x for x in app.selectbox if x.label==label).set_value(value).run()
+                self.assertFalse(app.exception)
+                self.assertNotIn('data_handoff',app.session_state)
+
+    def test_traffic_handoff_keeps_counter_and_source_timezone_in_report(self):
+        dates=observation_fixture()['webtris_daily']['timestamp']
+        state=self.handoff('Quality',source='webtris',source_id='HS007',entity_id='traffic:6806',site_id='6806',
+                           start=dates.min().date().isoformat(),end=dates.max().date().isoformat())
+        bundle=observation_fixture()
+        bundle['webtris_daily']=pd.concat([bundle['webtris_daily'],bundle['webtris_daily'].assign(site_id='6807')])
+        with patch('streamlit.download_button') as download, patch('streamlit.delta_generator.DeltaGenerator.download_button', download):
+            app=self.app(test_bundle=bundle,**state)
+        self.assertEqual(app.session_state['requested_sources'],['webtris'])
+        report=next(call for call in download.call_args_list if call.args[0]=='Export observation report')
+        with zipfile.ZipFile(io.BytesIO(report.args[1])) as archive:
+            traffic=pd.read_csv(io.BytesIO(archive.read('traffic_observations.csv')))
+            self.assertEqual(set(traffic['site_id']),{6806})
+            metadata=json.loads(archive.read('metadata.json'))
+            self.assertIn('timezone unverified',metadata['traffic_time_basis'])
+
     def test_catalogue_does_not_fetch_sources_until_a_source_is_selected(self):
         app=self.app()
         self.assertNotIn('requested_sources',app.session_state.filtered_state)
         self.assertFalse(app.date_input)
         self.assertTrue(any(x.label=='Data source' for x in app.selectbox))
+
+    def test_traffic_catalogue_explains_publication_delay_without_requesting_records(self):
+        app=self.app(data_source_id='HS007')
+        self.assertNotIn('requested_sources',app.session_state)
+        self.assertTrue(any('one month after collection' in x.value for x in app.caption))
 
     def test_selected_port_source_does_not_request_monitoring_sources(self):
         app=self.app(data_source_id='HS001',data_browse_HS001=True)

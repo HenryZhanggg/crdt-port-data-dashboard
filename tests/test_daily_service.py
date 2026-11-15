@@ -104,6 +104,7 @@ class DailyServiceTests(unittest.TestCase):
         self.assertEqual(len(local['rows']),2)
         self.assertEqual(local['rows'][0]['value'],0)
         self.assertIsNone(local['rows'][1]['value'])
+        self.assertEqual(local.get('station_reference'),'A')
         self.assertNotEqual(series[0]['id'],series[1]['id'])
 
     def test_http_failure_is_unavailable_not_empty_success(self):

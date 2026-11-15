@@ -37,6 +37,119 @@ class MonitorWorkspaceTests(unittest.TestCase):
     def connected(self, **state):
         return self.app(monitor_data_mode='Connected observations', **state)
 
+    def handoff(self, **changes):
+        from workspace_links import open_water_observations
+        rows = observation_fixture()['water_levels']
+        rows = rows[rows['station_reference'].eq('E70124')]
+        series = {'station_reference': 'E70124', 'unit': 'm',
+            'datum_uri': 'https://example.org/test/local-datum',
+            'rows': [{'time': str(value)} for value in rows['date_time']]}
+        series.update(changes)
+        state = {}
+        with patch('workspace_links.st.session_state', state):
+            open_water_observations(series)
+        return state
+
+    def test_overview_handoff_selects_exact_water_reference_and_returned_dates(self):
+        state = self.handoff()
+        app = self.app(**state)
+        self.assertEqual(app.session_state['requested_sources'], ('water_level',))
+        self.assertEqual(app.session_state['workbench_entity_id'], 'water:E70124')
+        self.assertEqual(app.session_state['workbench_reference'], 'E70124|m|https://example.org/test/local-datum')
+        self.assertEqual(app.session_state['monitor_start'], state['monitor_handoff']['start'])
+        self.assertEqual(app.session_state['monitor_end'], state['monitor_handoff']['end'])
+        self.assertTrue(any(x.label == 'View data source' for x in app.button))
+        self.assertTrue(any(x.label == 'Check data quality' for x in app.button))
+
+    def test_missing_handoff_datum_does_not_fall_back_to_other_reference(self):
+        app = self.app(**self.handoff(datum_uri='datum:not-returned'))
+        self.assertTrue(any('requested measurement reference' in x.value.lower() for x in app.info))
+        self.assertFalse(any(x.label == 'Download selected observations' for x in app.get('download_button')))
+        self.assertEqual(app.session_state['workbench_reference'], 'E70124|m|datum:not-returned')
+        next(x for x in app.button if x.label == 'Clear context and choose observations').click().run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('monitor_handoff', app.session_state)
+        self.assertTrue(any(x.label == 'Inspect an object' for x in app.selectbox))
+
+    def test_changed_permissions_do_not_query_handoff_family(self):
+        app = self.app(allowed_views={'transport'}, **self.handoff())
+        self.assertNotIn('load_count', app.session_state)
+        self.assertTrue(any('outside this partner view' in x.value for x in app.info))
+
+    def test_manual_object_choice_clears_handoff(self):
+        app = self.app(**self.handoff())
+        next(x for x in app.selectbox if x.label == 'Inspect an object').set_value('water:E70139').run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('monitor_handoff', app.session_state)
+        self.assertEqual(app.session_state['workbench_entity_id'], 'water:E70139')
+
+    def test_native_map_pick_clears_handoff_and_stays_selected_on_next_rerun(self):
+        app=self.app(**self.handoff())
+        event={'selection':{'objects':{'monitoring-points':[{'entity_id':'water:E70139'}]}}}
+        with patch('streamlit.pydeck_chart',return_value=event):
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('monitor_handoff',app.session_state)
+        self.assertEqual(app.session_state['workbench_entity_id'],'water:E70139')
+        app.run()
+        self.assertEqual(app.session_state['workbench_entity_id'],'water:E70139')
+
+    def test_manual_measurement_reference_clears_handoff(self):
+        bundle=observation_fixture()
+        alternate=bundle['water_levels'][bundle['water_levels']['station_reference'].eq('E70124')].assign(datum_uri='datum:alternate')
+        bundle['water_levels']=pd.concat([bundle['water_levels'],alternate],ignore_index=True)
+        with patch('test_dashboard_views.observation_fixture',return_value=bundle):
+            app=self.app(**self.handoff())
+            next(x for x in app.selectbox if x.label=='Measurement reference').set_value('E70124|m|datum:alternate').run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('monitor_handoff',app.session_state)
+        self.assertEqual(app.session_state['workbench_reference'],'E70124|m|datum:alternate')
+
+    def test_data_quality_action_carries_monitor_reference_and_period(self):
+        app = self.app(**self.handoff())
+        next(x for x in app.button if x.label == 'Check data quality').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['dashboard_page'], 'Data')
+        self.assertEqual(app.session_state['data_workspace_tab'], 'Quality')
+        self.assertEqual(app.session_state['data_handoff']['station_reference'], 'E70124')
+        self.assertEqual(app.session_state['data_handoff']['datum_uri'], 'https://example.org/test/local-datum')
+        self.assertEqual((app.session_state['data_handoff']['start'], app.session_state['data_handoff']['end']),
+                         (app.session_state['monitor_start'], app.session_state['monitor_end']))
+
+    def test_data_roundtrip_from_both_sources_keeps_missing_reference_explicit(self):
+        app=self.connected()
+        next(x for x in app.selectbox if x.label=='Inspect an object').set_value('water:E70124').run()
+        next(x for x in app.button if x.label=='View data source').click().run()
+        bundle=observation_fixture()
+        bundle['water_levels']=bundle['water_levels'][bundle['water_levels']['station_reference'].eq('E70139')]
+        with patch('test_dashboard_views.observation_fixture',return_value=bundle):
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['requested_sources'],('water_level','webtris'))
+        self.assertTrue(any('requested measurement reference' in x.value.lower() for x in app.info))
+        self.assertFalse(any(x.label=='Download selected observations' for x in app.get('download_button')))
+        self.assertEqual(app.session_state['workbench_entity_id'],'water:E70124')
+
+    def test_manual_dates_clear_return_context_without_changing_source_choices(self):
+        app=self.connected()
+        next(x for x in app.radio if x.label=='Time mode').set_value('Historical browsing').run()
+        next(x for x in app.button if x.label=='View data source').click().run()
+        self.assertIn('monitor_handoff',app.session_state)
+        dates=next(x for x in app.date_input if x.label=='Observation dates')
+        first,last=dates.value
+        dates.set_value((first+pd.Timedelta(days=1),last)).run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('monitor_handoff',app.session_state)
+        self.assertEqual(app.session_state['requested_sources'],('water_level','webtris'))
+
+    def test_empty_traffic_period_still_explains_historical_publication_delay(self):
+        bundle=observation_fixture()
+        bundle['webtris_daily']=bundle['webtris_daily'].iloc[:0]
+        with patch('test_dashboard_views.observation_fixture',return_value=bundle):
+            app=self.connected()
+            next(x for x in app.selectbox if x.label=='Inspect an object').set_value('traffic:6806').run()
+        self.assertTrue(any('one month after collection' in x.value for x in app.caption))
+
     def test_example_does_not_request_sources_and_has_one_context(self):
         app = self.app()
         self.assertNotIn('load_count', app.session_state)

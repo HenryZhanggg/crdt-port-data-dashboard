@@ -6,6 +6,8 @@ The application has three workspaces: **Overview**, **Monitor**, and **Data**. T
 
 Daily Liverpool information: weather outlook, measured water levels, weather/flood reminders, a waterfront map, a dated Port/Weather/Travel update feed, and public site photos/video. Three summary cards and one weather/one water trend keep the main page compact; forecast and water records are available in collapsed details. Historical images and recorded film retain dates, source credits and licence terms. No live camera is asserted.
 
+Each source shows its own check time or unavailable/link-only state. Forecast issue and valid times remain distinct from water observation times and age; water older than one hour is visibly marked late. Official notice/travel links lead the update feed, with weather/flood reminders before group news. Unknown warning validity remains unconfirmed.
+
 Sources remain fixed and independently cached:
 
 - MET Norway Locationforecast: forecasts, UTC valid times, three-hour Liverpool cache, CC BY 4.0 attribution. Expired forecast hours are filtered before display.
@@ -19,6 +21,8 @@ Sources remain fixed and independently cached:
 **Example network** uses the fixed local draft ontology and five fictional assets on 14 November 2026. Geographic category icons and directed predicates determine the selected object's Readings, Connections, Results and Sources. Search, types and relationship filters share one selection. Synthetic scenarios are selected inside Results. Example coordinates, relations and numeric products remain illustrative; formal WP1 alignment and executable partner models are pending.
 
 **Connected observations** consolidates water and road traffic into a shared map and inspector. Select permitted source families, recent or historical dates (up to seven calendar days), then inspect Readings / Connections / Results / Sources. Water interval selection, change rates, CSV export and advanced observed replay preserve source units/datums and gaps. Traffic counter selection and optional comparisons retain unverified source timezone labels. No incident or port queue is inferred from a counter value.
+
+Overview's **Explore readings** opens this view with the source station, unit, vertical datum and available UTC dates. **View data source** and **Check data quality** carry the selected reference/counter and dates into Data, including filtered CSV/report/Turtle exports. Returning preserves the selected reference; a missing requested series is explained without substituting another one. Users can clear the context or deliberately choose another object/source/date range. WebTRIS counts are historical and [usually published about one month after collection](https://webtris.highwaysengland.co.uk/Home/Faqs).
 
 Published partner runs and declared dependency packages are inspected here after import in Data. Results use exact ontology-version/entity/metric/unit/UTC-valid-time matching for A/B comparison; unmatched outputs remain missing. Importing never runs a model. Source-derived workspace IDs are not approved canonical ontology identities. Refresh clears only the selected source/date cache entries and retains unrelated statistical and provider-limited weather caches.
 

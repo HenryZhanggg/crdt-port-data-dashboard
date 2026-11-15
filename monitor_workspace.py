@@ -11,10 +11,40 @@ from monitoring_views import chart_style, utc_label, water_level_figure
 from semantic_views import render_semantic_demo
 from workbench_views import _inspect, _map, _pick_object, _relations, render_runs
 from workspace_data import quality_findings
+from workspace_links import (clear_context, context_allowed, context_label, filter_context_bundle,
+                             open_data_context, reference_key)
 
 
 def _remember_sources():
     st.session_state['monitor_sources'] = tuple(st.session_state['monitor_source_choice'])
+
+
+def _change_sources():
+    _remember_sources()
+    clear_context('monitor_handoff')
+
+
+def _context_notice(context, reason=None):
+    st.caption('Observation context: ' + context_label(context))
+    if reason:
+        st.info(reason)
+    st.button('Clear context and choose observations', key='monitor_clear_context',
+              on_click=clear_context, args=('monitor_handoff',))
+
+
+def _selected_context(entity, selected, start, end):
+    if not entity or entity['kind'] not in {'Water', 'Traffic'}:
+        return None
+    water = entity['kind'] == 'Water'
+    context = {'source': 'water_level' if water else 'webtris',
+        'source_id': 'HS004' if water else 'HS007', 'entity_id': entity['entity_id'],
+        'start': start, 'end': end}
+    if water:
+        row = selected.iloc[0].to_dict() if not selected.empty else entity
+        context.update({field: str(row.get(field, '')) for field in ['station_reference', 'unit', 'datum_uri']})
+    else:
+        context['site_id'] = entity['site_id']
+    return context
 
 
 def _water_readings(chosen):
@@ -54,6 +84,7 @@ def _water_readings(chosen):
 
 
 def _traffic_readings(selected, bundle, entity):
+    st.caption('Traffic counts are historical; [WebTRIS is usually published about one month after collection](https://webtris.highwaysengland.co.uk/Home/Faqs).')
     if selected.empty:
         st.info('No observations returned for this counter in the selected dates.')
         return
@@ -75,11 +106,19 @@ def _traffic_readings(selected, bundle, entity):
 
 
 def render_monitor_workspace(load_bundle, assets, service_area, views=None, refresh=None):
+    handoff = st.session_state.get('monitor_handoff')
+    if handoff and (st.session_state.get('workbench_entity_id') != handoff['entity_id']
+        or (handoff['source'] == 'water_level' and st.session_state.get('workbench_reference') != reference_key(handoff))):
+        clear_context('monitor_handoff')
+        handoff = None
     mode = st.radio('Data view', ['Example network', 'Connected observations'], horizontal=True, key='monitor_data_mode')
     if mode == 'Example network':
         render_semantic_demo()
         return
     allowed = {'weather', 'transport', 'gis'} if views is None else set(views)
+    if handoff and not context_allowed(handoff, allowed):
+        _context_notice(handoff, 'The requested observation source is outside this partner view. Clear the context to choose an enabled source.')
+        return
     available = [source for source, permission in [('water_level', 'weather'), ('webtris', 'transport')] if permission in allowed]
     if not available:
         st.info('No observation sources are enabled for this partner view.')
@@ -102,12 +141,15 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
     stored = st.session_state.get('monitor_source_choice', st.session_state.get('monitor_sources', available))
     st.session_state['monitor_source_choice'] = [source for source in stored if source in available]
     sources = st.multiselect('Observation sources', available, format_func=labels.get,
-                            key='monitor_source_choice', on_change=_remember_sources)
+                            key='monitor_source_choice', on_change=_change_sources)
     _remember_sources()
     if not sources:
         st.info('Select an observation source to inspect.')
         return
     start, end = (value.isoformat() for value in dates)
+    if handoff and (start != handoff['start'] or end != handoff['end'] or handoff['source'] not in sources):
+        clear_context('monitor_handoff')
+        handoff = None
     st.session_state['monitor_start'], st.session_state['monitor_end'] = start, end
     if refresh_requested:
         if refresh is not None:
@@ -119,14 +161,32 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
     bundle['webtris_daily'] = filter_dates(bundle.get('webtris_daily', pd.DataFrame()), 'timestamp', start, end) if 'webtris' in sources else pd.DataFrame()
     if 'webtris' not in sources:
         bundle['webtris_sites'] = pd.DataFrame()
+    if handoff:
+        requested = filter_context_bundle(bundle, handoff)
+        table_key = 'water_levels' if handoff['source'] == 'water_level' else 'webtris_daily'
+        if requested[table_key].empty:
+            _context_notice(handoff, 'The requested measurement reference has no returned observations in this period. No alternative reference has been selected.')
+            status = requested.get('status', pd.DataFrame())
+            if not status.empty:
+                st.dataframe(status, hide_index=True, width='stretch')
+            return
+        _context_notice(handoff)
     left, right = st.columns([2.4, 1], gap='small')
     with left, st.container(border=True, key='workbench_spatial'):
         st.markdown('<div class="workbench-panel-title">SPATIAL SITUATION · SOURCE OBSERVATIONS</div>', unsafe_allow_html=True)
         entities, map_id = _map(bundle, assets, service_area, allow_demo=False)
+        if handoff and map_id and map_id != handoff['entity_id'] and map_id != st.session_state.get('workbench_last_map_id'):
+            clear_context('monitor_handoff')
     with right, st.container(border=True, key='workbench_inspector'):
         st.markdown('**OBJECT INSPECTOR**')
         entity = _pick_object(entities, map_id)
         selected = _inspect(entity, bundle)
+        selected_context = _selected_context(entity, selected, start, end)
+        if selected_context:
+            st.button('View data source', key='monitor_view_source', on_click=open_data_context,
+                      args=(selected_context, 'Sources'), width='stretch')
+            st.button('Check data quality', key='monitor_check_quality', on_click=open_data_context,
+                      args=(selected_context, 'Quality'), width='stretch')
     readings, connections, results, evidence = st.tabs(['Readings', 'Connections', 'Results', 'Sources'])
     with readings:
         if entity is None:

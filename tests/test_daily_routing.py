@@ -11,16 +11,18 @@ from test_dashboard_views import observation_fixture
 
 
 class DailyRoutingTests(unittest.TestCase):
-    def app(self, authorised=True):
+    def app(self, authorised=True, snapshot=None, bundle=None, **state):
         st.cache_data.clear()
-        daily = patch('daily_service.load_daily_snapshot', return_value=daily_fixture())
+        daily = patch('daily_service.load_daily_snapshot', return_value=snapshot or daily_fixture())
         self.daily = daily.start()
         self.addCleanup(daily.stop)
-        feeds = patch('api_connectors.fetch_raw_data_bundle', return_value=observation_fixture())
+        feeds = patch('api_connectors.fetch_raw_data_bundle', return_value=observation_fixture() if bundle is None else bundle)
         self.feeds = feeds.start()
         self.addCleanup(feeds.stop)
         app = AppTest.from_file('app.py', default_timeout=30)
         app.session_state['dashboard_authorised'] = authorised
+        for key,value in state.items():
+            app.session_state[key]=value
         app.run()
         self.assertFalse(app.exception)
         return app
@@ -109,6 +111,42 @@ class DailyRoutingTests(unittest.TestCase):
         statuses=[x.value for x in app.dataframe if 'status' in x.value]
         self.assertTrue(statuses)
         self.assertFalse(any(frame['status'].eq('requires_partner_agreement').any() for frame in statuses))
+
+    def test_overview_handoff_keeps_measurement_reference_across_monitor_data_and_back(self):
+        app=self.app()
+        next(x for x in app.button if x.label=='Explore readings').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['dashboard_page'],'Monitor')
+        self.assertEqual(app.session_state['workbench_entity_id'],'water:E70139')
+        reference='E70139|mAOD|http://environment.data.gov.uk/flood-monitoring/def/core/datumAOD'
+        self.assertEqual(app.session_state['workbench_reference'],reference)
+        next(x for x in app.button if x.label=='Check data quality').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['dashboard_page'],'Data')
+        self.assertEqual(app.session_state['data_quality_scope'],'Water levels')
+        next(x for x in app.button if x.label=='Monitor').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['workbench_reference'],reference)
+        self.assertEqual(next(x for x in app.radio if x.label=='Data view').value,'Connected observations')
+        next(x for x in app.button if x.label=='Overview').click().run()
+        self.assertEqual(app.session_state['daily_place_id'],'gauge:a')
+
+    def test_overview_handoff_does_not_silently_substitute_a_missing_datum(self):
+        snapshot=daily_fixture()
+        snapshot['tide']['series'][0]['datum_uri']='datum:not-returned'
+        app=self.app(snapshot=snapshot)
+        next(x for x in app.button if x.label=='Explore readings').click().run()
+        self.assertFalse(app.exception)
+        self.assertFalse(any(x.label=='Download selected observations' for x in app.get('download_button')))
+        text=' '.join(str(x.value) for x in list(app.warning)+list(app.info))
+        self.assertTrue('reference' in text.lower() or 'requested' in text.lower(),text)
+
+    def test_handoff_does_not_query_water_for_a_partner_without_water_navigation(self):
+        app=self.app()
+        next(x for x in app.selectbox if x.label=='Partner').set_value('Terminal operator').run()
+        next(x for x in app.button if x.label=='Explore readings').click().run()
+        self.assertFalse(app.exception)
+        self.feeds.assert_not_called()
 
 
 if __name__ == '__main__':

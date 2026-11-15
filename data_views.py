@@ -8,6 +8,7 @@ from data_quality import compatibility, observation_graph, quality_table, valida
 from project_archives import render_archives
 from workbench_views import _import_package
 from workspace_data import quality_findings, report_archive
+from workspace_links import clear_context, context_allowed, context_label, filter_context_bundle
 
 
 SOURCE_PRODUCTS={
@@ -22,11 +23,13 @@ SOURCE_PRODUCTS={
 
 def _dates(prefix):
     today=pd.Timestamp.now(tz='UTC').date()
-    mode=st.radio('Data period',['Recent observations','Historical browsing'],horizontal=True,key=prefix+'_mode')
+    mode=st.radio('Data period',['Recent observations','Historical browsing'],horizontal=True,key=prefix+'_mode',
+        on_change=clear_context,args=('data_handoff',))
     first=(pd.Timestamp(today)-pd.Timedelta(days=1 if mode=='Recent observations' else 6)).date()
     dates=st.date_input('Data dates',value=(first,today),max_value=today,
-        disabled=mode=='Recent observations',key=prefix+'_dates_'+mode)
-    if len(dates)!=2 or (dates[1]-dates[0]).days>6:
+        disabled=mode=='Recent observations',key=prefix+'_dates_'+mode,
+        on_change=clear_context,args=('data_handoff',))
+    if len(dates)!=2 or dates[0]>dates[1] or (dates[1]-dates[0]).days>6:
         st.info('Choose both dates within a period of up to seven calendar days.')
         return None
     st.caption('Water dates use UTC; traffic retains its source timezone, which has not been verified.')
@@ -44,7 +47,12 @@ def _source_link(url):
 
 
 def _catalogue(catalog,load_bundle,views):
-    query=st.text_input('Find a source',key='data_source_search').strip().casefold()
+    handoff=st.session_state.get('data_handoff')
+    if handoff and handoff['source_id'] not in set(catalog['source_id']):
+        st.info('The requested data source is not available in this catalogue. Clear the observation context to choose another source.')
+        return
+    query=st.text_input('Find a source',key='data_source_search',
+        on_change=clear_context,args=('data_handoff',)).strip().casefold()
     fields=['source_id','title','domain','access_level','connection_mode']
     frame=catalog.loc[catalog[fields].astype(str).agg(' '.join,axis=1).str.casefold().str.contains(query,regex=False)].copy()
     if frame.empty:
@@ -57,7 +65,7 @@ def _catalogue(catalog,load_bundle,views):
     if st.session_state.get('data_source_id') not in labels:
         st.session_state['data_source_id']=None
     selected=st.selectbox('Data source',list(labels),format_func=labels.get,index=None,
-        placeholder='Choose a source to inspect',key='data_source_id')
+        placeholder='Choose a source to inspect',key='data_source_id',on_change=clear_context,args=('data_handoff',))
     if selected is None:
         st.caption('Select a source for access conditions, available records and downloads. The catalogue itself does not request feeds.')
         return
@@ -83,20 +91,27 @@ def _catalogue(catalog,load_bundle,views):
     if selected=='HS007' and 'transport' not in views:
         st.caption('Road traffic is outside this prototype partner view.')
         return
-    if not st.checkbox('Browse connected records',key='data_browse_'+selected):
+    if selected=='HS007':
+        st.caption('Traffic counts are historical; [WebTRIS is usually published about one month after collection](https://webtris.highwaysengland.co.uk/Home/Faqs).')
+    if not st.checkbox('Browse connected records',key='data_browse_'+selected,
+        on_change=clear_context,args=('data_handoff',)):
         return
     dates=_dates('data_preview') if selected in {'HS004','HS007'} else (None,None)
     if dates is None:
         return
     with st.spinner('Retrieving the selected source'):
-        bundle=load_bundle(*dates,product['sources'])
+        bundle=load_bundle(*dates,(handoff['source'],) if handoff else product['sources'])
+    if handoff:
+        bundle=filter_context_bundle(bundle,handoff)
     status=bundle.get('status',pd.DataFrame())
     if not status.empty:
         st.dataframe(status.reindex(columns=['source','status','records','last_call_utc','access_note']),hide_index=True,width='stretch')
-    table_key=st.selectbox('Dataset',list(product['tables']),format_func=product['tables'].get,key='data_table_'+selected)
+    table_key=st.selectbox('Dataset',list(product['tables']),format_func=product['tables'].get,key='data_table_'+selected,
+        on_change=clear_context,args=('data_handoff',))
     records=bundle.get(table_key,pd.DataFrame())
     if records.empty:
-        st.info('No records returned for this dataset. See the source status and coverage above.')
+        st.info('The requested measurement reference has no returned observations in this period. Clear the observation context to choose another reference.'
+            if handoff else 'No records returned for this dataset. See the source status and coverage above.')
     else:
         st.caption(f'{len(records):,} returned records · preview shows up to 200 rows; download contains the full returned table.')
         st.dataframe(records.head(200),hide_index=True,width='stretch')
@@ -132,6 +147,7 @@ def _validation(water):
 
 
 def _quality(load_bundle,views,refresh):
+    handoff=st.session_state.get('data_handoff')
     choices={}
     if 'weather' in views:
         choices['Water levels']=('water_level',)
@@ -144,7 +160,7 @@ def _quality(load_bundle,views,refresh):
         return
     if st.session_state.get('data_quality_scope') not in choices:
         st.session_state.pop('data_quality_scope',None)
-    scope=st.selectbox('Check data',list(choices),key='data_quality_scope')
+    scope=st.selectbox('Check data',list(choices),key='data_quality_scope',on_change=clear_context,args=('data_handoff',))
     dates=_dates('data_quality')
     if dates is None:
         return
@@ -152,6 +168,15 @@ def _quality(load_bundle,views,refresh):
         refresh(choices[scope],*dates)
     with st.spinner('Checking observation sources'):
         bundle=load_bundle(*dates,choices[scope])
+    if handoff:
+        bundle=filter_context_bundle(bundle,handoff)
+        table_key='water_levels' if handoff['source']=='water_level' else 'webtris_daily'
+        if bundle[table_key].empty:
+            st.info('The requested measurement reference has no returned observations in this period. Clear the observation context to choose another reference.')
+            status=bundle.get('status',pd.DataFrame())
+            if not status.empty:
+                st.dataframe(status,hide_index=True,width='stretch')
+            return
     table=quality_table(bundle,pd.DataFrame(),pd.DataFrame(),requested_sources=choices[scope])
     findings=quality_findings(table)
     if findings.empty:
@@ -170,6 +195,13 @@ def _quality(load_bundle,views,refresh):
 
 def render_data_workspace(catalog,load_bundle,views,refresh=None):
     st.subheader('Data')
+    handoff=st.session_state.get('data_handoff')
+    if handoff:
+        st.caption('Observation context: '+context_label(handoff))
+        st.button('Clear observation context',key='data_clear_context',on_click=clear_context,args=('data_handoff',))
+        if not context_allowed(handoff,views):
+            st.info('The requested observation source is outside this partner view. Clear the observation context to browse the permitted catalogue.')
+            return
     sources,quality,partners=st.tabs(['Sources','Quality','Partner packages'],key='data_workspace_tab',on_change='rerun')
     if sources.open:
         with sources:

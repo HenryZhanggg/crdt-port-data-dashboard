@@ -205,7 +205,7 @@ def normalise_tide(frame):
     for (station,unit,datum,datum_uri), rows in frame.groupby(['station_reference','unit','datum','datum_uri'],dropna=False):
         rows = clean_water_series(rows)
         first = rows.iloc[0]
-        series.append({'id':f'water:{station}|{unit}|{datum_uri}',
+        series.append({'id':f'water:{station}|{unit}|{datum_uri}', 'station_reference':station,
             'name':str(first.get('station_label','Liverpool'))+' · '+station+' · '+(datum or 'Unknown reference'),
             'lat':_number(first.get('lat')), 'lon':_number(first.get('lon')), 'unit':unit,
             'datum':datum or 'Unknown datum', 'datum_uri':datum_uri,
