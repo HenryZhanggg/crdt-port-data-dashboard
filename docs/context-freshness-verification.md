@@ -16,7 +16,7 @@
 - Authenticated local browser QA at 1600×1100 and 390×900 verified Overview → Monitor → Data Sources/Quality → Monitor → Overview; station/unit/datum and dates stayed aligned. CSV, report ZIP and Turtle contained E70139/AOD and excluded E70124/local datum.
 - Mixed-state browser inputs verified late water, forecast issue/valid/check times, unavailable and unchecked warning sources, and official-link-only updates. Desktop/mobile screenshots were visually inspected; linked pages fit 390px without horizontal document overflow.
 - Local evidence is in the parent workspace's `outputs/context-freshness-20261115`, including `full-tests.log`, `browser-verification.json`, screenshots and downloaded exports. Inputs are synthetic and explicitly labelled; these checks verify UI behaviour, not present public feed availability. The deployment entry remains `app.py`, without QA wrappers.
-- The non-force push and online version/login observation are recorded after deployment below.
+- Code revision `87a4a53` was pushed without force to main. On 15 November 2026 the deployed `Linked views & source freshness` marker, complete password field and Unlock dashboard button were observed without a Streamlit exception. This online check covered the unauthenticated login surface; protected interactions were verified locally.
 
 Independent review reproduced a return-navigation fallback when an ordinary Monitor selection vanished. Retaining the selected Monitor context and accepting other enabled source families corrected it; missing-reference, date-change, native-map and datum-change regressions cover the fix. Final independent review found no remaining issues.
 
