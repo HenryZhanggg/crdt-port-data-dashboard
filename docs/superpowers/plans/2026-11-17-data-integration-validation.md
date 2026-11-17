@@ -37,8 +37,8 @@ Files: `data_integration.py`, `integration_views.py`, `tests/test_data_integrati
 - [x] Run focused tests and the full offline suite; independently review report claims and time/reference correctness.
 - [x] Exercise Data sources, report filters, collection, replay, exports and existing handoffs in desktop/mobile browsers. Verify no Streamlit exceptions or document overflow.
 - [x] Probe selected public sources without representing errors as absence; record observed access/coverage and actual verification times.
-- [ ] Update README, handover notes and visible release marker; commit only task files and push without force to the existing deployment branch after verification.
-- [ ] Observe the deployed release marker and login surface; distinguish protected local QA from online access verification.
+- [x] Update README, handover notes and visible release marker; commit only task files and push without force to the existing deployment branch after verification.
+- [x] Observe the deployed release marker and login surface; distinguish protected local QA from online access verification.
 
 ## Acceptance boundaries
 

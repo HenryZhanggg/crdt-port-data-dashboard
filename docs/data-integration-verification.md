@@ -23,4 +23,8 @@ Evidence is stored outside deployment inputs in the parent workspace's `outputs/
 
 Collected mode establishes dashboard retrieval time, not original historical publication or operator receipt. Replay delivery times and losses are explicitly simulated. Available values passed the selected data checks; they have not thereby passed scientific model acceptance. Traffic timezone assumptions remain unverified. WP1 semantic alignment, each consuming WP's model adaptation and the deployment of durable collectors/shared storage remain separate responsibilities.
 
-Cloud release and observed deployed version are recorded after publication; local browser checks do not establish protected cloud behavior.
+## Cloud release
+
+Code revision `544439e` was pushed without force to the existing GitHub `main` branch. At **12:20 UTC on 17 November 2026**, the public Streamlit app's embedded application frame showed the new “Data validation and integration workbench” release marker, password field and Unlock dashboard button, with zero Streamlit exceptions. The app did not require waking. `deployment-verification.json` and `streamlit-online-version.png` record this check. Protected interactions were verified locally; no claim is made that the cloud password-protected workflow was exercised.
+
+The unrelated pre-existing untracked visual-navigation-layout plan was left untouched.

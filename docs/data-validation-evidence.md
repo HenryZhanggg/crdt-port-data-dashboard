@@ -27,4 +27,4 @@ The Data workspace uses curated metadata derived from **Data Validation Report, 
 
 ## Check
 
-Run `.venv/Scripts/python.exe -m unittest tests.test_validation_report -q` from the repository. The checks enforce revision/date traceability, catalogue linkage, bounded report-page references, the unmapped local entry and separation of delayed/aggregate sources from live labels.
+Run `.venv/Scripts/python.exe -m unittest discover -s tests -p test_validation_report.py -q` from the repository. The checks enforce revision/date traceability, catalogue linkage, bounded report-page references, the unmapped local entry and separation of delayed/aggregate sources from live labels.
