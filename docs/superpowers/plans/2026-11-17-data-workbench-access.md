@@ -14,7 +14,7 @@
 - [x] Reuse existing availability, missing/conflict and replay logic for uploaded records without implying original historical receipt times or accepted ontology mapping.
 - [x] Add a model-input requirement editor binding explicit input names to exact series and expected units; export a one-cutoff feature row, per-feature checks and reproducible contract/lineage.
 - [x] Preserve configuration and collected/uploaded data across page navigation; clear them on lock. Never assign action/file-uploader state through the persistence helper.
-- [ ] Run focused and full tests, obtain an independent review, and publish scoped changes to the existing main branch. Use purpose-built read-only web access for public deployment evidence; keep protected online verification explicitly unconfirmed if browser policy prevents it.
+- [x] Run focused and full tests, obtain an independent review, and publish scoped changes to the existing main branch. Use read-only repository access for publication evidence; keep protected online verification explicitly unconfirmed if browser policy prevents it.
 
 ## Boundaries
 

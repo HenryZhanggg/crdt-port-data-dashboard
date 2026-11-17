@@ -25,3 +25,7 @@ Integration now accepts bounded, explicitly mapped CSV observations alongside th
 The Windows Firefox inspection was stopped by the computer-use tool because browser URL-policy enforcement is unsupported for that browser. No alternate Windows browser-automation technique was used to bypass that restriction. This release's protected cloud workflow and mobile layout were **not** reverified in a browser. Publication is verified through the repository's main ref; a successful Git push alone does not establish what the user's retained authenticated page currently renders.
 
 Test logs and the user screenshot reference remain outside deployment inputs in the parent workspace's `outputs/data-workbench-access-20261117`. No uploaded CSV, credentials or full project PDF is included in the repository.
+
+## Publication
+
+Code revision `b36f8b7` was pushed without force to the existing GitHub main branch. The remote ref was checked after publication. The workbench link and build markers are included in that revision. This records repository publication and does not change the protected-browser verification boundary above.
