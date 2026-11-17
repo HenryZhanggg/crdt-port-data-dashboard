@@ -2,6 +2,8 @@
 
 The application has three workspaces: **Overview**, **Monitor**, and **Data**. The sidebar keeps the prototype partner selector and session lock. The previous Workspace/View trees and standalone technical/project pages are retired.
 
+[Open the Data integration workbench directly](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261117b). Authentication and the selected partner view still apply. Data also has a prominent **Open integration workbench** button above its four tabs. Build `2026-11-17.2` appears after login and inside the Data/integration views; mismatched imported workspace builds are reloaded before use, or explicitly reported as an incomplete deployment.
+
 ## Overview
 
 Daily Liverpool information: weather outlook, measured water levels, weather/flood reminders, a waterfront map, a dated Port/Weather/Travel update feed, and public site photos/video. Three summary cards and one weather/one water trend keep the main page compact; forecast and water records are available in collapsed details. Historical images and recorded film retain dates, source credits and licence terms. No live camera is asserted.
@@ -37,6 +39,10 @@ Published partner runs and declared dependency packages are inspected here after
 - **Project documents and research archive:** downloadable WP1–WP7 handovers, draft governance/demonstrator records, plus original scientific summary/folds/provenance and interpretation. They are supporting documents, separate from operational navigation. Observed replay stays in Monitor.
 
 Traffic timestamps remain blocked unless offset-aware or accompanied by an explicitly recorded user assumption. Water measurement URIs, qualifiers, units and vertical datums remain separate. Invalid, missing, stale and conflicting input values remain missing rather than zero. Requests returning WebTRIS HTTP 204 retain counter metadata and an `api_no_data` status. A separate, dated [National Highways notice](https://webtris.highwaysengland.co.uk/Home/News) records the pause in new updates announced on 17 September 2026; this is not part of the November report assessment or a guarantee of coverage for selected historic counters.
+
+Integration → **Upload CSV** accepts session-only UTF-8 observations (2 MB, 10,000 rows, 100 columns) with explicit entity/value/time mappings and metric/unit/reference declarations. Invalid rows remain auditable. Complete ISO date-times are required; time-only values and relative words do not acquire invented dates. Naive timestamps require an explicit timezone assumption. Original row numbers, content hash, source values, mapping and actual upload time accompany the canonical records. Uploading does not distribute the file to other partners or approve its ontology mapping.
+
+After constructing a snapshot, **Build a model input table** lets the receiving team name input features, bind exact measurement series, confirm expected units and mark requirements. It exports one decision-time feature row, per-input checks and a JSON contract containing rules and source lineage. Stale/missing/conflicting or unit-mismatched values stay missing. Time assumptions need an explicit opt-in for the feature table; scientific model acceptance remains separate. Editor choices survive navigation; locking clears uploaded data and saved requirements.
 
 The workflow and evidence boundaries are described in [docs/data-integration-workbench.md](docs/data-integration-workbench.md); report provenance is in [docs/data-validation-evidence.md](docs/data-validation-evidence.md).
 

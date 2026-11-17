@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import streamlit as st
+import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from test_daily_views import daily_fixture
@@ -48,6 +49,70 @@ class DailyRoutingTests(unittest.TestCase):
     def test_locked_dashboard_never_fetches_daily_sources(self):
         self.app(authorised=False)
         self.daily.assert_not_called()
+        self.feeds.assert_not_called()
+
+    def test_terminal_operator_opens_visible_integration_shortcut_without_fetch(self):
+        app=self.app()
+        next(item for item in app.selectbox if item.label=='Partner').set_value('Terminal operator').run()
+        next(item for item in app.button if item.label=='Data').click().run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Data workspace build' in item.value for item in app.caption))
+        next(item for item in app.button if item.label=='Open integration workbench').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['data_workspace_tab'],'Integration')
+        self.assertTrue(any(item.label=='Load selected records' for item in app.button))
+        sources=next(item for item in app.multiselect if item.label=='Sources to connect')
+        self.assertEqual(sources.value,['webtris'])
+        self.feeds.assert_not_called()
+
+    def test_query_link_opens_workbench_after_login_and_does_not_override_navigation(self):
+        app=AppTest.from_file('app.py',default_timeout=30)
+        app.session_state['dashboard_authorised']=True
+        app.query_params={'workspace':'data','tool':'integration'}
+        app.run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['dashboard_page'],'Data')
+        self.assertEqual(app.session_state['data_workspace_tab'],'Integration')
+        next(item for item in app.button if item.label=='Monitor').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['dashboard_page'],'Monitor')
+
+    def test_outdated_imported_data_renderer_is_reloaded_before_display(self):
+        import data_views
+        original=data_views.render_data_workspace
+        with patch.object(data_views,'DATA_WORKSPACE_BUILD','old',create=True), \
+             patch.object(data_views,'render_data_workspace',side_effect=RuntimeError('Old workspace renderer')):
+            app=self.app(dashboard_page='Data')
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Data workspace build' in item.value for item in app.caption))
+        data_views.render_data_workspace=original
+
+    def test_uploaded_records_reuse_processing_and_model_contract_after_navigation(self):
+        from tabular_integration import read_csv_upload,map_tabular_observations
+        now=pd.Timestamp.now(tz='UTC').floor('s')
+        frame=read_csv_upload(('station,reading,time\nA,12,'+(now-pd.Timedelta(minutes=5)).isoformat()+'\n').encode())
+        records=map_tabular_observations(frame,{'entity_id':'station','value':'reading','event_time':'time'},
+            {'metric':'speed','unit':'mph'},now)
+        metadata={'label':'Local test CSV','collected_at':now.isoformat(),'requested_sources':['csv_upload'],
+                  'collection_status':[{'status':'mapped_upload','records':1}],
+                  'column_mapping':{'entity_id':'station','value':'reading','event_time':'time'}}
+        app=self.app(dashboard_page='Data',data_workspace_tab='Integration',integration_input_kind='Upload CSV',
+            integration_upload_records=records,integration_csv_metadata=metadata)
+        self.feeds.assert_not_called()
+        self.assertTrue(any(item.label=='Download input contract JSON' for item in app.get('download_button')))
+        app.run()
+        self.assertFalse(app.exception)
+        next(item for item in app.button if item.label=='Monitor').click().run()
+        next(item for item in app.button if item.label=='Data').click().run()
+        self.assertFalse(app.exception)
+        self.assertIn('integration_upload_records',app.session_state)
+        self.assertTrue(any(item.label=='Download model input CSV' for item in app.get('download_button')))
+
+    def test_csv_upload_controls_can_rerun_without_assigning_file_widget_state(self):
+        app=self.app(dashboard_page='Data',data_workspace_tab='Integration',integration_input_kind='Upload CSV')
+        app.run()
+        self.assertFalse(app.exception)
+        self.assertEqual(len(app.get('file_uploader')),1)
         self.feeds.assert_not_called()
 
     def test_lock_clears_collected_integration_data_and_controls(self):

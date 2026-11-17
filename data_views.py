@@ -1,4 +1,5 @@
 """One source catalogue, quality workspace and partner intake."""
+import importlib
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -10,7 +11,13 @@ from workbench_views import _import_package
 from workspace_data import quality_findings, report_archive
 from workspace_links import clear_context, context_allowed, context_label, filter_context_bundle
 from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
-from integration_views import render_integration_workspace
+import integration_views
+
+DATA_WORKSPACE_BUILD='2026-11-17.2'
+
+
+def _open_data_tool(tool):
+    st.session_state['data_workspace_tab']=tool
 
 
 SOURCE_PRODUCTS={
@@ -219,6 +226,7 @@ def _quality(load_bundle,views,refresh):
 
 def render_data_workspace(catalog,load_bundle,views,refresh=None):
     st.subheader('Data')
+    st.caption('Data workspace build: '+DATA_WORKSPACE_BUILD)
     handoff=st.session_state.get('data_handoff')
     if handoff:
         st.caption('Observation context: '+context_label(handoff))
@@ -227,13 +235,23 @@ def render_data_workspace(catalog,load_bundle,views,refresh=None):
             st.info('The requested observation source is outside this partner view. Clear the observation context to browse the permitted catalogue.')
             return
     st.caption('Inspect source evidence, build a traceable data input, check quality, or import a partner product.')
+    left,right=st.columns(2)
+    left.button('Open integration workbench',type='primary',width='stretch',
+        key='data_open_integration',on_click=_open_data_tool,args=('Integration',))
+    right.button('View source validation',width='stretch',key='data_open_sources',
+        on_click=_open_data_tool,args=('Sources',))
     sources,integration,quality,partners=st.tabs(['Sources','Integration','Quality','Partner packages'],key='data_workspace_tab',on_change='rerun')
     if sources.open:
         with sources:
             _catalogue(catalog,load_bundle,views)
     if integration.open:
         with integration:
-            render_integration_workspace(load_bundle,views,refresh=refresh,handoff=handoff)
+            if getattr(integration_views,'INTEGRATION_WORKSPACE_BUILD',None)!=DATA_WORKSPACE_BUILD:
+                importlib.reload(integration_views)
+            if getattr(integration_views,'INTEGRATION_WORKSPACE_BUILD',None)!=DATA_WORKSPACE_BUILD:
+                st.error('The integration workspace update has not loaded completely. Please reopen after deployment finishes.')
+            else:
+                integration_views.render_integration_workspace(load_bundle,views,refresh=refresh,handoff=handoff)
     if quality.open:
         with quality:
             _quality(load_bundle,views,refresh)

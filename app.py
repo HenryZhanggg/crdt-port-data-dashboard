@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import importlib
 import json
 import os
 from pathlib import Path
@@ -12,11 +13,12 @@ from api_connectors import empty_bundle, fetch_raw_data_bundle
 from dashboard_theme import apply_dashboard_theme
 from daily_service import load_daily_snapshot
 from daily_views import render_daily_home
-from data_views import render_data_workspace
+import data_views
 from monitor_workspace import render_monitor_workspace
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
+WORKSPACE_BUILD='2026-11-17.2'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -39,7 +41,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 17 November 2026 · Data validation and integration workbench")
+        st.caption("Interface update: 17 November 2026 · Data integration workbench · build "+WORKSPACE_BUILD)
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -150,6 +152,23 @@ def _navigate(page):
     st.session_state['dashboard_page']=page
 
 
+def _apply_workspace_link():
+    route=(st.query_params.get('workspace','').casefold(),st.query_params.get('tool','').casefold())
+    if route==('data','integration') and st.session_state.get('applied_workspace_link')!=route:
+        st.session_state['dashboard_page']='Data'
+        st.session_state['data_workspace_tab']='Integration'
+        st.session_state['applied_workspace_link']=route
+
+
+def _render_current_data_workspace(*args,**kwargs):
+    if getattr(data_views,'DATA_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD:
+        importlib.reload(data_views)
+    if getattr(data_views,'DATA_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD:
+        st.error('The Data workspace update has not loaded completely. Please reopen the dashboard after deployment finishes.')
+        return
+    data_views.render_data_workspace(*args,**kwargs)
+
+
 def _preserve_workspace_widgets():
     keys={'daily_place_id','daily_update_category','monitor_data_mode','monitor_mode',
           'monitor_source_choice','workbench_reference','workbench_layer_water','workbench_layer_traffic',
@@ -158,9 +177,11 @@ def _preserve_workspace_widgets():
           'monitor_dates_Historical browsing','data_preview_dates_Historical browsing',
           'data_quality_dates_Historical browsing'}
     integration_actions={'integration_load','integration_audit_download','integration_snapshot_download',
-                         'integration_report_download','integration_collection_download','integration_timeline'}
+                         'integration_report_download','integration_collection_download','integration_timeline',
+                         'integration_csv_file','integration_csv_apply','integration_csv_clear','integration_csv_mapping',
+                         'integration_contract_inputs_download','integration_contract_checks_download','integration_contract_download'}
     for key in list(st.session_state):
-        if key in keys or key.startswith(('data_table_','data_browse_')) or (key.startswith('integration_') and key not in integration_actions):
+        if key in keys or key.startswith(('data_table_','data_browse_')) or (key.startswith('integration_') and key not in integration_actions and not key.startswith('integration_contract_requirements_')):
             # Detach off-page widget values from Streamlit's widget cleanup.
             st.session_state[key]=st.session_state[key]
 
@@ -199,7 +220,7 @@ def main():
     st.sidebar.title('CRDT port dashboard version 1')
     if st.sidebar.button('Lock dashboard'):
         st.session_state['dashboard_authorised']=False
-        for field in ['partner_runs','dependency_package','current_run_id','current_run_picker','workbench_entity_id']:
+        for field in ['partner_runs','dependency_package','current_run_id','current_run_picker','workbench_entity_id','applied_workspace_link']:
             st.session_state.pop(field,None)
         for field in list(st.session_state):
             if field.startswith('integration_'):
@@ -209,7 +230,9 @@ def main():
     partner=partners[partners['partner_name'].eq(partner_name)].iloc[0]
     views={name.strip() for name in partner['can_view'].split(',')}
     st.sidebar.caption('Prototype partner view · '+str(partner['access_level']))
+    st.sidebar.caption('Dashboard build: '+WORKSPACE_BUILD)
     _migrate_navigation()
+    _apply_workspace_link()
     pages=['Overview','Monitor']
     if views & {'dataset_catalog','raw_data','data_status'}:
         pages.append('Data')
@@ -229,7 +252,7 @@ def main():
     elif page=='Monitor':
         render_monitor_workspace(load_selected_api_bundle,load_csv('assets.csv'),load_service_area(),views,refresh=refresh_sources)
     else:
-        render_data_workspace(load_high_score_catalog(),load_selected_api_bundle,views,refresh=refresh_sources)
+        _render_current_data_workspace(load_high_score_catalog(),load_selected_api_bundle,views,refresh=refresh_sources)
 
 
 if __name__=='__main__':

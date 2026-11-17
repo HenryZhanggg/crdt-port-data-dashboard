@@ -7,13 +7,16 @@ import streamlit as st
 
 from data_integration import integration_archive, integration_snapshot, normalise_observations
 from monitoring_views import chart_style
-from workspace_links import context_allowed, filter_context_bundle
+from workspace_links import clear_context, context_allowed, filter_context_bundle
 from validation_views import render_provider_notice
+from tabular_integration_views import render_csv_mapping
+from model_input_views import render_model_input_builder
 
 
 LABELS = {'water_level': 'Water levels · EA', 'webtris': 'Road traffic · WebTRIS'}
 TIME_ASSUMPTIONS = {'Unverified — keep blocked': None, 'Assume UTC': 'UTC',
                     'Assume Europe/London': 'Europe/London'}
+INTEGRATION_WORKSPACE_BUILD='2026-11-17.2'
 
 
 def _reset_cutoff():
@@ -98,11 +101,19 @@ def _show_outputs(records, snapshot, audit, rules):
 
 def render_integration_workspace(load_bundle, views, refresh=None, handoff=None):
     st.markdown('**Historical + updating data**')
+    st.caption('Integration workspace build: '+INTEGRATION_WORKSPACE_BUILD)
     st.caption('Collect records, inspect their common fields, set availability rules, then export a traceable input snapshot. '
                'Collection is on demand and session-only; download a package to retain it.')
     st.markdown('**1  Collect** → **2  Map identities and meaning** → **3  Check time and quality** → **4  Export inputs**')
     if 'raw_data' not in views:
         st.info('This workbench requires raw-data access in the selected partner view.')
+        return
+    input_kind=st.radio('Data input',['Connected sources','Upload CSV'],horizontal=True,
+                        key='integration_input_kind',on_change=_reset_input_configuration)
+    if input_kind=='Upload CSV':
+        upload=render_csv_mapping(views)
+        if upload is not None:
+            _configure_input_snapshot(*upload)
         return
     allowed = [source for source, permission in [('water_level', 'weather'), ('webtris', 'transport')] if permission in views]
     if not allowed or (handoff and not context_allowed(handoff, views)):
@@ -173,6 +184,20 @@ def render_integration_workspace(load_bundle, views, refresh=None, handoff=None)
         st.download_button('Download collection check JSON',json.dumps(check,indent=2).encode(),
                            'CRDT_collection_check.json','application/json',key='integration_collection_download')
         return
+    collection={'collected_at':loaded['collected_at'],'requested_sources':list(sources),
+                'collection_status':json.loads(status.to_json(orient='records',date_format='iso')),
+                'collection_period':{'start':first,'end':last},'observation_context':handoff,
+                'traffic_timezone_assumption':timezone}
+    _configure_input_snapshot(records,collection)
+
+
+def _reset_input_configuration():
+    for key in ['integration_series','integration_cutoff_date','integration_cutoff_time']:
+        st.session_state.pop(key,None)
+    clear_context('data_handoff')
+
+
+def _configure_input_snapshot(records,collection):
     series = records.drop_duplicates('series_id').set_index('series_id', drop=False)
     labels = {key: _label(row) for key, row in series.iterrows()}
     if 'integration_series' not in st.session_state:
@@ -194,7 +219,7 @@ def render_integration_workspace(load_bundle, views, refresh=None, handoff=None)
         st.caption('Collected snapshot uses recorded dashboard retrieval times. Historical provider arrival times are unavailable; '
                    'a cut-off before collection cannot establish what was known then.')
     times = records['event_time'].dropna() if replay else records['available_at'].dropna()
-    default_cutoff = times.max().ceil('min') if replay and not times.empty else pd.Timestamp(loaded['collected_at']).ceil('min')
+    default_cutoff = times.max().ceil('min') if replay and not times.empty else pd.Timestamp(collection['collected_at']).ceil('min')
     controls = st.columns(3)
     cutoff_date = controls[0].date_input('Decision date (UTC)', value=default_cutoff.date(), key='integration_cutoff_date')
     cutoff_time = controls[1].time_input('Decision time (UTC)', value=default_cutoff.time().replace(tzinfo=None),
@@ -212,15 +237,17 @@ def render_integration_workspace(load_bundle, views, refresh=None, handoff=None)
     cutoff = pd.Timestamp.combine(cutoff_date, cutoff_time).tz_localize('UTC')
     rules = {'cutoff': cutoff.isoformat(), 'freshness_minutes': int(freshness),
              'availability_mode': 'replay' if replay else 'retrieval', 'delay_minutes': int(delay),
-             'drop_every': int(drop_every), 'traffic_timezone_assumption': timezone,
+             'drop_every': int(drop_every), 'traffic_timezone_assumption': collection.get('traffic_timezone_assumption'),
              'source_ids': sorted(records['source_id'].unique().tolist()), 'series_ids': selected,
-             'requested_sources': list(sources),
-             'collection_status': json.loads(status.to_json(orient='records', date_format='iso')),
-             'observation_context': handoff,
-             'collection_period': {'start': first, 'end': last}, 'collected_at': loaded['collected_at'],
+             'requested_sources': collection['requested_sources'],
+             'collection_status': collection['collection_status'],
+             'observation_context': collection.get('observation_context'),
+             'collection_period': collection.get('collection_period'), 'collected_at': collection['collected_at'],
              'profile_status': 'draft observation profile; pending WP1 terminology agreement',
-             'purpose': 'candidate data input snapshot; no model execution or scientific acceptance'}
+             'purpose': 'candidate data input snapshot; no model execution or scientific acceptance',
+             'input_collection': collection}
     snapshot, audit = integration_snapshot(records, cutoff, freshness_minutes=int(freshness),
                                             availability_mode=rules['availability_mode'],
                                             delay_minutes=int(delay), drop_every=int(drop_every))
     _show_outputs(records, snapshot, audit, rules)
+    render_model_input_builder(records, snapshot, rules)

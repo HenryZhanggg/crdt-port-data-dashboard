@@ -2,6 +2,10 @@
 
 The Data workspace implements an inspectable WP2 data workflow. It prepares candidate input records and exposes the evidence needed to discuss them with consuming WPs. Input acceptance and scientific model validation remain with those teams.
 
+## Open the workbench
+
+Use the **Open integration workbench** button in Data, the Integration tab, or the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261117b). The query route is applied once after authentication, allowing ordinary navigation afterward. Data and Integration display build `2026-11-17.2` independently of the login panel. If an already-imported workspace module advertises an older build, its source is reloaded before rendering; a remaining mismatch produces a deployment message rather than silently showing the old workspace. The exact cause of the previously observed old authenticated screen is not established by these guards.
+
 ## 1. Establish source suitability
 
 Sources joins the existing catalogue with curated findings from P0940-REP-103 C1, issued 4 November 2026. Fifteen catalogue entries have a report mapping; HS011 does not. Each mapped entry keeps PDF page references, temporal role, access assessment, useful tasks, limitations and proposed follow-up checks. Download the filtered register or report evidence JSON. Connector presence is not a successful current retrieval, and report ratings do not validate a model.
@@ -33,6 +37,18 @@ At a timezone-aware UTC cut-off, the workbench excludes future events, records n
 The integration ZIP contains `observations.csv`, `snapshot.csv`, `audit.csv`, `rules.json` and an evidence-boundary README. Rules include the requested sources, scoped collection status, request period, selected series, context, time assumption, cut-off, freshness, replay settings and collection time. Partial-source failures remain in the package even when another source returns observations.
 
 Use these artifacts to agree required variables/objects, accepted units/references, temporal resolution and valid age, missing-data policy, model triggers and checking references with each receiving WP. WP1 supplies common semantic guidance; WP2 supplies access and source-quality evidence; each consuming WP owns domain adaptation, model-input construction and scientific verification. Inspecting or exporting records does not execute a model.
+
+## 6. Map partner CSV observations
+
+Choose Upload CSV and preview its original fields. Map entity ID, value and full observation date-time columns; declare metric/unit from a column or constant. Water-level records additionally need a datum and qualifier. Concept URIs remain user declarations and are preserved with original rows; no canonical cross-source identity is inferred. The UTF-8 parser accepts at most 2 MB, 10,000 data rows and 100 unique columns, rejecting malformed files without silently skipping rows. Event timestamps require an explicit ISO date and time. Offset-free values need a recorded UTC/Europe-London assumption; ambiguous local times, partial dates and relative terms remain invalid.
+
+Apply column mapping to create the same canonical records used by the connected-source workflow. Availability is the actual dashboard upload time, not an invented historical arrival. A changed file or delivered mapping invalidates the old approved snapshot. Loaded records can be retained after the upload control unmounts, visibly labelled as session data, and explicitly cleared. They are never written to the public repository or sent to another service by the import.
+
+## 7. Construct an explicit model input table
+
+Expand Build a model input table after selecting measurement series and a decision cut-off. Assign a unique input name to each exact series, confirm expected units and mark required inputs. The builder preserves each feature's source, entity, metric, unit, datum, record evidence and common cut-off. It does not aggregate distinct measurements or infer causal relationships. Stale, conflicting, invalid, missing or unit-mismatched features remain missing; use of time-assumed records requires explicit permission. A CSV feature row, check table and JSON contract are exportable with the selected records and processing rules.
+
+Saved requirements are kept separately from the editor widget state, using a stable base during editing and restoring saved choices after page unmount. Invalid edits remain correctable. The configured checks are useful for handover and reproducibility, with scientific suitability still decided by the receiving WP.
 
 ## Supporting references
 
