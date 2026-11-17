@@ -127,6 +127,27 @@ render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weathe
         self.assertFalse(app.date_input)
         self.assertTrue(any(x.label=='Data source' for x in app.selectbox))
 
+    def test_report_role_filter_changes_catalogue_without_requesting_sources(self):
+        app=self.app()
+        next(x for x in app.selectbox if x.label=='Data role').set_value('Updated observations').run()
+        self.assertFalse(app.exception)
+        self.assertNotIn('requested_sources',app.session_state)
+        register=next(x.value for x in app.dataframe if 'Report evidence' in x.value)
+        self.assertEqual(register['ID'].tolist(),['HS004'])
+        self.assertEqual(register.iloc[0]['Report evidence'],'Assessed in report')
+
+    def test_selected_source_shows_report_findings_without_claiming_runtime_access(self):
+        app=self.app(data_source_id='HS007')
+        self.assertNotIn('requested_sources',app.session_state)
+        self.assertTrue(any('P0940-REP-103 C1' in x.value and '86' in x.value for x in app.caption))
+        self.assertTrue(any('one month' in str(x.value).lower() for x in app.caption))
+
+    def test_integration_tab_is_lazy_until_explicit_collection(self):
+        app=self.app(data_workspace_tab='Integration')
+        self.assertNotIn('requested_sources',app.session_state)
+        self.assertTrue(any(x.label=='Load selected records' for x in app.button))
+        self.assertFalse(any(x.label=='Data source' for x in app.selectbox))
+
     def test_traffic_catalogue_explains_publication_delay_without_requesting_records(self):
         app=self.app(data_source_id='HS007')
         self.assertNotIn('requested_sources',app.session_state)

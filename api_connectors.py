@@ -442,7 +442,8 @@ def fetch_webtris(session: requests.Session, start_date=None, end_date=None) -> 
     }
     report_response = session.get(WEBTRIS_REPORT_URL, params=params, timeout=90)
     report_response.raise_for_status()
-    report_payload = report_response.json()
+    no_content = getattr(report_response, 'status_code', 200) == 204
+    report_payload = {"Rows": []} if no_content else report_response.json()
     rows = pd.DataFrame(report_payload.get("Rows", []))
     if not rows.empty:
         rows.columns = [clean_column_name(c) for c in rows.columns]
@@ -472,10 +473,12 @@ def fetch_webtris(session: requests.Session, start_date=None, end_date=None) -> 
             "webtris_daily_a5036_api",
             "National Highways WebTRIS A5036 15-minute traffic report",
             "Hinterland Transport",
-            "api_connected",
+            "api_no_data" if rows.empty else "api_connected",
             len(rows),
             f"{WEBTRIS_REPORT_URL}?sites={','.join(selected_site_ids)}&start_date={params['start_date']}&end_date={params['end_date']}&page=1&page_size=5000",
-            "Direct REST API report call for selected Liverpool access-road sensors",
+            ("HTTP 204: no records returned for the requested counters and dates" if no_content
+             else "No records returned for the requested counters and dates" if rows.empty
+             else "Direct REST API report call for selected Liverpool access-road sensors"),
         ),
     ]
     return frames, statuses

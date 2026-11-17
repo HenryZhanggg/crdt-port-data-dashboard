@@ -1,0 +1,580 @@
+{
+  "schema_version": 1,
+  "report": {
+    "title": "Data Validation Report — P0940 CRDT-Port Project",
+    "reference": "P0940-REP-103",
+    "revision": "C1",
+    "date": "2026-11-04",
+    "issue": "Issued for Client Use",
+    "page_count": 182,
+    "sha256": "fe877c665ed8ade110094680400ec2ce4dba35fe98d6240b397b09c0fb01a1b6",
+    "evidence_status": "report_assessment",
+    "scope_note": "Curated report findings linked to the 16 existing dashboard catalogue entries. This is not a transcription of every source assessed in the report.",
+    "interpretation_note": "Findings and limitations paraphrase the report at its issue date. Required checks and project recommendations are dashboard follow-up actions derived from those findings. Report assessment is separate from current API retrieval, model suitability and accepted ontology alignment."
+  },
+  "sources": [
+    {
+      "source_id": "HS001",
+      "label": "DfT port and waterborne freight statistics",
+      "report_section": "2.1",
+      "report_pages": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "temporal_role": "Historical aggregate",
+      "access_category": "Open download",
+      "access_assessment": "Report identifies public ODS downloads under OGL v3.0.",
+      "findings": [
+        "Official port-level freight, cargo, route and arrivals statistics support baselines and comparison.",
+        "Most tables are annual; selected port-traffic tables are quarterly."
+      ],
+      "required_checks": [
+        "Select the required PORT table and preserve its release and reporting period.",
+        "Parse ODS headers, units, port names and classifications before combining tables."
+      ],
+      "limitations": [
+        "Annual or quarterly aggregates do not describe live vessel movements.",
+        "Granularity and publication history vary between tables."
+      ],
+      "task_support": [
+        "Historical baselines",
+        "Freight and maritime activity"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS002",
+      "label": "DfT Maritime Statistics Dashboard",
+      "report_section": "2.2",
+      "report_pages": [
+        17,
+        18,
+        19
+      ],
+      "temporal_role": "Historical aggregate",
+      "access_category": "Web or restricted",
+      "access_assessment": "Report identifies public visualisation; underlying PORT and SPAS tables are separate downloads.",
+      "findings": [
+        "The dashboard supports geographical exploration and comparison of published statistics.",
+        "Underlying PORT0499 and passenger-statistics tables are identified for integration."
+      ],
+      "required_checks": [
+        "Retrieve the underlying statistical table rather than extract a chart value.",
+        "Keep the original statistical definition and release alongside any comparison."
+      ],
+      "limitations": [
+        "The dashboard interface is not a live operational feed.",
+        "Direct modelling needs the underlying downloadable data."
+      ],
+      "task_support": [
+        "Historical baselines",
+        "Spatial context"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS003",
+      "label": "IMF PortWatch spillover simulation details",
+      "report_section": "3.5",
+      "report_pages": [
+        44,
+        45,
+        46
+      ],
+      "temporal_role": "Scenario estimates",
+      "access_category": "Web or restricted",
+      "access_assessment": "Report did not confirm output download from the supplied ArcGIS interface.",
+      "findings": [
+        "Scenario outputs describe potential port, trade and supply-chain impacts for selected disruption durations.",
+        "The report identifies potential comparison use for cascading-impact modelling."
+      ],
+      "required_checks": [
+        "Confirm access and reuse terms for the underlying ArcGIS resources.",
+        "Retain scenario duration, model assumptions and output geography."
+      ],
+      "limitations": [
+        "Outputs are modelled scenario estimates, not observed disruption records.",
+        "Country-level results are coarser than local infrastructure; automated data access remains to be established."
+      ],
+      "task_support": [
+        "Scenario analysis",
+        "Wider consequences"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS004",
+      "label": "Environment Agency flood-monitoring API",
+      "report_section": "4.3-4.4",
+      "report_pages": [
+        61,
+        62,
+        63,
+        64,
+        65,
+        66
+      ],
+      "temporal_role": "Updated observations",
+      "access_category": "Public API",
+      "access_assessment": "Report identifies public JSON REST access without registration and OGL attribution requirements.",
+      "findings": [
+        "Station readings and warning-area information support environmental monitoring.",
+        "Measurements are generally updated at 15-minute intervals; recent historical readings are available separately from latest readings."
+      ],
+      "required_checks": [
+        "Preserve station and measure identifiers, units, observation times and reference metadata.",
+        "Retrieve historical readings explicitly and retain newly retrieved records when building a history."
+      ],
+      "limitations": [
+        "The latest-reading endpoint is not a complete historical archive.",
+        "The report describes a beta service without guaranteed service levels or safety-critical assurance."
+      ],
+      "task_support": [
+        "Environmental monitoring",
+        "Historical observations"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS005",
+      "label": "Met Office Weather DataHub",
+      "report_section": "5.2",
+      "report_pages": [
+        70,
+        71,
+        72
+      ],
+      "temporal_role": "Observations and forecasts",
+      "access_category": "Registration or key",
+      "access_assessment": "Report identifies API setup and product-dependent access/licensing, including subscription tiers.",
+      "findings": [
+        "Observations and regularly updated forecasts support current-condition and weather-hazard analysis.",
+        "Structured products include JSON, GeoJSON and GRIB2; horizons vary by product."
+      ],
+      "required_checks": [
+        "Confirm product entitlement, key, usage limits, attribution and redistribution terms.",
+        "Keep observed records separate from forecasts and retain issue time and valid time."
+      ],
+      "limitations": [
+        "Registration and API configuration are required.",
+        "Forecast horizon, update basis and usage entitlement are product dependent."
+      ],
+      "task_support": [
+        "Environmental monitoring",
+        "Forecast context"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS006",
+      "label": "Met Office severe-weather warnings API",
+      "report_section": "5.3",
+      "report_pages": [
+        73,
+        74,
+        75
+      ],
+      "temporal_role": "Current warnings",
+      "access_category": "Public API",
+      "access_assessment": "Report identifies machine-readable Atom/XML and GeoJSON delivery subject to Met Office licence terms.",
+      "findings": [
+        "Warnings describe hazard type, severity, likelihood, impact, valid period and affected area.",
+        "The feed changes when warnings are issued, updated, cancelled or expire."
+      ],
+      "required_checks": [
+        "Track warning identity, issue/update times, validity, geography and cancellation state.",
+        "Confirm current access and terms; retain permitted snapshots if a project warning history is needed."
+      ],
+      "limitations": [
+        "The report found no historical-warning archive for this feed.",
+        "A warning concerns potential impacts and does not establish damage at a specific asset."
+      ],
+      "task_support": [
+        "Environmental monitoring",
+        "Warning context"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS007",
+      "label": "National Highways WebTRIS traffic observations",
+      "report_section": "6.1",
+      "report_pages": [
+        86,
+        87,
+        88
+      ],
+      "temporal_role": "Historical observations",
+      "access_category": "Public API",
+      "access_assessment": "Report identifies public JSON REST and CSV downloads without registration.",
+      "findings": [
+        "Fine-resolution traffic flow and speed records support road-demand baselines and retrospective analysis.",
+        "The report identifies structured site, reporting and data-quality resources."
+      ],
+      "required_checks": [
+        "Select and verify the counter, metric, time basis and actual returned dates.",
+        "Check missing intervals, sensor outages and release lag before constructing model inputs."
+      ],
+      "limitations": [
+        "Records are generally published approximately one month in arrears, so this is not the main live traffic source.",
+        "Sensor outages and changing site coverage can leave gaps."
+      ],
+      "task_support": [
+        "Historical baselines",
+        "Transport access"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS008",
+      "label": "National Highways Developer Portal APIs",
+      "report_section": "6.2",
+      "report_pages": [
+        89,
+        90,
+        91
+      ],
+      "temporal_role": "Operational / reference feeds",
+      "access_category": "Registration or key",
+      "access_assessment": "Report identifies registration, API subscription/key and National Highways feed-licence conditions.",
+      "findings": [
+        "Planned and unplanned closures, restrictions and roadside messages can describe strategic-road conditions.",
+        "Reference features and current operational products have different update bases."
+      ],
+      "required_checks": [
+        "Confirm the specific product, entitlement, licence and payload schema.",
+        "Map event locations to the relevant road links and preserve planned/current status and validity."
+      ],
+      "limitations": [
+        "Coverage principally concerns the Strategic Road Network rather than every Liverpool road.",
+        "Catalogue availability does not establish that this application has a working subscription."
+      ],
+      "task_support": [
+        "Transport access",
+        "Disruption events"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS009",
+      "label": "DfT NaPTAN access-node reference data",
+      "report_section": "6.6",
+      "report_pages": [
+        102,
+        103,
+        104
+      ],
+      "temporal_role": "Reference locations",
+      "access_category": "Open download",
+      "access_assessment": "Report identifies public CSV/XML downloads and API access under OGL v3.0.",
+      "findings": [
+        "Unique access-point identifiers and coordinates support public-transport infrastructure mapping.",
+        "Updates depend on submissions and validation by responsible authorities."
+      ],
+      "required_checks": [
+        "Preserve NaPTAN identifiers, coordinates and extract date.",
+        "Verify relevant node coverage and freshness before associating other records."
+      ],
+      "limitations": [
+        "Access-point records do not establish whether a service is operating.",
+        "The dataset is not a freight-flow or timetable feed; some nodes may be old."
+      ],
+      "task_support": [
+        "Spatial context",
+        "Transport access"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS010",
+      "label": "Network Rail Open Data feeds",
+      "report_section": "7.2",
+      "report_pages": [
+        119,
+        120,
+        121
+      ],
+      "temporal_role": "Operational / reference feeds",
+      "access_category": "Registration or key",
+      "access_assessment": "Report identifies a registered-account route and feed-dependent formats and licence conditions.",
+      "findings": [
+        "Schedules, short-term changes, movements, positioning and reference identifiers support planned-versus-actual rail analysis.",
+        "Operational feeds and reference or restriction snapshots have different delivery frequencies."
+      ],
+      "required_checks": [
+        "Confirm current registration availability and the permitted feed use.",
+        "Associate movement records with schedules and railway reference identifiers before local interpretation."
+      ],
+      "limitations": [
+        "The report records registration and public-access capacity constraints.",
+        "Not all feeds are real time, and Liverpool freight relevance needs task-specific service/location matching."
+      ],
+      "task_support": [
+        "Transport access",
+        "Disruption events"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS011",
+      "label": "Local traffic and air-quality sensors",
+      "report_section": "",
+      "report_pages": [],
+      "temporal_role": "Unconfirmed local data",
+      "access_category": "Unconfirmed",
+      "access_assessment": "This generic catalogue entry has not been matched to a specific dataset assessed in C1.",
+      "findings": [],
+      "required_checks": [
+        "Identify the actual owner, sensor inventory, access route, history, units and time basis.",
+        "Obtain source-specific evidence and permissions before assigning report validation or a connected status."
+      ],
+      "limitations": [
+        "The report reviews related national road and air-quality sources, but these do not validate an unspecified local sensor feed."
+      ],
+      "task_support": [
+        "Transport access",
+        "Environmental monitoring"
+      ],
+      "evidence_status": "not_mapped"
+    },
+    {
+      "source_id": "HS012",
+      "label": "Peel Ports Liverpool marine operational information",
+      "report_section": "9.1",
+      "report_pages": [
+        128,
+        129,
+        130,
+        131
+      ],
+      "temporal_role": "Operational notices",
+      "access_category": "Web or restricted",
+      "access_assessment": "Report identifies public HTML/PDF and embedded vessel-board information; no public structured API was identified.",
+      "findings": [
+        "Liverpool-specific notices describe navigational changes, closures, restrictions and marine procedures.",
+        "Notices can remain valid, be revised or be superseded over long periods."
+      ],
+      "required_checks": [
+        "Confirm permission for automated retrieval and republication before connecting a production feed.",
+        "Preserve notice identity, affected location, issue/validity dates and supersession status."
+      ],
+      "limitations": [
+        "The report describes research use but restrictions on redistribution and republication without written permission.",
+        "HTML/PDF and embedded visualisations need extraction and checking; issue date alone does not determine current validity."
+      ],
+      "task_support": [
+        "Operational constraints",
+        "Disruption events"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS013",
+      "label": "Global Maritime Traffic Density Service",
+      "report_section": "12.1",
+      "report_pages": [
+        138,
+        139,
+        140
+      ],
+      "temporal_role": "Historical density",
+      "access_category": "Web or restricted",
+      "access_assessment": "Report identifies WMS/raster exports; large bulk downloads require a request and authorised downloads carry attribution terms.",
+      "findings": [
+        "Monthly historical density layers support shipping-corridor, exposure and scenario context.",
+        "The report records coverage ending in September 2024 and cessation of AIS updates to this service."
+      ],
+      "required_checks": [
+        "Record the chosen layer, month, vessel category and raster/geographic resolution.",
+        "Confirm export access and attribution before using a layer."
+      ],
+      "limitations": [
+        "Aggregated density cannot identify individual vessels, calls or current positions.",
+        "Historical coverage and grid resolution limit current or berth-level interpretation."
+      ],
+      "task_support": [
+        "Spatial context",
+        "Historical baselines"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS014",
+      "label": "ONS weekly shipping indicators",
+      "report_section": "12.7",
+      "report_pages": [
+        156,
+        157,
+        158,
+        159
+      ],
+      "temporal_role": "Weekly aggregate",
+      "access_category": "Open download",
+      "access_assessment": "Report identifies public XLSX releases and retained superseded versions, with OGL and third-party-rights conditions.",
+      "findings": [
+        "Liverpool-level weekly vessel visits and unique-ship counts support maritime baselines and comparisons.",
+        "The series starts in 2019 and is regularly revised or updated."
+      ],
+      "required_checks": [
+        "Retain workbook release/version and observation week.",
+        "Preserve the difference between unique ships and total visits and verify the Liverpool port mask."
+      ],
+      "limitations": [
+        "Weekly aggregates are not live AIS or individual-vessel records.",
+        "The data cannot identify berth activity, cargo tonnage or commodity-specific flows."
+      ],
+      "task_support": [
+        "Historical baselines",
+        "Freight and maritime activity"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS015",
+      "label": "Geofabrik OpenStreetMap network extracts",
+      "report_section": "13.1",
+      "report_pages": [
+        167,
+        168,
+        169,
+        170
+      ],
+      "temporal_role": "Reference network",
+      "access_category": "Open download",
+      "access_assessment": "Report identifies public PBF, Shapefile and GeoPackage extracts subject to OSM attribution and ODbL conditions.",
+      "findings": [
+        "Road, rail, waterway and infrastructure features support a shared spatial reference layer.",
+        "Extracts are frequently refreshed, with a dedicated Merseyside extract identified."
+      ],
+      "required_checks": [
+        "Retain extract date, OSM identifiers, coordinate reference and relevant tags.",
+        "Check local completeness and connectivity before using the extracted network for routing or dependency analysis."
+      ],
+      "limitations": [
+        "Contributor updates can lag real-world change; frequent publication is not live operational status.",
+        "Coverage and positional accuracy vary by location."
+      ],
+      "task_support": [
+        "Network structure",
+        "Spatial context"
+      ],
+      "evidence_status": "report_assessment"
+    },
+    {
+      "source_id": "HS016",
+      "label": "UK seaports OpenStreetMap export",
+      "report_section": "13.2",
+      "report_pages": [
+        171,
+        172,
+        173
+      ],
+      "temporal_role": "Static spatial snapshot",
+      "access_category": "Open download",
+      "access_assessment": "Report identifies public HDX geospatial downloads subject to ODbL and OSM attribution.",
+      "findings": [
+        "Thematic port and ferry-terminal features provide maritime spatial context.",
+        "The report treats this as a static OSM-derived snapshot that overlaps broader Geofabrik coverage."
+      ],
+      "required_checks": [
+        "Retain snapshot date, feature identifiers and source attribution.",
+        "Check Liverpool feature coverage and reconcile duplicates with the broader OSM extract."
+      ],
+      "limitations": [
+        "There is no operational or vessel-activity information.",
+        "A dated snapshot should not be treated as a continuously updated asset register."
+      ],
+      "task_support": [
+        "Spatial context",
+        "Network structure"
+      ],
+      "evidence_status": "report_assessment"
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "R1",
+      "title": "Separate historical baselines from current-condition inputs",
+      "report_pages": [
+        2,
+        14,
+        15,
+        88,
+        158
+      ],
+      "action": "Use each dataset at its actual observation and publication scale. Keep annual, weekly and delayed traffic sources labelled separately from updated observations."
+    },
+    {
+      "id": "R2",
+      "title": "Confirm access and permission before building an adapter",
+      "report_pages": [
+        2,
+        71,
+        90,
+        120,
+        129
+      ],
+      "action": "Record the product, entitlement, permitted processing, attribution and redistribution conditions. Public viewing is not automatic permission for production republication."
+    },
+    {
+      "id": "R3",
+      "title": "Retain history rather than rely only on latest endpoints",
+      "report_pages": [
+        64,
+        65,
+        66,
+        75,
+        128
+      ],
+      "action": "Retrieve available historical records explicitly and retain permitted, timestamped snapshots for sources that expose only current readings or changing notices."
+    },
+    {
+      "id": "R4",
+      "title": "Keep reference networks separate from operational state",
+      "report_pages": [
+        104,
+        169,
+        173
+      ],
+      "action": "Use spatial identifiers and geometry to associate records, then obtain separate observations or confirmed events for service availability and disruption state."
+    },
+    {
+      "id": "R5",
+      "title": "Preserve the role of modelled and aggregate evidence",
+      "report_pages": [
+        44,
+        45,
+        46,
+        140,
+        158
+      ],
+      "action": "Label scenario estimates, density layers and aggregate activity as such. Confirm units, geographic scope and task compatibility before comparison."
+    },
+    {
+      "id": "R6",
+      "title": "Verify source-specific processing before model handover",
+      "report_pages": [
+        5,
+        65,
+        88,
+        129
+      ],
+      "action": "WP2 checks access, returned records, time coverage and source quality. Each consuming WP confirms its domain mapping, input construction and scientific acceptance; report ratings do not replace those checks."
+    }
+  ],
+  "provider_notices": [
+    {
+      "source_id": "HS007",
+      "evidence_status": "official_provider_notice",
+      "notice_date": "2026-09-17",
+      "checked_date": "2026-11-17",
+      "url": "https://webtris.highwaysengland.co.uk/Home/News",
+      "summary": "National Highways reports a pause in new monthly data provision during infrastructure changes. Historic records within the rolling ten-year window remain available in principle; availability for the selected counters and dates must still be checked.",
+      "timing_note": "The provider estimates three to four months; a confirmed restart date is not given."
+    }
+  ]
+}

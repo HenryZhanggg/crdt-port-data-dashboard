@@ -137,6 +137,23 @@ class ConnectorDateTests(unittest.TestCase):
         self.assertEqual(params["start_date"], "05102026")
         self.assertEqual(params["end_date"], "06102026")
 
+    def test_traffic_no_content_preserves_sites_and_explicit_empty_status(self):
+        session=Session()
+        original_get=session.get
+        class NoContent(Response):
+            status_code=204
+            def json(self):
+                raise ValueError('No response body')
+        def get(url,**kwargs):
+            return original_get(url,**kwargs) if url.endswith('/sites') else NoContent(None)
+        with patch.object(session,'get',side_effect=get):
+            frames,statuses=fetch_webtris(session,'2026-10-05','2026-10-06')
+        self.assertFalse(frames['webtris_sites'].empty)
+        self.assertTrue(frames['webtris_daily'].empty)
+        report=next(row for row in statuses if row['connector_id']=='webtris_daily_a5036_api')
+        self.assertEqual(report['status'],'api_no_data')
+        self.assertIn('204',report['access_note'])
+
 
 if __name__ == "__main__":
     unittest.main()

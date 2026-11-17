@@ -50,6 +50,28 @@ class DailyRoutingTests(unittest.TestCase):
         self.daily.assert_not_called()
         self.feeds.assert_not_called()
 
+    def test_lock_clears_collected_integration_data_and_controls(self):
+        app=self.app(dashboard_page='Data',data_workspace_tab='Integration',
+            integration_loaded={'signature':'previous request','bundle':{'private':'session records'}},
+            integration_freshness=45)
+        next(item for item in app.button if item.label=='Lock dashboard').click().run()
+        self.assertFalse(app.exception)
+        self.assertFalse(app.session_state['dashboard_authorised'])
+        self.assertFalse(any(key.startswith('integration_') for key in app.session_state.filtered_state))
+        self.feeds.assert_not_called()
+
+    def test_integration_controls_and_collection_survive_workspace_navigation(self):
+        app=self.app(dashboard_page='Data',data_workspace_tab='Integration')
+        next(item for item in app.button if item.label=='Load selected records').click().run()
+        self.assertFalse(app.exception)
+        next(item for item in app.number_input if item.label=='Maximum observation age (minutes)').set_value(45).run()
+        next(item for item in app.button if item.label=='Monitor').click().run()
+        next(item for item in app.button if item.label=='Data').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['integration_freshness'],45)
+        self.assertIn('integration_loaded',app.session_state)
+        self.assertTrue(any(item.label=='Download integration report ZIP' for item in app.get('download_button')))
+
     def test_monitor_refresh_keeps_the_provider_weather_cache(self):
         from daily_service import load_weather
         app = self.app()

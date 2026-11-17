@@ -39,7 +39,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 15 November 2026 · Connected data relationships")
+        st.caption("Interface update: 17 November 2026 · Data validation and integration workbench")
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -130,7 +130,7 @@ def load_selected_api_bundle(start_date, end_date, sources) -> dict[str, pd.Data
         for name, frame in result.items():
             if name == "status":
                 # Connector calls also return an unrelated static deferred register.
-                statuses.append(frame.loc[frame['status'].isin(['api_connected','api_error'])] if 'status' in frame else frame)
+                statuses.append(frame.loc[frame['status'].isin(['api_connected','api_no_data','api_error'])] if 'status' in frame else frame)
             elif not frame.empty:
                 bundle[name] = frame
     if statuses:
@@ -153,12 +153,14 @@ def _navigate(page):
 def _preserve_workspace_widgets():
     keys={'daily_place_id','daily_update_category','monitor_data_mode','monitor_mode',
           'monitor_source_choice','workbench_reference','workbench_layer_water','workbench_layer_traffic',
-          'data_workspace_tab','data_source_id','data_source_search','data_quality_scope',
+          'data_workspace_tab','data_source_id','data_source_search','data_quality_scope','data_role_filter','data_route_filter',
           'data_preview_mode','data_quality_mode',
           'monitor_dates_Historical browsing','data_preview_dates_Historical browsing',
           'data_quality_dates_Historical browsing'}
+    integration_actions={'integration_load','integration_audit_download','integration_snapshot_download',
+                         'integration_report_download','integration_collection_download','integration_timeline'}
     for key in list(st.session_state):
-        if key in keys or key.startswith(('data_table_','data_browse_')):
+        if key in keys or key.startswith(('data_table_','data_browse_')) or (key.startswith('integration_') and key not in integration_actions):
             # Detach off-page widget values from Streamlit's widget cleanup.
             st.session_state[key]=st.session_state[key]
 
@@ -199,6 +201,9 @@ def main():
         st.session_state['dashboard_authorised']=False
         for field in ['partner_runs','dependency_package','current_run_id','current_run_picker','workbench_entity_id']:
             st.session_state.pop(field,None)
+        for field in list(st.session_state):
+            if field.startswith('integration_'):
+                st.session_state.pop(field,None)
         st.rerun()
     partner_name=st.sidebar.selectbox('Partner',partners['partner_name'].tolist())
     partner=partners[partners['partner_name'].eq(partner_name)].iloc[0]

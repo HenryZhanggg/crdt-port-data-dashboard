@@ -9,6 +9,8 @@ from project_archives import render_archives
 from workbench_views import _import_package
 from workspace_data import quality_findings, report_archive
 from workspace_links import clear_context, context_allowed, context_label, filter_context_bundle
+from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
+from integration_views import render_integration_workspace
 
 
 SOURCE_PRODUCTS={
@@ -47,6 +49,8 @@ def _source_link(url):
 
 
 def _catalogue(catalog,load_bundle,views):
+    report=load_validation_report()
+    render_validation_summary(catalog,report,SOURCE_PRODUCTS)
     handoff=st.session_state.get('data_handoff')
     if handoff and handoff['source_id'] not in set(catalog['source_id']):
         st.info('The requested data source is not available in this catalogue. Clear the observation context to choose another source.')
@@ -55,12 +59,28 @@ def _catalogue(catalog,load_bundle,views):
         on_change=clear_context,args=('data_handoff',)).strip().casefold()
     fields=['source_id','title','domain','access_level','connection_mode']
     frame=catalog.loc[catalog[fields].astype(str).agg(' '.join,axis=1).str.casefold().str.contains(query,regex=False)].copy()
+    register=validation_register(frame,report,SOURCE_PRODUCTS)
+    roles=['All data roles',*sorted(register['Data role'].unique())]
+    if handoff:
+        st.session_state['data_role_filter']='All data roles'
+        st.session_state['data_route_filter']='All routes'
+    if st.session_state.get('data_role_filter') not in roles:
+        st.session_state['data_role_filter']='All data roles'
+    left,right=st.columns(2)
+    role=left.selectbox('Data role',roles,key='data_role_filter',on_change=clear_context,args=('data_handoff',))
+    route=right.selectbox('Dashboard route',['All routes','Connector available','Reference / access pending'],
+        key='data_route_filter',on_change=clear_context,args=('data_handoff',))
+    if role!='All data roles':
+        register=register.loc[register['Data role'].eq(role)]
+    if route!='All routes':
+        register=register.loc[register['Dashboard route'].eq(route)]
+    frame=frame.loc[frame['source_id'].isin(register['ID'])]
     if frame.empty:
         st.info('No sources match this search.')
         return
-    display=frame[fields].rename(columns={'source_id':'ID','title':'Source','domain':'Domain',
-        'access_level':'Access','connection_mode':'Access route'})
-    st.dataframe(display,hide_index=True,width='stretch',height=300)
+    st.dataframe(register,hide_index=True,width='stretch',height=300)
+    st.download_button('Download filtered source register',register.to_csv(index=False).encode(),
+        'CRDT_source_validation_register.csv','text/csv')
     labels=frame.set_index('source_id')['title'].to_dict()
     if st.session_state.get('data_source_id') not in labels:
         st.session_state['data_source_id']=None
@@ -75,6 +95,8 @@ def _catalogue(catalog,load_bundle,views):
     st.caption('Access: '+str(row.get('access_level',''))+' · '+str(row.get('cost','')))
     st.caption('Format: '+str(row.get('format',''))+' · Catalogue coverage: '+str(row.get('period','')))
     _source_link(row.get('url',''))
+    render_provider_notice(selected)
+    render_source_validation(report,selected)
     with st.expander('Catalogue metadata'):
         st.caption('Original source assessment, suggested use and access notes; catalogue entries do not establish current availability.')
         st.json(row.to_json())
@@ -161,6 +183,8 @@ def _quality(load_bundle,views,refresh):
     if st.session_state.get('data_quality_scope') not in choices:
         st.session_state.pop('data_quality_scope',None)
     scope=st.selectbox('Check data',list(choices),key='data_quality_scope',on_change=clear_context,args=('data_handoff',))
+    if 'webtris' in choices[scope]:
+        render_provider_notice('HS007')
     dates=_dates('data_quality')
     if dates is None:
         return
@@ -202,10 +226,14 @@ def render_data_workspace(catalog,load_bundle,views,refresh=None):
         if not context_allowed(handoff,views):
             st.info('The requested observation source is outside this partner view. Clear the observation context to browse the permitted catalogue.')
             return
-    sources,quality,partners=st.tabs(['Sources','Quality','Partner packages'],key='data_workspace_tab',on_change='rerun')
+    st.caption('Inspect source evidence, build a traceable data input, check quality, or import a partner product.')
+    sources,integration,quality,partners=st.tabs(['Sources','Integration','Quality','Partner packages'],key='data_workspace_tab',on_change='rerun')
     if sources.open:
         with sources:
             _catalogue(catalog,load_bundle,views)
+    if integration.open:
+        with integration:
+            render_integration_workspace(load_bundle,views,refresh=refresh,handoff=handoff)
     if quality.open:
         with quality:
             _quality(load_bundle,views,refresh)
