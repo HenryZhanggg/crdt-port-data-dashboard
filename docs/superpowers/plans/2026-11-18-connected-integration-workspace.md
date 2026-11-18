@@ -36,6 +36,15 @@
 - [x] Update README and docs/data-integration-workbench.md with actual behavior and limitations.
 - [x] Run all unit/AppTests, compile touched modules, inspect git diff and request independent spec/code review.
 - [x] Exercise protected local app using fixture-only QA where supported; no secrets in output, captures or commits.
-- [ ] Publish only this task's changes to repository main after verification, preserving unrelated untracked plan. Verify remote revision and deployment response; report any browser verification limitation accurately.
+- [x] Publish only this task's changes to repository main after verification, preserving unrelated untracked plan. Verify remote revision and deployment response; report any browser verification limitation accurately.
 
 **Boundaries:** No persistent history service, new vendor stack, automatic entity resolution, fabricated historical arrival time, datum conversion, imputation or partner-model execution. These were not required for this bounded update. Formal WP1 approval and receiving-WP scientific acceptance remain separate.
+
+## Verification outcome
+
+- Production code revision: `1581054`; published to repository `main`.
+- Build: `2026-11-18.1`. All371 unit/AppTests passed; touched Python modules compile and Git whitespace checks pass.
+- Installed Edge headless verified local fixture-only API/CSV mapping, product export, actual connection-node selection, Monitor handoff and current Overview context with no page or Streamlit exceptions. Synthetic QA records are not operational evidence.
+- Streamlit was asleep and was awakened. Its public login banner confirmed build2026-11-18.1 at 2026-11-18T14:17:17.718324+00:00.
+- The protected deployed workspace was not signed into: no local dashboard password was available. Its functionality was exercised locally; authenticated cloud verification remains an owner-session check. No password was printed, stored or changed.
+- QA records/screenshots remain local and were excluded from publication. Formal WP1 mapping approval, source temporal-meaning acceptance and partner model validation remain separate.
