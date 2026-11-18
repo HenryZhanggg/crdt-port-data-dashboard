@@ -1,4 +1,5 @@
 """Inspect collected observations and replay explicit availability rules."""
+import hashlib
 import json
 
 import pandas as pd
@@ -6,6 +7,7 @@ import plotly.express as px
 import streamlit as st
 
 from data_integration import integration_archive, integration_snapshot, normalise_observations
+from integration_product import integration_bindings, apply_integration_bindings
 from monitoring_views import chart_style
 from workspace_links import clear_context, context_allowed, filter_context_bundle
 from validation_views import render_provider_notice
@@ -16,7 +18,7 @@ from model_input_views import render_model_input_builder
 LABELS = {'water_level': 'Water levels · EA', 'webtris': 'Road traffic · WebTRIS'}
 TIME_ASSUMPTIONS = {'Unverified — keep blocked': None, 'Assume UTC': 'UTC',
                     'Assume Europe/London': 'Europe/London'}
-INTEGRATION_WORKSPACE_BUILD='2026-11-17.2'
+INTEGRATION_WORKSPACE_BUILD='2026-11-18.1'
 
 
 def _reset_cutoff():
@@ -55,7 +57,13 @@ def _show_outputs(records, snapshot, audit, rules):
     cards[1].metric('Available at cut-off', int(available.sum()))
     cards[2].metric('Need attention', int((~available).sum()))
     st.caption('Available means these configured data checks passed. Model suitability and scientific acceptance remain with the receiving team.')
-    results, evidence, mapping = st.tabs(['Input snapshot', 'Record decisions', 'Meaning and rules'])
+    product, results, evidence, mapping = st.tabs(['Integrated records', 'Input snapshot', 'Record decisions', 'Technical details'])
+    with product:
+        columns=['source_id','entity_id','metric','value','unit','datum_uri','qualifier','event_time','available_at','time_basis']
+        st.dataframe(records.reindex(columns=columns).head(200),hide_index=True,width='stretch')
+        st.caption('A common long-form observation product; exact UTC observation times remain intact. Different variables are linked by declared objects, not flattened into interchangeable measurements. Preview:200rows; exports:all selected rows.')
+        st.download_button('Download integrated observations CSV',records.to_csv(index=False).encode(),
+            'CRDT_integrated_observations.csv','text/csv',key='integration_product_download',on_click='ignore')
     with results:
         columns = ['entity_id', 'reference', 'metric', 'value', 'unit', 'status', 'age_minutes', 'event_time', 'measure_uri', 'datum_uri']
         display=snapshot.assign(reference=snapshot['series_id'].str.rsplit(':',n=1).str[-1].str[:6])
@@ -89,6 +97,7 @@ def _show_outputs(records, snapshot, audit, rules):
         fields = ['source_id', 'entity_id', 'series_id', 'metric', 'unit', 'datum_uri', 'parameter',
                   'qualifier', 'measure_uri', 'source_uri', 'time_basis', 'availability_basis']
         st.dataframe(records.reindex(columns=fields).drop_duplicates(), hide_index=True, width='stretch')
+        st.dataframe(pd.DataFrame(rules['joint_product']['linkage']),hide_index=True,width='stretch')
         st.json(rules)
         st.markdown('**To agree with the receiving WP:** required variables and objects; accepted units and references; '
                     'time window and valid age; missing-data policy; model trigger; independent checking reference.')
@@ -100,21 +109,49 @@ def _show_outputs(records, snapshot, audit, rules):
 
 
 def render_integration_workspace(load_bundle, views, refresh=None, handoff=None):
-    st.markdown('**Historical + updating data**')
-    st.caption('Integration workspace build: '+INTEGRATION_WORKSPACE_BUILD)
-    st.caption('Collect records, inspect their common fields, set availability rules, then export a traceable input snapshot. '
-               'Collection is on demand and session-only; download a package to retain it.')
-    st.markdown('**1  Collect** → **2  Map identities and meaning** → **3  Check time and quality** → **4  Export inputs**')
+    st.markdown('**Build a connected data product**')
+    st.caption('Collect API records, map a CSV, or combine both. Inspect common meaning, time and quality before handing data to a model. '
+               'Records stay in this session; download a package to retain them.')
+    st.markdown('<div class="integration-steps">1 Select data <span>→</span> 2 Map common meaning '
+                '<span>→</span> 3 Align and check <span>→</span> 4 Review product <span>→</span> 5 Export inputs</div>',
+                unsafe_allow_html=True)
     if 'raw_data' not in views:
         st.info('This workbench requires raw-data access in the selected partner view.')
         return
-    input_kind=st.radio('Data input',['Connected sources','Upload CSV'],horizontal=True,
+    input_kind=st.radio('Data input',['Connected sources','Upload CSV','Combine API + CSV'],horizontal=True,
                         key='integration_input_kind',on_change=_reset_input_configuration)
+    st.markdown('**1 · Select data**')
     if input_kind=='Upload CSV':
-        upload=render_csv_mapping(views)
-        if upload is not None:
-            _configure_input_snapshot(*upload)
-        return
+        result=render_csv_mapping(views)
+    else:
+        result=_collect_connected_records(load_bundle,views,refresh,handoff)
+        if input_kind=='Combine API + CSV':
+            with st.expander('Add and map CSV observations',expanded=True):
+                upload=render_csv_mapping(views)
+            if result is None or upload is None:
+                st.info('Load the selected API records and apply a CSV mapping to build a combined product. Failed API requests remain visible in its evidence.')
+                return
+            result=_combine_collections(result,upload)
+    if result is not None and not result[0].empty:
+        _configure_input_snapshot(*result)
+
+
+def _combine_collections(api,upload):
+    records=pd.concat([api[0],upload[0]],ignore_index=True)
+    collections=[api[1],upload[1]]
+    collection={'collected_at':max(pd.Timestamp(item['collected_at']) for item in collections).isoformat(),
+        'requested_sources':list(dict.fromkeys(source for item in collections for source in item['requested_sources'])),
+        'collection_status':[row for item in collections for row in item['collection_status']],
+        'collection_period':None,'observation_context':None,
+        'api_request_period':api[1].get('collection_period'),'api_observation_context':api[1].get('observation_context'),
+        'traffic_timezone_assumption':api[1].get('traffic_timezone_assumption'),'collections':collections,
+        'input_kind':'API + CSV; source collection and upload times remain distinct'}
+    st.caption('Combined intake retains each source row and its own retrieval/upload time. API dates scope API requests; CSV records keep their supplied period. '
+               'Common identity and concept links require your explicit confirmation below.')
+    return records,collection
+
+
+def _collect_connected_records(load_bundle,views,refresh,handoff):
     allowed = [source for source, permission in [('water_level', 'weather'), ('webtris', 'transport')] if permission in views]
     if not allowed or (handoff and not context_allowed(handoff, views)):
         st.info('The requested sources are outside this partner view. Choose a permitted source or clear the observation context.')
@@ -183,12 +220,11 @@ def render_integration_workspace(load_bundle, views, refresh=None, handoff=None)
                'result':'No input snapshot: the request returned no observations'}
         st.download_button('Download collection check JSON',json.dumps(check,indent=2).encode(),
                            'CRDT_collection_check.json','application/json',key='integration_collection_download')
-        return
     collection={'collected_at':loaded['collected_at'],'requested_sources':list(sources),
                 'collection_status':json.loads(status.to_json(orient='records',date_format='iso')),
                 'collection_period':{'start':first,'end':last},'observation_context':handoff,
                 'traffic_timezone_assumption':timezone}
-    _configure_input_snapshot(records,collection)
+    return records,collection
 
 
 def _reset_input_configuration():
@@ -197,7 +233,58 @@ def _reset_input_configuration():
     clear_context('data_handoff')
 
 
+def _render_linkage_mapping(records):
+    st.markdown('**2 · Map common objects and concepts**')
+    st.caption('Declare a common object ID and concept for each source series, then confirm the link. '
+               'Confirm only when the object, variable and temporal support agree. Identical units, datum and qualifier are also required to share a series. '
+               'These are user-declared mappings, pending WP1 agreement; proximity never creates a dependency.')
+    defaults=integration_bindings(records)
+    identity=hashlib.sha256(defaults.to_json(orient='records').encode()).hexdigest()[:12]
+    editor_key='integration_link_bindings_'+identity
+    base_key,saved_key='integration_link_base_'+identity,'integration_link_saved_'+identity
+    if editor_key not in st.session_state or base_key not in st.session_state:
+        st.session_state[base_key]=st.session_state.get(saved_key,defaults).copy(deep=True)
+    editable={'common_entity_id','common_concept','confirmed'}
+    bindings=st.data_editor(st.session_state[base_key],hide_index=True,width='stretch',num_rows='fixed',
+        disabled=[name for name in defaults if name not in editable],key=editor_key,
+        column_order=['source_entity_id','source_metric','unit','datum_uri','qualifier','common_entity_id','common_concept','confirmed'],
+        column_config={'source_entity_id':st.column_config.TextColumn('Source object',width='small'),
+                       'source_metric':st.column_config.TextColumn('Variable',width='small'),
+                       'unit':st.column_config.TextColumn('Unit',width='small'),
+                       'datum_uri':st.column_config.TextColumn('Datum / reference',width='small'),
+                       'qualifier':st.column_config.TextColumn('Qualifier',width='small'),
+                       **{'common_entity_id':st.column_config.TextColumn('Common object ID'),
+                       'common_concept':st.column_config.TextColumn('Common concept / URI'),
+                       'confirmed':st.column_config.CheckboxColumn('Confirm link',width='small')}})
+    st.session_state[saved_key]=bindings.copy(deep=True)
+    try:
+        mapped,linkage=apply_integration_bindings(records,bindings)
+    except ValueError as error:
+        st.error(str(error))
+        return None
+    with st.expander('Original records and linkage decisions'):
+        st.caption('Original source records remain unchanged. Unconfirmed or incompatible links remain separate and auditable.')
+        st.dataframe(records.drop(columns=['raw_record'],errors='ignore').head(100),hide_index=True,width='stretch')
+        st.dataframe(linkage,hide_index=True,width='stretch')
+    signature=hashlib.sha256(mapped['series_id'].drop_duplicates().to_json().encode()).hexdigest()
+    if st.session_state.get('integration_product_signature')!=signature:
+        st.session_state.pop('integration_series',None)
+        st.session_state['integration_product_signature']=signature
+    product={'profile_version':INTEGRATION_WORKSPACE_BUILD,
+             'bindings':json.loads(bindings.to_json(orient='records')),
+             'linkage':json.loads(linkage.to_json(orient='records')),
+             'identity_basis':'Explicit user declarations; not approved canonical ontology identities',
+             'semantic_scope':'Confirmation declares the same object, variable and temporal support; source meaning is not automatically verified',
+             'alignment':'Exact unit/datum/qualifier groups; UTC cut-off; no resampling, interpolation or conversion'}
+    return mapped,product
+
+
 def _configure_input_snapshot(records,collection):
+    result=_render_linkage_mapping(records)
+    if result is None:
+        return
+    records,product=result
+    st.markdown('**3 · Align time and check availability**')
     series = records.drop_duplicates('series_id').set_index('series_id', drop=False)
     labels = {key: _label(row) for key, row in series.iterrows()}
     if 'integration_series' not in st.session_state:
@@ -245,9 +332,11 @@ def _configure_input_snapshot(records,collection):
              'collection_period': collection.get('collection_period'), 'collected_at': collection['collected_at'],
              'profile_status': 'draft observation profile; pending WP1 terminology agreement',
              'purpose': 'candidate data input snapshot; no model execution or scientific acceptance',
-             'input_collection': collection}
+             'input_collection': collection, 'joint_product': product}
     snapshot, audit = integration_snapshot(records, cutoff, freshness_minutes=int(freshness),
                                             availability_mode=rules['availability_mode'],
                                             delay_minutes=int(delay), drop_every=int(drop_every))
+    st.markdown('**4 · Review the integrated product**')
     _show_outputs(records, snapshot, audit, rules)
+    st.markdown('**5 · Prepare model inputs and export**')
     render_model_input_builder(records, snapshot, rules)

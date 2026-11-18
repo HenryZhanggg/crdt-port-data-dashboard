@@ -72,7 +72,7 @@ render_monitor_workspace(load_bundle, assets, area, {'weather', 'transport', 'gi
     def check_views(self, bundle):
         app = self.app(bundle, dashboard_page='Overview')
         navigation = {widget.label for widget in app.button}
-        self.assertTrue({'Overview', 'Monitor', 'Data'} <= navigation)
+        self.assertTrue({'Overview', 'Monitor', 'Data & Integration'} <= navigation)
         self.assertFalse(any(widget.label in {'Workspace', 'View'} for widget in app.radio))
         next(widget for widget in app.button if widget.label == 'Monitor').click().run()
         self.assertFalse(app.exception)
@@ -82,7 +82,7 @@ render_monitor_workspace(load_bundle, assets, area, {'weather', 'transport', 'gi
         next(widget for widget in app.radio if widget.label == 'Time mode').set_value('Historical browsing').run()
         self.assertFalse(app.exception)
         self.assertFalse(next(widget for widget in app.date_input if widget.label == 'Observation dates').disabled)
-        next(widget for widget in app.button if widget.label == 'Data').click().run()
+        next(widget for widget in app.button if widget.label == 'Data & Integration').click().run()
         self.assertFalse(app.exception)
         next(widget for widget in app.button if widget.label == 'Overview').click().run()
         self.assertFalse(app.exception)

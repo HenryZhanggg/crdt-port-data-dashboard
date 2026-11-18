@@ -116,7 +116,7 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
     if mode == 'Example network':
         render_semantic_demo()
         return
-    allowed = {'weather', 'transport', 'gis'} if views is None else set(views)
+    allowed = {'weather', 'transport', 'gis', 'raw_data'} if views is None else set(views)
     if handoff and not context_allowed(handoff, allowed):
         _context_notice(handoff, 'The requested observation source is outside this partner view. Clear the context to choose an enabled source.')
         return
@@ -184,6 +184,9 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
         selected = _inspect(entity, bundle)
         selected_context = _selected_context(entity, selected, start, end)
         if selected_context:
+            if 'raw_data' in allowed:
+                st.button('Integrate selected data',key='monitor_integrate',on_click=open_data_context,
+                          args=(selected_context,'Integration'),width='stretch',type='primary')
             st.button('View data source', key='monitor_view_source', on_click=open_data_context,
                       args=(selected_context, 'Sources'), width='stretch')
             st.button('Check data quality', key='monitor_check_quality', on_click=open_data_context,

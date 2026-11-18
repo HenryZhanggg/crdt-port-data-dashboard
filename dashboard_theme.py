@@ -25,12 +25,27 @@ def apply_dashboard_theme() -> None:
     [data-testid="stSidebar"] h1 {font-size:1.2rem; line-height:1.4;}
     .workbench-header {
         display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem 1.5rem;
-        background:linear-gradient(115deg,#141925 0%,#111722 66%,#171b31 100%);
+        background:#111722;
         color:var(--port-ink); border:1px solid #30364b; border-radius:14px; padding:1.15rem 1.35rem;
     }
     .workbench-header > div {display:flex; align-items:center; flex-wrap:wrap; gap:.4rem 1.2rem; min-width:0;}
     .workbench-brand {font-size:1.12rem; font-weight:650; letter-spacing:-.025em;}
     .workbench-subtitle, .workbench-region {font-size:.73rem; line-height:1.5; letter-spacing:.04em; color:var(--port-muted);}
+
+    .workspace-context {
+        display:flex; flex-wrap:wrap; gap:.35rem 1.2rem; padding:.65rem .85rem;
+        background:var(--port-panel); border:1px solid var(--port-divider);
+        border-left:3px solid var(--port-accent); border-radius:8px;
+        color:var(--port-muted); font-size:.76rem; line-height:1.6;
+    }
+    .workspace-context span {min-width:0; overflow-wrap:anywhere;}
+    .workspace-context span:first-child {color:var(--port-ink); font-weight:600;}
+    .integration-steps {
+        display:flex; flex-wrap:wrap; gap:.35rem .75rem; padding:.7rem .85rem;
+        background:#111722; border:1px solid var(--port-divider); border-radius:8px;
+        color:#C5C9F4; font-size:.78rem; line-height:1.7;
+    }
+    .integration-steps span {color:#66728A;}
     .workspace-meta {
         display:flex; flex-wrap:wrap; justify-content:space-between; gap:.4rem 1rem;
         color:var(--port-muted); border-bottom:1px solid var(--port-divider);
@@ -38,7 +53,7 @@ def apply_dashboard_theme() -> None:
     }
     .st-key-workspace_toolbar {padding:.8rem 1rem; background:var(--port-panel); border:1px solid var(--port-divider); border-radius:12px;}
     .st-key-workspace_toolbar [data-testid="stWidgetLabel"] p {font-size:.75rem; color:var(--port-muted);}
-    .st-key-workspace_shortcuts {max-width:720px;}
+    .st-key-workspace_shortcuts, .st-key-data_actions {max-width:720px;}
     .st-key-workspace_shortcuts [data-testid="stButton"] button {min-height:2.4rem;}
     .st-key-workspace_shortcuts [data-testid="stButton"] p {font-size:.8rem;}
     [data-testid="stButton"] button, [data-testid="stDownloadButton"] button,

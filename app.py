@@ -4,6 +4,7 @@ import hmac
 import importlib
 import json
 import os
+from html import escape
 from pathlib import Path
 
 import pandas as pd
@@ -15,10 +16,11 @@ from daily_service import load_daily_snapshot
 from daily_views import render_daily_home
 import data_views
 from monitor_workspace import render_monitor_workspace
+from workspace_links import workspace_context_summary, context_allowed
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
-WORKSPACE_BUILD='2026-11-17.2'
+WORKSPACE_BUILD='2026-11-18.1'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -41,7 +43,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 17 November 2026 · Data integration workbench · build "+WORKSPACE_BUILD)
+        st.caption("Interface update: 18 November 2026 · Data integration workbench · build "+WORKSPACE_BUILD)
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -179,9 +181,10 @@ def _preserve_workspace_widgets():
     integration_actions={'integration_load','integration_audit_download','integration_snapshot_download',
                          'integration_report_download','integration_collection_download','integration_timeline',
                          'integration_csv_file','integration_csv_apply','integration_csv_clear','integration_csv_mapping',
-                         'integration_contract_inputs_download','integration_contract_checks_download','integration_contract_download'}
+                         'integration_contract_inputs_download','integration_contract_checks_download','integration_contract_download',
+                         'integration_link_apply','integration_link_download','integration_product_download'}
     for key in list(st.session_state):
-        if key in keys or key.startswith(('data_table_','data_browse_')) or (key.startswith('integration_') and key not in integration_actions and not key.startswith('integration_contract_requirements_')):
+        if key in keys or key.startswith(('data_table_','data_browse_')) or (key.startswith('integration_') and key not in integration_actions and not key.startswith(('integration_contract_requirements_','integration_link_bindings_'))):
             # Detach off-page widget values from Streamlit's widget cleanup.
             st.session_state[key]=st.session_state[key]
 
@@ -244,7 +247,8 @@ def main():
         '<span class="workbench-region">LIVERPOOL &amp; MERSEYSIDE</span></header>',unsafe_allow_html=True)
     with st.container(key='workspace_shortcuts'):
         for column,name in zip(st.columns(len(pages),gap='small'),pages):
-            column.button(name,key='nav_'+name,width='stretch',type='primary' if name==page else 'secondary',on_click=_navigate,args=(name,))
+            column.button('Data & Integration' if name=='Data' else name,key='nav_'+name,width='stretch',type='primary' if name==page else 'secondary',on_click=_navigate,args=(name,))
+    context_slot=st.empty()
     if page=='Overview':
         with st.spinner('Checking local weather, water levels and official updates'):
             snapshot=load_daily_snapshot()
@@ -253,6 +257,18 @@ def main():
         render_monitor_workspace(load_selected_api_bundle,load_csv('assets.csv'),load_service_area(),views,refresh=refresh_sources)
     else:
         _render_current_data_workspace(load_high_score_catalog(),load_selected_api_bundle,views,refresh=refresh_sources)
+    summary=workspace_context_summary()
+    context=st.session_state.get('data_handoff' if page=='Data' else 'monitor_handoff')
+    if page=='Data' and 'raw_data' not in views or page!='Overview' and context and not context_allowed(context,views):
+        summary=None
+    if summary:
+        fields=[summary['mode'],summary['label']]
+        if summary.get('start') and summary.get('end'):
+            fields.append(str(summary['start'])+' → '+str(summary['end']))
+        fields.append(summary['time_basis'])
+        context_slot.markdown('<div class="workspace-context" role="status">'+
+            ''.join('<span>'+escape(str(value))+'</span>' for value in fields if value)+'</div>',unsafe_allow_html=True)
+
 
 
 if __name__=='__main__':

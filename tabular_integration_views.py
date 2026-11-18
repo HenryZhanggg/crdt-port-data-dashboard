@@ -67,11 +67,12 @@ def render_csv_mapping(views):
             format_func=lambda value: {'generic': 'Generic observations', 'water_level': 'Water level'}[value],
             key='integration_csv_kind')
         for field, label in fields:
-            mapping[field] = st.selectbox(label + ' column', columns,
+            left,right=st.columns(2)
+            mapping[field] = left.selectbox(label + ' column', columns,
                 format_func=lambda value: 'Choose a column' if value is None else value,
                 key='integration_csv_' + field + '_column')
             if field not in {'entity_id', 'value', 'event_time'}:
-                metadata[field] = st.text_input(label + ' constant (when no column is selected)', max_chars=500,
+                metadata[field] = right.text_input(label + ' constant (when no column is selected)', max_chars=500,
                                                 key='integration_csv_' + field + '_constant')
         assumption = st.selectbox('CSV time assumption', list(TIME_ASSUMPTIONS), key='integration_csv_timezone')
         metadata['event_timezone'] = TIME_ASSUMPTIONS[assumption]

@@ -4,7 +4,7 @@ The Data workspace implements an inspectable WP2 data workflow. It prepares cand
 
 ## Open the workbench
 
-Use the **Open integration workbench** button in Data, the Integration tab, or the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261117b). The query route is applied once after authentication, allowing ordinary navigation afterward. Data and Integration display build `2026-11-17.2` independently of the login panel. If an already-imported workspace module advertises an older build, its source is reloaded before rendering; a remaining mismatch produces a deployment message rather than silently showing the old workspace. The exact cause of the previously observed old authenticated screen is not established by these guards.
+Open **Data & Integration**, which defaults to Integration, or use the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261118a). The query route is applied once after authentication, allowing ordinary navigation afterward. Data and Integration display build `2026-11-18.1` independently of the login panel. If an already-imported workspace module advertises an older build, its source is reloaded before rendering; a remaining mismatch produces a deployment message rather than silently showing the old workspace. The exact cause of the previously observed old authenticated screen is not established by these guards.
 
 ## 1. Establish source suitability
 
@@ -49,6 +49,19 @@ Apply column mapping to create the same canonical records used by the connected-
 Expand Build a model input table after selecting measurement series and a decision cut-off. Assign a unique input name to each exact series, confirm expected units and mark required inputs. The builder preserves each feature's source, entity, metric, unit, datum, record evidence and common cut-off. It does not aggregate distinct measurements or infer causal relationships. Stale, conflicting, invalid, missing or unit-mismatched features remain missing; use of time-assumed records requires explicit permission. A CSV feature row, check table and JSON contract are exportable with the selected records and processing rules.
 
 Saved requirements are kept separately from the editor widget state, using a stable base during editing and restoring saved choices after page unmount. Invalid edits remain correctable. The configured checks are useful for handover and reproducibility, with scientific suitability still decided by the receiving WP.
+
+
+## Connected multi-source product (18 November 2026)
+
+The visible workflow is **Select data → Map common meaning → Align and check → Review product → Export inputs**. Sources and Quality are supporting tabs. Partner product/dependency intake is collapsed inside Integration; old Partner packages navigation migrates there.
+
+**Combine API + CSV** runs the existing API request and bounded CSV mapping paths together. Original source rows retain their own intake timestamps. If an API returns no observations, a mapped CSV can still proceed with that API failure/empty result preserved in the report. No record is fabricated to fill an absent source. Combined metadata leaves the global period/object context unset and preserves `api_request_period`/`api_observation_context` plus each intake separately. The CSV's own event period is retained; selected API collection dates do not silently clip or redate it.
+
+The common-meaning editor requires an explicit common object identifier, concept and confirmation per measurement series. Matching declarations group only exact units, datum and qualifier. Confirmation also declares equal temporal support; unknown source semantics need review rather than an automatic equivalence claim. Unconfirmed or incomplete declarations keep their original series; incompatible definitions stay separate with an inspectable reason. These declared semantic associations do not infer spatial or operational dependence, and do not prove official identity approval. All original source identities/series/metrics and raw evidence remain recoverable in the observation evidence.
+
+The long-form product preserves exact UTC observation times; it does not resample, interpolate, average or convert units. Availability checks use a common explicit decision cut-off. Original collection and event times, missingness and conflicts remain visible. Model-input checks operate on the resulting exact common-series snapshot and preserve per-source evidence in their contract.
+
+The integrated-record CSV and existing ZIP are available next to results. The ZIP's `rules.json` carries `joint_product.profile_version`, `bindings` and `linkage` plus every intake in `input_collection.collections` for combined mode. This supports reproducible handover; durable collection/storage and executed model chains remain outside this update.
 
 ## Supporting references
 

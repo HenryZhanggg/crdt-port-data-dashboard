@@ -12,7 +12,7 @@ from test_dashboard_views import observation_fixture
 
 
 class DataWorkspaceTests(unittest.TestCase):
-    def app(self, **state):
+    def app(self, default_tab="Sources", **state):
         app=AppTest.from_string("""import streamlit as st
 import pandas as pd
 from data_views import render_data_workspace
@@ -23,11 +23,20 @@ catalog=pd.read_csv('data/high_score_dataset_catalog.csv').fillna('')
 render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weather','transport','raw_data','data_status','dataset_catalog','gis'}))
 """,default_timeout=30)
         app.session_state['test_bundle']=observation_fixture()
+        if default_tab is not None:
+            app.session_state['data_workspace_tab']=default_tab
         for key,value in state.items():
             app.session_state[key]=value
         app.run()
         self.assertFalse(app.exception)
         return app
+
+    def test_default_workspace_opens_integration_without_collecting(self):
+        app=self.app(default_tab=None)
+        self.assertEqual(app.session_state['data_workspace_tab'],'Integration')
+        self.assertNotIn('requested_sources',app.session_state)
+        self.assertTrue(any(x.label=='Load selected records' for x in app.button))
+        self.assertEqual([x.label for x in app.tabs[:3]],['Integration','Sources','Quality'])
 
     def handoff(self, tab='Sources', **changes):
         from workspace_links import open_data_context
@@ -174,7 +183,8 @@ render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weathe
     def test_partner_intake_has_no_observation_dates_or_feed_calls(self):
         app=self.app(data_workspace_tab='Partner packages',data_source_id='HS004')
         self.assertNotIn('requested_sources',app.session_state.filtered_state)
-        self.assertFalse(app.date_input)
+        self.assertEqual(app.session_state['data_workspace_tab'],'Integration')
+        self.assertTrue(any(x.label=='Partner products and dependencies' for x in app.expander))
         self.assertEqual(len(app.get('file_uploader')),1)
 
     def test_connected_catalogue_metadata_is_accessible_without_fetching_records(self):

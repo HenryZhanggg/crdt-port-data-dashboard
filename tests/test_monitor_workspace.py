@@ -40,7 +40,7 @@ class MonitorWorkspaceTests(unittest.TestCase):
     def test_connections_show_actual_data_evidence_without_a_partner_dependency_package(self):
         app=self.connected()
         connections=next(tab for tab in app.tabs if tab.label=='Connections')
-        self.assertTrue(connections.get('graphviz_chart'))
+        self.assertTrue(connections.get('plotly_chart'))
         self.assertTrue(any('No WP4 dependency package' in x.value for x in connections.info))
         self.assertTrue(any(x.label=='Download connection evidence' for x in connections.get('download_button')))
 
@@ -56,7 +56,7 @@ class MonitorWorkspaceTests(unittest.TestCase):
     def test_connections_respect_existing_partner_gis_visibility(self):
         app=self.connected(allowed_views={'weather'})
         connections=next(tab for tab in app.tabs if tab.label=='Connections')
-        self.assertFalse(connections.get('graphviz_chart'))
+        self.assertFalse(connections.get('plotly_chart'))
         self.assertFalse(connections.get('download_button'))
 
     def handoff(self, **changes):

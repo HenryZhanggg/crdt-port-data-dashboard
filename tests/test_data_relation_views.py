@@ -43,7 +43,7 @@ render_data_relations(st.session_state['test_bundle'],st.session_state['test_con
         from unittest.mock import patch
         with patch('streamlit.download_button') as download:
             app=self.app()
-        self.assertTrue(app.get('graphviz_chart'))
+        self.assertTrue(app.get('plotly_chart'))
         self.assertEqual(next(x for x in app.metric if x.label=='Returned records').value,'12')
         call=next(c for c in download.call_args_list if c.args[0]=='Download connection evidence')
         evidence=json.loads(call.args[1])
@@ -51,6 +51,38 @@ render_data_relations(st.session_state['test_bundle'],st.session_state['test_con
         ids={n['id'] for n in evidence['nodes']}
         self.assertIn('water:E70139',ids)
         self.assertNotIn('water:E70124',ids)
+
+    def test_every_node_and_relationship_has_an_inspection_choice(self):
+        app=self.app()
+        picker=next((x for x in app.selectbox if x.label=='Inspect node or relationship'),None)
+        self.assertIsNotNone(picker)
+        picker.set_value('edge:0').run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('returnsRecords' in str(x.value) for x in app.caption))
+
+    def test_clicking_a_relationship_marker_selects_its_evidence(self):
+        from unittest.mock import patch
+        with patch('streamlit.plotly_chart',return_value={'selection':{'points':[{'customdata':['edge','0']}]}}):
+            app=self.app()
+        picker=next((x for x in app.selectbox if x.label=='Inspect node or relationship'),None)
+        self.assertIsNotNone(picker)
+        self.assertEqual(picker.value,'edge:0')
+        self.assertTrue(any('returnsRecords' in str(x.value) for x in app.caption))
+
+    def test_dropdown_choice_resets_graph_before_reclicking_the_same_relationship(self):
+        from unittest.mock import patch
+        selected={'selection':{'points':[{'customdata':['edge','0']}]}}
+        with patch('streamlit.plotly_chart',return_value=selected) as chart:
+            app=self.app()
+            first_key=chart.call_args.kwargs['key']
+            chart.return_value={'selection':{'points':[]}}
+            next(x for x in app.selectbox if x.label=='Inspect node or relationship').set_value('node:water:E70139').run()
+            self.assertFalse(app.exception)
+            self.assertNotEqual(first_key,chart.call_args.kwargs['key'])
+            chart.return_value=selected
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertEqual(next(x for x in app.selectbox if x.label=='Inspect node or relationship').value,'edge:0')
 
     def test_traffic_mapping_and_time_limits_remain_visible(self):
         context=water_context()
@@ -74,7 +106,7 @@ render_data_relations(st.session_state['test_bundle'],st.session_state['test_con
         bundle=observation_fixture()
         bundle['water_levels']=bundle['water_levels'].iloc[:0]
         app=self.app(bundle=bundle)
-        self.assertFalse(app.get('graphviz_chart'))
+        self.assertFalse(app.get('plotly_chart'))
         self.assertTrue(any('No returned records' in x.value for x in app.info))
 
 

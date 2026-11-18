@@ -70,6 +70,8 @@ def open_data_context(context, tab):
     st.session_state['data_handoff'] = dict(context)
     st.session_state['dashboard_page'] = 'Data'
     st.session_state['data_workspace_tab'] = tab
+    if tab == 'Integration':
+        st.session_state['integration_input_kind'] = 'Connected sources'
     st.session_state['data_source_search'] = ''
     source_id = context['source_id']
     st.session_state['data_source_id'] = source_id
@@ -110,3 +112,67 @@ def filter_context_bundle(bundle, context):
         prefix = 'ea_liverpool_tide_water_level' if context['source'] == 'water_level' else 'webtris'
         result['status'] = status.loc[status['connector_id'].astype(str).str.startswith(prefix)].copy()
     return result
+
+
+def workspace_context_summary():
+    """Describe the active workspace without fetching or restoring a cleared context."""
+    import json
+    state=st.session_state
+    page=state.get('dashboard_page','Overview')
+    def result(label,start=None,end=None,basis='',mode=''):
+        return {'label':label,'start':start,'end':end,'time_basis':basis,'mode':mode}
+    def from_context(context,mode):
+        label=str(context.get('entity_id') or 'Selected observations')
+        if context.get('unit'):
+            label+=' · '+str(context['unit'])+' · '+str(context.get('datum_uri',''))
+        basis='UTC observations' if context.get('source')=='water_level' else 'Source timezone unverified'
+        return result(label,context.get('start'),context.get('end'),basis,mode)
+    if page=='Overview':
+        today=pd.Timestamp.now(tz='Europe/London').date().isoformat()
+        return result('Liverpool & Merseyside',today,today,
+                      'Each feed retains its issue, valid or observation time','Current overview')
+    if page=='Monitor':
+        if state.get('monitor_data_mode','Example network')=='Example network':
+            return result('Example network',basis='Illustrative scenario time',mode='Simulated demo')
+        context=dict(state.get('monitor_handoff') or {})
+        identity=state.get('workbench_entity_id')
+        if identity and context.get('entity_id')!=identity:
+            context={'entity_id':identity,'source':'water_level' if identity.startswith('water:') else 'webtris'}
+        context['start']=state.get('monitor_start',context.get('start'))
+        context['end']=state.get('monitor_end',context.get('end'))
+        return from_context(context,state.get('monitor_mode','Recent observations'))
+    if page!='Data':
+        return None
+    context=state.get('data_handoff')
+    if state.get('data_workspace_tab')!='Integration':
+        return from_context(context,'Selected observations') if context else None
+    kind=state.get('integration_input_kind','Connected sources')
+    mode=state.get('integration_mode','Collected snapshot')
+    metadata=state.get('integration_csv_metadata') or {}
+    if kind=='Upload CSV':
+        return result(metadata.get('filename') or metadata.get('label') or 'Uploaded CSV',
+                      basis='Original CSV timestamps; actual upload time',mode=mode) if metadata else None
+    loaded=state.get('integration_loaded') or {}
+    try:
+        signature=json.loads(loaded.get('signature') or '{}')
+    except (TypeError,ValueError):
+        signature={}
+    if not isinstance(signature,dict) or (signature.get('context') and signature['context']!=context):
+        signature={}
+    if context:
+        summary=from_context(context,mode)
+    elif signature:
+        sources=signature.get('sources') or []
+        dates=state.get('integration_dates_traffic' if sources==['webtris'] else 'integration_dates')
+        changed_sources=state.get('integration_sources',sources)!=sources
+        changed_dates=dates and len(dates)==2 and tuple(str(value) for value in dates)!=(signature.get('start'),signature.get('end'))
+        if changed_sources or changed_dates:
+            return result('Collection settings changed',basis='Load selected records to update the product',mode='Awaiting collection')
+        summary=result(' · '.join(sources),signature.get('start'),signature.get('end'),
+                       'API request window; observation and retrieval times remain separate',mode)
+    else:
+        return None
+    if kind=='Combine API + CSV' and metadata:
+        summary['label']+=' + '+str(metadata.get('filename') or 'uploaded CSV')
+        summary['time_basis']='API request window; CSV retains original observation timestamps'
+    return summary

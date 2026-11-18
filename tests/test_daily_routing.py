@@ -54,7 +54,7 @@ class DailyRoutingTests(unittest.TestCase):
     def test_terminal_operator_opens_visible_integration_shortcut_without_fetch(self):
         app=self.app()
         next(item for item in app.selectbox if item.label=='Partner').set_value('Terminal operator').run()
-        next(item for item in app.button if item.label=='Data').click().run()
+        next(item for item in app.button if item.label=='Data & Integration').click().run()
         self.assertFalse(app.exception)
         self.assertTrue(any('Data workspace build' in item.value for item in app.caption))
         next(item for item in app.button if item.label=='Open integration workbench').click().run()
@@ -103,7 +103,7 @@ class DailyRoutingTests(unittest.TestCase):
         app.run()
         self.assertFalse(app.exception)
         next(item for item in app.button if item.label=='Monitor').click().run()
-        next(item for item in app.button if item.label=='Data').click().run()
+        next(item for item in app.button if item.label=='Data & Integration').click().run()
         self.assertFalse(app.exception)
         self.assertIn('integration_upload_records',app.session_state)
         self.assertTrue(any(item.label=='Download model input CSV' for item in app.get('download_button')))
@@ -131,7 +131,7 @@ class DailyRoutingTests(unittest.TestCase):
         self.assertFalse(app.exception)
         next(item for item in app.number_input if item.label=='Maximum observation age (minutes)').set_value(45).run()
         next(item for item in app.button if item.label=='Monitor').click().run()
-        next(item for item in app.button if item.label=='Data').click().run()
+        next(item for item in app.button if item.label=='Data & Integration').click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['integration_freshness'],45)
         self.assertIn('integration_loaded',app.session_state)
@@ -157,13 +157,14 @@ class DailyRoutingTests(unittest.TestCase):
 
     def test_only_three_workspace_buttons_replace_the_old_navigation_trees(self):
         app=self.app()
-        self.assertTrue({'Overview','Monitor','Data'} <= {item.label for item in app.button})
+        self.assertTrue({'Overview','Monitor','Data & Integration'} <= {item.label for item in app.button})
         self.assertFalse(any(item.label in {'Workspace','View'} for item in app.radio))
         self.assertFalse(any(item.label in {'More','Observations','WP modules'} for item in app.button))
 
     def test_data_catalogue_has_no_global_observation_dates_and_is_feed_free(self):
         app=self.app()
-        next(item for item in app.button if item.label=='Data').click().run()
+        next(item for item in app.button if item.label=='Data & Integration').click().run()
+        next(x for x in app.button if x.label=='View source validation').click().run()
         self.assertFalse(app.exception)
         self.assertFalse(app.date_input)
         self.feeds.assert_not_called()
@@ -171,14 +172,15 @@ class DailyRoutingTests(unittest.TestCase):
 
     def test_water_refresh_keeps_unrelated_port_statistics_cache(self):
         app=self.app()
-        next(x for x in app.button if x.label=='Data').click().run()
+        next(x for x in app.button if x.label=='Data & Integration').click().run()
+        next(x for x in app.button if x.label=='View source validation').click().run()
         next(x for x in app.selectbox if x.label=='Data source').set_value('HS001').run()
         next(x for x in app.checkbox if x.label=='Browse connected records').check().run()
         next(x for x in app.button if x.label=='Monitor').click().run()
         next(x for x in app.radio if x.label=='Data view').set_value('Connected observations').run()
         next(x for x in app.multiselect if x.label=='Observation sources').set_value(['water_level']).run()
         next(x for x in app.button if x.label=='Refresh data').click().run()
-        next(x for x in app.button if x.label=='Data').click().run()
+        next(x for x in app.button if x.label=='Data & Integration').click().run()
         requested=[call.kwargs.get('sources') for call in self.feeds.call_args_list]
         self.assertEqual(requested.count(('dft',)),1)
 
@@ -191,7 +193,8 @@ class DailyRoutingTests(unittest.TestCase):
             'private_sensor','Unrequested private feed','Partner','requires_partner_agreement',0,
             'https://example.org','Not requested')])],ignore_index=True)
         self.feeds.return_value=bundle
-        next(x for x in app.button if x.label=='Data').click().run()
+        next(x for x in app.button if x.label=='Data & Integration').click().run()
+        next(x for x in app.button if x.label=='View source validation').click().run()
         next(x for x in app.selectbox if x.label=='Data source').set_value('HS004').run()
         next(x for x in app.checkbox if x.label=='Browse connected records').check().run()
         self.assertFalse(app.exception)

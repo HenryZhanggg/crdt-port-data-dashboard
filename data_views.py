@@ -13,7 +13,7 @@ from workspace_links import clear_context, context_allowed, context_label, filte
 from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
 import integration_views
 
-DATA_WORKSPACE_BUILD='2026-11-17.2'
+DATA_WORKSPACE_BUILD='2026-11-18.1'
 
 
 def _open_data_tool(tool):
@@ -225,7 +225,7 @@ def _quality(load_bundle,views,refresh):
 
 
 def render_data_workspace(catalog,load_bundle,views,refresh=None):
-    st.subheader('Data')
+    st.subheader('Data & Integration')
     st.caption('Data workspace build: '+DATA_WORKSPACE_BUILD)
     handoff=st.session_state.get('data_handoff')
     if handoff:
@@ -235,12 +235,16 @@ def render_data_workspace(catalog,load_bundle,views,refresh=None):
             st.info('The requested observation source is outside this partner view. Clear the observation context to browse the permitted catalogue.')
             return
     st.caption('Inspect source evidence, build a traceable data input, check quality, or import a partner product.')
-    left,right=st.columns(2)
-    left.button('Open integration workbench',type='primary',width='stretch',
-        key='data_open_integration',on_click=_open_data_tool,args=('Integration',))
-    right.button('View source validation',width='stretch',key='data_open_sources',
-        on_click=_open_data_tool,args=('Sources',))
-    sources,integration,quality,partners=st.tabs(['Sources','Integration','Quality','Partner packages'],key='data_workspace_tab',on_change='rerun')
+    with st.container(key='data_actions'):
+        left,right=st.columns(2)
+        left.button('Open integration workbench',type='secondary' if st.session_state.get('data_workspace_tab','Integration')=='Integration' else 'primary',width='stretch',
+            key='data_open_integration',on_click=_open_data_tool,args=('Integration',))
+        right.button('View source validation',width='stretch',key='data_open_sources',
+            on_click=_open_data_tool,args=('Sources',))
+    legacy_partner=st.session_state.get('data_workspace_tab')=='Partner packages'
+    if legacy_partner or st.session_state.get('data_workspace_tab') not in {'Integration','Sources','Quality'}:
+        st.session_state['data_workspace_tab']='Integration'
+    integration,sources,quality=st.tabs(['Integration','Sources','Quality'],key='data_workspace_tab',on_change='rerun')
     if sources.open:
         with sources:
             _catalogue(catalog,load_bundle,views)
@@ -255,13 +259,17 @@ def render_data_workspace(catalog,load_bundle,views,refresh=None):
     if quality.open:
         with quality:
             _quality(load_bundle,views,refresh)
-    if partners.open:
-        with partners:
-            st.caption('Add published model results or declared dependency data. Imports stay in this session; no uploaded model or URL is executed.')
-            _import_package('data')
-            runs=st.session_state.get('partner_runs',{})
-            if runs:
-                st.caption(str(len(runs))+' result packages available in Monitor → Results.')
-            if st.session_state.get('dependency_package'):
-                st.caption('A dependency package is available in Monitor → Connections; source identity alignment still needs review.')
+    if integration.open:
+        with integration, st.expander('Partner products and dependencies',expanded=legacy_partner):
+            if legacy_partner:
+                st.session_state['data_show_partner_intake']=True
+            show_partner=st.checkbox('Import or inspect a partner product',key='data_show_partner_intake')
+            if show_partner:
+                st.caption('Add published model results or declared dependency data. Imports stay in this session; no uploaded model or URL is executed.')
+                _import_package('data')
+                runs=st.session_state.get('partner_runs',{})
+                if runs:
+                    st.caption(str(len(runs))+' result packages available in Monitor → Results.')
+                if st.session_state.get('dependency_package'):
+                    st.caption('A dependency package is available in Monitor → Connections; source identity alignment still needs review.')
     render_archives()
