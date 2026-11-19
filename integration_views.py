@@ -6,19 +6,20 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from data_integration import integration_archive, integration_snapshot, normalise_observations
+from data_integration import collection_coverage, integration_archive, integration_snapshot, normalise_observations
 from integration_product import integration_bindings, apply_integration_bindings
 from monitoring_views import chart_style
 from workspace_links import clear_context, context_allowed, filter_context_bundle
-from validation_views import render_provider_notice
+from validation_views import load_validation_report, render_provider_notice, render_source_validation
 from tabular_integration_views import render_csv_mapping
 from model_input_views import render_model_input_builder
 
 
 LABELS = {'water_level': 'Water levels · EA', 'webtris': 'Road traffic · WebTRIS'}
+REPORT_IDS = {'water_level': 'HS004', 'webtris': 'HS007'}
 TIME_ASSUMPTIONS = {'Unverified — keep blocked': None, 'Assume UTC': 'UTC',
                     'Assume Europe/London': 'Europe/London'}
-INTEGRATION_WORKSPACE_BUILD='2026-11-18.1'
+INTEGRATION_WORKSPACE_BUILD='2026-11-19.1'
 
 
 def _reset_cutoff():
@@ -34,7 +35,8 @@ def _scope_bundle(bundle, sources, handoff):
                 result[table] = pd.DataFrame()
     status = bundle.get('status', pd.DataFrame())
     if 'connector_id' in status:
-        prefixes = tuple('ea_liverpool_tide_water_level' if source == 'water_level' else 'webtris' for source in sources)
+        prefixes = tuple(prefix for source in sources for prefix in
+                         (('ea_liverpool_tide_water_level', 'water_level_api') if source == 'water_level' else ('webtris',)))
         result['status'] = status.loc[status['connector_id'].astype(str).str.startswith(prefixes)].copy()
     return filter_context_bundle(result, handoff) if handoff else result
 
@@ -129,11 +131,51 @@ def render_integration_workspace(load_bundle, views, refresh=None, handoff=None)
             with st.expander('Add and map CSV observations',expanded=True):
                 upload=render_csv_mapping(views)
             if result is None or upload is None:
+                if result is not None:
+                    _show_collection_coverage(*result)
                 st.info('Load the selected API records and apply a CSV mapping to build a combined product. Failed API requests remain visible in its evidence.')
                 return
             result=_combine_collections(result,upload)
-    if result is not None and not result[0].empty:
-        _configure_input_snapshot(*result)
+    if result is not None:
+        records, collection = result
+        coverage = _show_collection_coverage(records, collection)
+        if not records.empty:
+            _configure_input_snapshot(records, {**collection, 'collection_coverage': coverage})
+
+
+def _source_evidence(sources):
+    report = load_validation_report()
+    catalogue_ids = {REPORT_IDS[source] for source in sources if source in REPORT_IDS}
+    return {'report': report['report'],
+            'sources': [row for row in report['sources'] if row['source_id'] in catalogue_ids]}
+
+
+def _show_collection_coverage(records, collection):
+    coverage = collection_coverage(records, collection['requested_sources'], collection['collection_status'])
+    names = {**LABELS, 'csv_upload': 'Uploaded CSV'}
+    outcome = {
+        'api_error': 'Request failed', 'observations_returned': 'Observations returned',
+        'no_observations': 'No observations in selection', 'status_unavailable': 'Request status unavailable',
+        'csv_mapped': 'CSV mapped',
+    }
+    st.markdown('**Observation coverage**')
+    display = coverage[['source', 'request_status', 'normalized_rows', 'offset_aware_rows',
+                        'assumed_time_rows', 'first_offset_aware_utc', 'last_offset_aware_utc']].copy()
+    display['source'] = display['source'].map(names)
+    display['request_status'] = display['request_status'].map(outcome)
+    display.columns = ['Source', 'Request outcome', 'Observation rows', 'With source time offset',
+                       'With assumed timezone', 'First source-timed observation (UTC)', 'Last source-timed observation (UTC)']
+    st.dataframe(display, hide_index=True, width='stretch')
+    st.caption('Counts reflect the selected scope before mapping. Each variable contributes one observation row. '
+               'First and last times describe the returned extent. Assumed times are counted separately.')
+    if display['With assumed timezone'].sum():
+        with st.expander('Observation extent under timezone assumptions'):
+            assumed = coverage.loc[coverage['assumed_time_rows'].gt(0),
+                                   ['source', 'first_assumed_utc', 'last_assumed_utc']].copy()
+            assumed['source'] = assumed['source'].map(names)
+            assumed.columns = ['Source', 'First observation (assumed UTC)', 'Last observation (assumed UTC)']
+            st.dataframe(assumed, hide_index=True, width='stretch')
+    return json.loads(coverage.to_json(orient='records'))
 
 
 def _combine_collections(api,upload):
@@ -144,6 +186,7 @@ def _combine_collections(api,upload):
         'collection_status':[row for item in collections for row in item['collection_status']],
         'collection_period':None,'observation_context':None,
         'api_request_period':api[1].get('collection_period'),'api_observation_context':api[1].get('observation_context'),
+        'source_evidence':api[1]['source_evidence'],
         'traffic_timezone_assumption':api[1].get('traffic_timezone_assumption'),'collections':collections,
         'input_kind':'API + CSV; source collection and upload times remain distinct'}
     st.caption('Combined intake retains each source row and its own retrieval/upload time. API dates scope API requests; CSV records keep their supplied period. '
@@ -167,6 +210,11 @@ def _collect_connected_records(load_bundle,views,refresh,handoff):
     if not sources:
         st.info('Select a source before collecting records.')
         return
+    source_evidence = _source_evidence(sources)
+    with st.expander('Validation report for selected sources'):
+        for entry in source_evidence['sources']:
+            st.text(entry['label'] + ' · ' + entry['temporal_role'])
+            render_source_validation(source_evidence, entry['source_id'])
     today = pd.Timestamp.now(tz='UTC').date()
     traffic_only = sources == ['webtris']
     end = today - pd.Timedelta(days=45) if traffic_only else today
@@ -212,25 +260,40 @@ def _collect_connected_records(load_bundle,views,refresh,handoff):
         if timezone:
             st.warning('Traffic UTC conversion uses your stated time assumption. It is not a verified provider timezone.')
     records = normalise_observations(bundle, traffic_timezone=timezone)
+    # WebTRIS dates refer to its source calendar even when a UTC conversion is assumed.
+    event_day = records['event_time'].dt.strftime('%Y-%m-%d')
+    traffic = records['source'].eq('webtris')
+    source_day = pd.to_datetime(records.loc[traffic, 'source_time'].str[:10],
+                                format='%Y-%m-%d', errors='coerce')
+    event_day.loc[traffic] = source_day.dt.strftime('%Y-%m-%d')
+    outside_window = event_day.notna() & ~event_day.fillna('').between(first, last)
+    excluded_outside_api_window = {
+        source: int(outside_window.loc[records['source'].eq(source)].sum()) for source in sources
+    }
+    records = records.loc[~outside_window].copy()
+    if outside_window.any():
+        st.warning(f'{outside_window.sum():,} returned observation rows fell outside the requested dates and were excluded.')
+    status_rows = json.loads(status.to_json(orient='records',date_format='iso'))
+    collection={'collected_at':loaded['collected_at'],'requested_sources':list(sources),
+                'collection_status':status_rows,'source_evidence':source_evidence,
+                'collection_period':{'start':first,'end':last},'observation_context':handoff,
+                'excluded_outside_api_window':excluded_outside_api_window,
+                'traffic_timezone_assumption':timezone}
     if records.empty:
         st.info('The requested reference has no returned observations in this period. Inspect collection status, choose older traffic dates, or clear the observation context.')
-        check={'requested_sources':list(sources),'collection_period':{'start':first,'end':last},
-               'collected_at':loaded['collected_at'],'observation_context':handoff,
-               'collection_status':json.loads(status.to_json(orient='records',date_format='iso')),
+        check={**collection,
+               'collection_coverage':json.loads(collection_coverage(records, sources, status_rows).to_json(orient='records')),
                'result':'No input snapshot: the request returned no observations'}
         st.download_button('Download collection check JSON',json.dumps(check,indent=2).encode(),
                            'CRDT_collection_check.json','application/json',key='integration_collection_download')
-    collection={'collected_at':loaded['collected_at'],'requested_sources':list(sources),
-                'collection_status':json.loads(status.to_json(orient='records',date_format='iso')),
-                'collection_period':{'start':first,'end':last},'observation_context':handoff,
-                'traffic_timezone_assumption':timezone}
     return records,collection
 
 
 def _reset_input_configuration():
     for key in ['integration_series','integration_cutoff_date','integration_cutoff_time']:
         st.session_state.pop(key,None)
-    clear_context('data_handoff')
+    if st.session_state.get('integration_input_kind') == 'Upload CSV':
+        clear_context('data_handoff')
 
 
 def _render_linkage_mapping(records):
@@ -328,6 +391,8 @@ def _configure_input_snapshot(records,collection):
              'source_ids': sorted(records['source_id'].unique().tolist()), 'series_ids': selected,
              'requested_sources': collection['requested_sources'],
              'collection_status': collection['collection_status'],
+             'collection_coverage': collection['collection_coverage'],
+             'source_evidence': collection.get('source_evidence'),
              'observation_context': collection.get('observation_context'),
              'collection_period': collection.get('collection_period'), 'collected_at': collection['collected_at'],
              'profile_status': 'draft observation profile; pending WP1 terminology agreement',

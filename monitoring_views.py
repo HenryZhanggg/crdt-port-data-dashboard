@@ -46,7 +46,7 @@ def selected_dates():
     return st.session_state.get("monitor_start"), st.session_state.get("monitor_end")
 
 
-def select_water_series(water, label="Gauge and vertical reference", key="water_series"):
+def select_water_series(water, label="Gauge and vertical reference", key="water_series", *, clean=True):
     water = water.copy()
     water["_series_key"] = water["station_reference"].astype(str) + "|" + water["unit"].astype(str) + "|" + water["datum_uri"].fillna("").astype(str)
     options = water["_series_key"].unique().tolist()
@@ -54,7 +54,8 @@ def select_water_series(water, label="Gauge and vertical reference", key="water_
     if st.session_state.get(key) not in options:
         st.session_state[key] = options[0]
     selected = st.selectbox(label, options, format_func=labels.get, key=key)
-    return clean_water_series(water[water["_series_key"].eq(selected)].drop(columns="_series_key"))
+    rows = water[water["_series_key"].eq(selected)].drop(columns="_series_key")
+    return clean_water_series(rows) if clean else rows
 
 
 def water_level_figure(chosen, height=350):

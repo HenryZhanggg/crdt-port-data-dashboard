@@ -33,7 +33,8 @@ from integration_views import render_integration_workspace
 def load(start,end,sources):
     st.session_state['requests']=st.session_state.get('requests',0)+1
     return st.session_state['bundle']
-render_integration_workspace(load, st.session_state.get('views', {'weather','transport','raw_data'}))
+render_integration_workspace(load, st.session_state.get('views', {'weather','transport','raw_data'}),
+    handoff=st.session_state.get('data_handoff'))
 ''', default_timeout=30)
         app.session_state['bundle'] = integration_fixture() if bundle is None else bundle
         for key, value in state.items():
@@ -60,7 +61,7 @@ render_integration_workspace(load, st.session_state.get('views', {'weather','tra
     def test_joint_export_retains_mapping_and_partial_api_failure(self):
         upload = self.upload()
         bundle = empty_bundle()
-        bundle['status'] = pd.DataFrame([{'connector_id': 'ea_liverpool_tide_water_level_api',
+        bundle['status'] = pd.DataFrame([{'connector_id': 'water_level_api',
             'status': 'api_error', 'records': 0, 'access_note': 'Upstream unavailable'}])
         with patch('integration_views.render_csv_mapping', return_value=upload):
             app = self.app(bundle, integration_input_kind='Combine API + CSV').run()
@@ -72,6 +73,13 @@ render_integration_workspace(load, st.session_state.get('views', {'weather','tra
             rules = json.loads(archive.read('rules.json'))
             self.assertEqual(rules['requested_sources'], ['water_level', 'csv_upload'])
             self.assertEqual(rules['collection_status'][0]['status'], 'api_error')
+            evidence = rules['source_evidence']
+            self.assertEqual(evidence['report']['revision'], 'C1')
+            self.assertEqual([row['source_id'] for row in evidence['sources']], ['HS004'])
+            self.assertIn(61, evidence['sources'][0]['report_pages'])
+            coverage = {row['source']: row for row in rules['collection_coverage']}
+            self.assertEqual(coverage['water_level']['request_status'], 'api_error')
+            self.assertEqual(coverage['csv_upload']['normalized_rows'], 1)
             self.assertIsNone(rules['collection_period'])
             self.assertIsNone(rules['observation_context'])
             self.assertIn('start',rules['input_collection']['api_request_period'])
@@ -80,6 +88,25 @@ render_integration_workspace(load, st.session_state.get('views', {'weather','tra
             self.assertIn('linkage', rules['joint_product'])
             self.assertEqual(len(rules['input_collection']['collections']), 2)
         self.assertFalse(app.exception)
+
+    def test_combining_a_csv_preserves_the_api_object_scope(self):
+        upload = self.upload()
+        bundle = integration_fixture()
+        water = bundle['water_levels']
+        bundle['water_levels'] = pd.concat([water, water.assign(station_reference='excluded-station')])
+        day = water['date_time'].max().date().isoformat()
+        context = {'source': 'water_level', 'source_id': 'HS004', 'entity_id': 'water:E70139',
+                   'station_reference': 'E70139', 'unit': 'mAOD', 'datum_uri': water.iloc[0]['datum_uri'],
+                   'start': day, 'end': day}
+        with patch('integration_views.render_csv_mapping', return_value=upload):
+            app = self.app(bundle, data_handoff=context).run()
+            app.radio(key='integration_input_kind').set_value('Combine API + CSV').run()
+            self.assertEqual(app.session_state['data_handoff'], context)
+            self.assertNotIn('requests', app.session_state)
+            self.collect(app)
+        rows = next(x.value for x in app.dataframe if 'source_id' in x.value and 'event_time' in x.value)
+        self.assertEqual(set(rows.loc[rows['source_id'].eq('HS004'), 'entity_id']), {'water:E70139'})
+        self.assertEqual(app.session_state['requests'], 1)
 
     def test_linkage_editor_retains_edits_after_two_runs(self):
         app = self.app().run()

@@ -10,7 +10,7 @@ BINDING_COLUMNS = ['source_id','series_id','source_entity_id','source_metric','u
 LINKAGE_COLUMNS = BINDING_COLUMNS + ['joint_series_id','group_series_count','group_source_count','status','reason']
 _DESCRIPTORS = {'source_entity_id':'entity_id','source_metric':'metric','unit':'unit',
                 'datum_uri':'datum_uri','qualifier':'qualifier'}
-_PROFILE_VERSION = '2026-11-18.1'
+_PROFILE_VERSION = '2026-11-19.1'
 
 
 def _text(value):

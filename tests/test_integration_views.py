@@ -136,6 +136,17 @@ render_integration_workspace(load,st.session_state.get('test_views',{'weather','
         self.assertEqual(next(widget for widget in app.selectbox if widget.label == 'Traffic time assumption').value,
                          'Unverified — keep blocked')
 
+    def test_records_outside_requested_api_dates_do_not_enter_coverage(self):
+        bundle = integration_fixture()
+        bundle['webtris_daily']['timestamp'] = pd.Timestamp('2026-11-18T10:00:00')
+        requested = (pd.Timestamp('2026-08-20').date(), pd.Timestamp('2026-08-21').date())
+        app = self.load(self.app(test_bundle=bundle, integration_sources=['webtris'],
+                                 integration_dates_traffic=requested))
+        coverage = next(widget.value for widget in app.dataframe if 'Observation rows' in widget.value)
+        self.assertEqual(coverage['Observation rows'].tolist(), [0])
+        self.assertFalse(any(widget.label == 'Download input snapshot CSV'
+                             for widget in app.get('download_button')))
+
     def test_series_labels_distinguish_datum_and_measure_and_select_exact_reference(self):
         from data_integration import normalise_observations
         bundle = integration_fixture()

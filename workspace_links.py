@@ -25,9 +25,13 @@ def water_handoff_context(series):
         return None
     end = times.max().date()
     start = max(times.min().date(), (pd.Timestamp(end) - pd.Timedelta(days=6)).date())
-    return {'source': 'water_level', 'source_id': 'HS004', 'entity_id': 'water:' + station,
+    context = {'source': 'water_level', 'source_id': 'HS004', 'entity_id': 'water:' + station,
         'station_reference': station, 'unit': unit, 'datum_uri': str(series['datum_uri']),
         'start': start.isoformat(), 'end': end.isoformat()}
+    measure = series.get('measure_uri')
+    if isinstance(measure, str) and measure:
+        context['measure_uri'] = measure
+    return context
 
 
 def reference_key(context):
@@ -36,6 +40,8 @@ def reference_key(context):
 
 def context_label(context):
     identity = reference_key(context) if context['source'] == 'water_level' else 'Traffic counter ' + context['site_id']
+    if context.get('measure_uri'):
+        identity += ' · Measure ' + context['measure_uri'].rstrip('/').rsplit('/', 1)[-1]
     basis = 'UTC' if context['source'] == 'water_level' else 'source timezone unverified'
     return f"{identity} · {context['start']} to {context['end']} · {basis}"
 
@@ -59,6 +65,8 @@ def open_water_observations(series):
     st.session_state['workbench_entity_id'] = context['entity_id']
     st.session_state['workbench_reference'] = reference_key(context)
     st.session_state['workbench_reference_choice'] = reference_key(context)
+    if context.get('measure_uri'):
+        st.session_state['workbench_measure_choice'] = (reference_key(context), context['measure_uri'])
     st.session_state['workbench_layer_water'] = True
     st.session_state['workbench_layers'] = {**st.session_state.get('workbench_layers', {}), 'water': True}
     st.session_state['workbench_map_revision'] = st.session_state.get('workbench_map_revision', 0) + 1
@@ -97,6 +105,8 @@ def filter_context_bundle(bundle, context):
             result[table] = frame.iloc[:0].copy()
             continue
         fields = ['station_reference', 'unit', 'datum_uri'] if table == 'water_levels' else ['site_id']
+        if table == 'water_levels' and context.get('measure_uri'):
+            fields.append('measure_uri')
         mask = pd.Series(True, index=frame.index)
         for field in fields:
             values = frame.get(field, pd.Series('', index=frame.index)).fillna('').astype(str)
@@ -109,7 +119,7 @@ def filter_context_bundle(bundle, context):
     result['webtris_sites'] = sites.loc[ids.eq(context.get('site_id', ''))].copy()
     status = bundle.get('status', pd.DataFrame())
     if 'connector_id' in status:
-        prefix = 'ea_liverpool_tide_water_level' if context['source'] == 'water_level' else 'webtris'
+        prefix = ('ea_liverpool_tide_water_level', 'water_level_api') if context['source'] == 'water_level' else ('webtris',)
         result['status'] = status.loc[status['connector_id'].astype(str).str.startswith(prefix)].copy()
     return result
 

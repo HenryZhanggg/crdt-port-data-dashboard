@@ -18,6 +18,8 @@ import pandas as pd
 from data_views import render_data_workspace
 def load(start,end,sources):
     st.session_state['requested_sources']=list(sources)
+    st.session_state['requested_dates']=(start,end)
+    st.session_state['load_count']=st.session_state.get('load_count',0)+1
     return st.session_state['test_bundle']
 catalog=pd.read_csv('data/high_score_dataset_catalog.csv').fillna('')
 render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weather','transport','raw_data','data_status','dataset_catalog','gis'}))
@@ -161,6 +163,49 @@ render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weathe
         app=self.app(data_source_id='HS007')
         self.assertNotIn('requested_sources',app.session_state)
         self.assertTrue(any('one month after collection' in x.value for x in app.caption))
+
+    def test_traffic_source_opens_integration_without_collecting_records(self):
+        app=self.app(data_source_id='HS007',integration_sources=['water_level'],integration_input_kind='Upload CSV')
+        next(x for x in app.button if x.label=='Use in Integration').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['data_workspace_tab'],'Integration')
+        self.assertEqual(app.session_state['integration_input_kind'],'Connected sources')
+        self.assertEqual(app.multiselect(key='integration_sources').value,['webtris'])
+        self.assertNotIn('requested_sources',app.session_state)
+        _,end=app.date_input(key='integration_dates_traffic').value
+        self.assertLess(end,pd.Timestamp.now(tz='UTC').date())
+
+    def test_historical_preview_dates_carry_to_integration_without_a_second_request(self):
+        dates=tuple(pd.Timestamp(value).date() for value in ['2026-08-20','2026-08-21'])
+        app=self.app(data_source_id='HS007',data_browse_HS007=True,data_preview_mode='Historical browsing',
+                     **{'data_preview_dates_Historical browsing':dates})
+        self.assertEqual(app.session_state['load_count'],1)
+        next(x for x in app.button if x.label=='Use in Integration').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['load_count'],1)
+        self.assertEqual(app.date_input(key='integration_dates_traffic').value,dates)
+        next(x for x in app.button if x.label=='Load selected records').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['requested_dates'],tuple(d.isoformat() for d in dates))
+
+    def test_exact_catalogue_handoff_keeps_measurement_reference_and_dates(self):
+        app=self.app(**self.handoff())
+        context=dict(app.session_state['data_handoff'])
+        next(x for x in app.button if x.label=='Use in Integration').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['data_handoff'],context)
+        self.assertTrue(app.multiselect(key='integration_sources').proto.disabled)
+        self.assertEqual(app.session_state['load_count'],1)
+
+    def test_integration_action_excludes_reference_tables_and_unauthorized_sources(self):
+        for state in [dict(data_source_id='HS011'),
+                      dict(data_source_id='HS009'),
+                      dict(data_source_id='HS004',allowed_views={'weather','dataset_catalog'}),
+                      dict(data_source_id='HS004',allowed_views={'transport','raw_data','dataset_catalog'}),
+                      dict(data_source_id='HS004',data_browse_HS004=True,data_table_HS004='ea_stations')]:
+            with self.subTest(state=state):
+                app=self.app(**state)
+                self.assertFalse(any(x.label=='Use in Integration' for x in app.button))
 
     def test_selected_port_source_does_not_request_monitoring_sources(self):
         app=self.app(data_source_id='HS001',data_browse_HS001=True)

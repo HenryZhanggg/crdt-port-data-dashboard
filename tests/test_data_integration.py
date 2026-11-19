@@ -65,6 +65,56 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(snapshot.iloc[0]['status'], 'Available under time assumption')
         self.assertIn('assumed', snapshot.iloc[0]['time_basis'].lower())
 
+    def test_coverage_keeps_verified_and_assumed_event_extents_separate(self):
+        from data_integration import collection_coverage
+
+        bundle = {'webtris_daily': pd.DataFrame([
+            {'site_id': '6806', 'timestamp': '2026-07-01T12:00:00+01:00', 'Total Volume': 20, 'Avg mph': 30},
+            {'site_id': '6806', 'timestamp': '2026-07-01 12:15:00', 'Total Volume': 21, 'Avg mph': 31},
+            {'site_id': '6806', 'timestamp': 'invalid', 'Total Volume': 22, 'Avg mph': 32},
+        ])}
+        records = normalise_observations(bundle, traffic_timezone='Europe/London')
+        result = collection_coverage(records, ['webtris'], []).iloc[0]
+        self.assertEqual(result['request_status'], 'observations_returned')
+        self.assertEqual(result['normalized_rows'], 6)
+        self.assertEqual(result['utc_event_rows'], 4)
+        self.assertEqual(result['offset_aware_rows'], 2)
+        self.assertEqual(result['first_offset_aware_utc'], '2026-07-01T11:00:00+00:00')
+        self.assertEqual(result['last_offset_aware_utc'], '2026-07-01T11:00:00+00:00')
+        self.assertEqual(result['assumed_time_rows'], 2)
+        self.assertEqual(result['first_assumed_utc'], '2026-07-01T11:15:00+00:00')
+        self.assertEqual(result['last_assumed_utc'], '2026-07-01T11:15:00+00:00')
+
+    def test_coverage_does_not_confuse_counter_metadata_with_traffic_observations(self):
+        from data_integration import collection_coverage
+
+        records = normalise_observations({})
+        statuses = [
+            {'connector_id': 'webtris_sites_api', 'status': 'api_connected', 'records': 114},
+            {'connector_id': 'webtris_daily_a5036_api', 'status': 'api_no_data', 'records': 0},
+            {'connector_id': 'water_level_api', 'status': 'api_error', 'records': 0},
+        ]
+        rows = collection_coverage(records, ['webtris', 'water_level'], statuses).set_index('source')
+        self.assertEqual(rows['request_status'].to_dict(), {'webtris': 'no_observations', 'water_level': 'api_error'})
+        self.assertEqual(rows['normalized_rows'].tolist(), [0, 0])
+        self.assertTrue(rows['first_offset_aware_utc'].isna().all())
+        metadata_only = collection_coverage(records, ['webtris'], statuses[:1])
+        self.assertEqual(metadata_only.iloc[0]['request_status'], 'status_unavailable')
+
+    def test_coverage_reports_mapped_csv_and_unreturned_selected_reference_separately(self):
+        from data_integration import collection_coverage
+        from tabular_integration import map_tabular_observations, read_csv_upload
+
+        raw = read_csv_upload(b'id,value,time\nCSV-one,1.2,2026-11-01T10:00:00Z\n')
+        records = map_tabular_observations(raw, {'entity_id': 'id', 'value': 'value', 'event_time': 'time'},
+            {'metric': 'level', 'unit': 'm'}, '2026-11-01T11:00:00Z')
+        statuses = [{'connector_id': 'ea_liverpool_tide_water_level_api', 'status': 'api_connected', 'records': 422}]
+        rows = collection_coverage(records, ['csv_upload', 'water_level', 'csv_upload'], statuses)
+        self.assertEqual(rows['source'].tolist(), ['csv_upload', 'water_level'])
+        self.assertEqual(rows['request_status'].tolist(), ['csv_mapped', 'no_observations'])
+        self.assertEqual(rows['normalized_rows'].tolist(), [1, 0])
+        self.assertEqual(rows['offset_aware_rows'].tolist(), [1, 0])
+
     def test_retrieval_cutoff_does_not_pretend_historical_publication_is_known(self):
         records = self.records(water(retrieved_at_utc='2026-11-01T11:00:00Z'))
         snapshot, audit = integration_snapshot(records, '2026-11-01T10:30:00Z')

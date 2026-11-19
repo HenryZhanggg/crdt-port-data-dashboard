@@ -4,7 +4,7 @@ The Data workspace implements an inspectable WP2 data workflow. It prepares cand
 
 ## Open the workbench
 
-Open **Data & Integration**, which defaults to Integration, or use the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261118a). The query route is applied once after authentication, allowing ordinary navigation afterward. Data and Integration display build `2026-11-18.1` independently of the login panel. If an already-imported workspace module advertises an older build, its source is reloaded before rendering; a remaining mismatch produces a deployment message rather than silently showing the old workspace. The exact cause of the previously observed old authenticated screen is not established by these guards.
+Open **Data & Integration**, which defaults to Integration, or use the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261119a). The query route is applied once after authentication. The login page and Data workspace display build `2026-11-19.1`.
 
 ## 1. Establish source suitability
 
@@ -14,7 +14,9 @@ The separate provider notice for WebTRIS was checked on 17 November 2026. Nation
 
 ## 2. Collect and retain evidence
 
-Integration requests only the selected, permitted source families after **Load selected records**. The seven-day request limit bounds provider calls and browser processing. Source/date changes require a new collection; changing rules reuses the collected records. Exact incoming Monitor references remain scoped to the selected station/unit/datum or traffic counter.
+Use **Use in Integration** from the supported water or traffic product in Sources. The button preselects the product and a valid preview date range when available. Integration requests the selected, permitted source families after **Load selected records**. The seven-day request limit bounds provider calls and browser processing. Source/date changes require a new collection, while changing rules reuses the collected records. Monitor handoffs carry station, unit, datum and the selected provider measure URI when known, or the selected traffic counter. The API scope persists when adding a CSV.
+
+**Validation report for selected sources** shows C1 pages 61–66 for EA and 86–88 for WebTRIS. **Observation coverage** summarises the returned selection before mapping. The table counts normalized rows per variable and reports the first and last offset-aware event times. Times derived from explicit timezone assumptions have separate counts and bounds. A WebTRIS site catalogue response contributes no traffic observation rows. The exported evidence retains the source report, scoped request results and time bounds. Coverage between the first and last times requires a separate gap check.
 
 The source records, request period, connector status, collection timestamps and context are retained in the current session and exported. The application does not run an unattended collector or a durable shared database. Locking clears integration session data. An empty collection can still export its request/check evidence as JSON.
 

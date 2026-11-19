@@ -43,6 +43,8 @@ def _selected_context(entity, selected, start, end):
     if water:
         row = selected.iloc[0].to_dict() if not selected.empty else entity
         context.update({field: str(row.get(field, '')) for field in ['station_reference', 'unit', 'datum_uri']})
+        if pd.notna(row.get('measure_uri')) and row['measure_uri']:
+            context['measure_uri'] = str(row['measure_uri'])
     else:
         context['site_id'] = entity['site_id']
     return context
@@ -181,7 +183,7 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
     with right, st.container(border=True, key='workbench_inspector'):
         st.markdown('**OBJECT INSPECTOR**')
         entity = _pick_object(entities, map_id)
-        selected = _inspect(entity, bundle)
+        selected = _inspect(entity, bundle, handoff)
         selected_context = _selected_context(entity, selected, start, end)
         if selected_context:
             if 'raw_data' in allowed:

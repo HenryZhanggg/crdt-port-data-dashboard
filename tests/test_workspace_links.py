@@ -101,6 +101,24 @@ class WorkspaceLinksTests(unittest.TestCase):
         self.assertEqual(state['data_preview_dates_Historical browsing'],
                          state['data_quality_dates_Historical browsing'])
 
+    def test_measure_context_filters_before_selection_and_retains_failed_request(self):
+        links = self.links()
+        context = links.water_handoff_context(self.series(measure_uri='https://example.org/measure/b'))
+        self.assertEqual(context.get('measure_uri'), 'https://example.org/measure/b')
+        frame = pd.DataFrame([
+            dict(station_reference='E70139', unit='mAOD', datum_uri='datum:aod',
+                 date_time='2026-10-12T12:00:00Z', measure_uri=uri)
+            for uri in ('https://example.org/measure/a', 'https://example.org/measure/b')])
+        bundle = {'water_levels': frame, 'status': pd.DataFrame([
+            {'connector_id': 'water_level_api', 'status': 'api_error'},
+            {'connector_id': 'webtris_sites_api', 'status': 'api_connected'}])}
+        scoped = links.filter_context_bundle(bundle, context)
+        self.assertEqual(scoped['water_levels']['measure_uri'].tolist(), [context['measure_uri']])
+        self.assertEqual(scoped['status']['connector_id'].tolist(), ['water_level_api'])
+        missing = links.filter_context_bundle(bundle, {**context, 'measure_uri': 'https://example.org/measure/absent'})
+        self.assertTrue(missing['water_levels'].empty)
+        self.assertEqual(len(frame), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

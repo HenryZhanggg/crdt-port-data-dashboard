@@ -13,6 +13,24 @@ from module_contracts import compare_run_outputs, package_template, validate_pac
 from monitoring_views import chart_style, select_water_series, state_badge, utc_label, water_level_figure
 from port_map import MAP_LEGEND, MARITIME_STYLE, monitoring_layers, selected_map_object
 from workbench_data import build_entities, choose_entity
+from workspace_data import clean_water_series
+
+
+def _measure_uris(rows):
+    return rows.get('measure_uri', pd.Series('', index=rows.index)).fillna('').astype(str)
+
+
+def _choose_measure(rows, reference):
+    identities = _measure_uris(rows)
+    options = sorted(set(identities) - {''})
+    previous_reference, previous_measure = st.session_state.get('workbench_measure_choice', (None, None))
+    choice = previous_measure if previous_reference == reference and previous_measure in options else next(iter(options), '')
+    return identities, options, choice
+
+
+def _remember_measure(reference, key):
+    st.session_state['workbench_measure_choice'] = (reference, st.session_state[key])
+    st.session_state.pop('monitor_handoff', None)
 
 
 def _remember_object():
@@ -68,7 +86,11 @@ def _map(bundle, assets, service_area, allow_demo=True):
             matching = frame[keys.eq(reference)]
             if not matching.empty:
                 station = str(matching.iloc[0]['station_reference'])
-                visible_bundle['water_levels'] = frame[~frame['station_reference'].astype(str).eq(station) | keys.eq(reference)]
+                _, _, measure = _choose_measure(matching, reference)
+                selected = keys.eq(reference)
+                if measure:
+                    selected &= _measure_uris(frame).eq(measure)
+                visible_bundle['water_levels'] = frame.loc[~frame['station_reference'].astype(str).eq(station) | selected]
     if not traffic:
         visible_bundle['webtris_sites'] = pd.DataFrame()
     entities = build_entities(visible_bundle, assets, demo)
@@ -94,7 +116,7 @@ def _map(bundle, assets, service_area, allow_demo=True):
     return entities, selected.get('entity_id') if selected else None
 
 
-def _inspect(entity, bundle):
+def _inspect(entity, bundle, handoff=None):
     if entity is None:
         return pd.DataFrame()
     st.markdown(f"**{entity['name']}**")
@@ -109,8 +131,26 @@ def _inspect(entity, bundle):
         if reference not in references:
             reference = f"{entity['station_reference']}|{entity['unit']}|{entity['datum_uri']}"
         st.session_state['workbench_reference'] = reference
-        chosen = select_water_series(station, label='Measurement reference', key='workbench_reference')
-        st.session_state['workbench_reference_choice'] = st.session_state['workbench_reference']
+        rows = select_water_series(station, label='Measurement reference', key='workbench_reference', clean=False)
+        reference = st.session_state['workbench_reference']
+        st.session_state['workbench_reference_choice'] = reference
+        identities, options, measure = _choose_measure(rows, reference)
+        if handoff and handoff.get('entity_id') == entity['entity_id'] and handoff.get('measure_uri') in options:
+            measure = handoff['measure_uri']
+        if len(options) > 1:
+            key = 'workbench_measure_' + sha1(reference.encode()).hexdigest()[:12]
+            st.session_state[key] = measure
+            labels = {uri: uri.rstrip('/').rsplit('/', 1)[-1] for uri in options}
+            if len(set(labels.values())) < len(options):
+                labels = {uri: uri for uri in options}
+            measure = st.selectbox('Provider measure', options, format_func=labels.get, key=key, on_change=_remember_measure,
+                args=(reference, key), help='This gauge has multiple provider measures for the same unit and datum.')
+        if measure:
+            st.session_state['workbench_measure_choice'] = (reference, measure)
+            if identities.eq('').any():
+                st.caption('Records with no provider measure URI are outside this selected measure.')
+            rows = rows.loc[identities.eq(measure)]
+        chosen = clean_water_series(rows)
         if chosen.empty:
             state_badge('Unknown time', 'No valid observation timestamps in this reference.')
         else:
@@ -126,7 +166,7 @@ def _inspect(entity, bundle):
                 '<dt>Source</dt><dd>Environment Agency</dd></dl>', unsafe_allow_html=True)
             with st.expander('Evidence & provenance'):
                 st.json({key: str(latest.get(key, 'Not provided')) for key in
-                    ['station_reference', 'unit', 'datum', 'datum_uri', 'api_endpoint', 'retrieved_at_utc']})
+                    ['station_reference', 'unit', 'datum', 'datum_uri', 'measure_uri', 'api_endpoint', 'retrieved_at_utc']})
                 st.caption('Detailed SOSA/SHACL checks are available in Data. Project-wide WP1 identity/ontology alignment is pending.')
     elif entity['kind'] == 'Traffic':
         state_badge(entity['state'], 'A road counter is not a direct measurement of port-gate queues.')

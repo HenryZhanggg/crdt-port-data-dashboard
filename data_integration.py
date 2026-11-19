@@ -20,6 +20,13 @@ SNAPSHOT_COLUMNS = RECORD_COLUMNS + ['status', 'age_minutes', 'last_value', 'cut
 AUDIT_COLUMNS = RECORD_COLUMNS + ['effective_available_at', 'included', 'exclusion_reason', 'selected']
 BLOCKING_FLAGS = {'invalid_value', 'invalid_event_time', 'unverified_timezone', 'missing_entity',
                   'missing_unit', 'missing_metric', 'missing_datum', 'missing_qualifier'}
+OBSERVATION_CONNECTORS = {
+    'water_level': ('ea_liverpool_tide_water_level_api', 'water_level_api'),
+    'webtris': ('webtris_daily_a5036_api', 'webtris_api'),
+}
+COVERAGE_COLUMNS = ['source', 'request_status', 'normalized_rows', 'utc_event_rows',
+                    'offset_aware_rows', 'first_offset_aware_utc', 'last_offset_aware_utc',
+                    'assumed_time_rows', 'first_assumed_utc', 'last_assumed_utc']
 
 
 def _text(value):
@@ -141,6 +148,37 @@ def normalise_observations(bundle, traffic_timezone=None):
     for column in ['event_time', 'available_at']:
         result[column] = pd.to_datetime(result[column], utc=True)
     return result
+
+
+def collection_coverage(records, requested_sources, collection_status):
+    """Summarise returned observation rows and event-time extents, not completeness."""
+    statuses = pd.DataFrame(collection_status)
+
+    def extent(times):
+        return (None, None) if times.empty else (times.min().isoformat(), times.max().isoformat())
+
+    output = []
+    for source in dict.fromkeys(requested_sources):
+        rows = records.loc[records['source'].eq(source)]
+        valid = rows['event_time'].notna()
+        basis = rows['time_basis'].fillna('')
+        offset_times = rows.loc[valid & basis.str.startswith('Offset-aware '), 'event_time']
+        assumed_times = rows.loc[valid & basis.str.startswith('User-assumed '), 'event_time']
+        connector_ids = OBSERVATION_CONNECTORS.get(source, ())
+        source_status = set()
+        if {'connector_id', 'status'}.issubset(statuses.columns):
+            source_status = set(statuses.loc[statuses['connector_id'].isin(connector_ids), 'status'])
+        if 'api_error' in source_status:
+            outcome = 'api_error'
+        elif not rows.empty:
+            outcome = 'csv_mapped' if source == 'csv_upload' else 'observations_returned'
+        elif source_status & {'api_connected', 'api_no_data'}:
+            outcome = 'no_observations'
+        else:
+            outcome = 'status_unavailable'
+        output.append((source, outcome, len(rows), int(valid.sum()), len(offset_times),
+                       *extent(offset_times), len(assumed_times), *extent(assumed_times)))
+    return pd.DataFrame(output, columns=COVERAGE_COLUMNS)
 
 
 def integration_snapshot(records, cutoff, freshness_minutes=60, availability_mode='retrieval',

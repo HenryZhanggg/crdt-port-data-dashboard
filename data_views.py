@@ -13,18 +13,34 @@ from workspace_links import clear_context, context_allowed, context_label, filte
 from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
 import integration_views
 
-DATA_WORKSPACE_BUILD='2026-11-18.1'
+DATA_WORKSPACE_BUILD='2026-11-19.1'
 
 
 def _open_data_tool(tool):
     st.session_state['data_workspace_tab']=tool
 
 
+def _use_source_in_integration(source,dates,context):
+    _open_data_tool('Integration')
+    st.session_state['integration_input_kind']='Connected sources'
+    st.session_state['integration_sources']=[source]
+    if context:
+        st.session_state['data_handoff']=context
+    else:
+        clear_context('data_handoff')
+        date_key='integration_dates_traffic' if source=='webtris' else 'integration_dates'
+        if dates:
+            st.session_state[date_key]=tuple(pd.Timestamp(day).date() for day in dates)
+        else:
+            st.session_state.pop(date_key,None)
+
+
 SOURCE_PRODUCTS={
     'HS001':{'sources':('dft',),'tables':{'port_traffic':'Port freight','ship_arrivals':'Ship arrivals'}},
-    'HS004':{'sources':('water_level','ea'),'tables':{'water_levels':'Liverpool water levels',
+    'HS004':{'sources':('water_level','ea'),'integration':('water_level','water_levels'),'tables':{'water_levels':'Liverpool water levels',
         'ea_stations':'Monitoring stations','ea_readings':'Latest station readings','ea_floods':'Flood warnings'}},
-    'HS007':{'sources':('webtris',),'tables':{'webtris_daily':'Road traffic observations','webtris_sites':'Traffic reference locations'}},
+    'HS007':{'sources':('webtris',),'integration':('webtris','webtris_daily'),
+        'tables':{'webtris_daily':'Road traffic observations','webtris_sites':'Traffic reference locations'}},
     'HS009':{'sources':('naptan',),'tables':{'naptan':'Public transport access nodes'}},
     'HS014':{'sources':('ons',),'tables':{'weekly_shipping':'Weekly Liverpool shipping'}},
 }
@@ -100,7 +116,11 @@ def _catalogue(catalog,load_bundle,views):
     st.markdown('**'+str(row['title'])+'**')
     st.caption(str(row.get('brief_description','')))
     st.caption('Access: '+str(row.get('access_level',''))+' · '+str(row.get('cost','')))
-    st.caption('Format: '+str(row.get('format',''))+' · Catalogue coverage: '+str(row.get('period','')))
+    assessment = next((item for item in report['sources'] if item['source_id'] == selected
+                       and item['evidence_status'] == 'report_assessment'), None)
+    timing = ('C1 data role: ' + assessment['temporal_role'] if assessment
+              else 'Catalogue period: ' + str(row.get('period','')))
+    st.caption('Format: ' + str(row.get('format','')) + ' · ' + timing)
     _source_link(row.get('url',''))
     render_provider_notice(selected)
     render_source_validation(report,selected)
@@ -122,11 +142,19 @@ def _catalogue(catalog,load_bundle,views):
         return
     if selected=='HS007':
         st.caption('Traffic counts are historical; [WebTRIS is usually published about one month after collection](https://webtris.highwaysengland.co.uk/Home/Faqs).')
-    if not st.checkbox('Browse connected records',key='data_browse_'+selected,
-        on_change=clear_context,args=('data_handoff',)):
-        return
-    dates=_dates('data_preview') if selected in {'HS004','HS007'} else (None,None)
-    if dates is None:
+    browsing=st.checkbox('Browse connected records',key='data_browse_'+selected,
+        on_change=clear_context,args=('data_handoff',))
+    integration=product.get('integration')
+    dates=_dates('data_preview') if browsing and integration else (None,None)
+    if integration:
+        source,table=integration
+        selected_table=st.session_state.get('data_table_'+selected,table)
+        if not browsing or selected_table==table:
+            context=handoff if handoff and handoff['source']==source and handoff['source_id']==selected else None
+            st.button('Use in Integration',key='data_integrate_'+selected,on_click=_use_source_in_integration,
+                args=(source,dates if browsing else None,context),
+                help=f"Preselect {product['tables'][table]}. Collection starts when you choose Load selected records.")
+    if not browsing or dates is None:
         return
     with st.spinner('Retrieving the selected source'):
         bundle=load_bundle(*dates,(handoff['source'],) if handoff else product['sources'])

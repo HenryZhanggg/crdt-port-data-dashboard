@@ -138,6 +138,30 @@ class MonitorWorkspaceTests(unittest.TestCase):
         self.assertEqual((app.session_state['data_handoff']['start'], app.session_state['data_handoff']['end']),
                          (app.session_state['monitor_start'], app.session_state['monitor_end']))
 
+    def test_same_reference_measures_keep_their_values_and_exact_handoff(self):
+        bundle = observation_fixture()
+        rows = bundle['water_levels'].loc[bundle['water_levels']['station_reference'].eq('E70139')]
+        first = 'https://example.org/measure/a'
+        second = 'https://example.org/measure/b'
+        bundle['water_levels'] = pd.concat([rows.assign(measure_uri=first),
+            rows.assign(measure_uri=second, value=rows['value'] + 100)], ignore_index=True)
+        with patch('test_dashboard_views.observation_fixture', return_value=bundle):
+            app = self.connected()
+            picker = next((item for item in app.selectbox if item.label == 'Provider measure'), None)
+            self.assertIsNotNone(picker)
+            picker.set_value(second).run()
+            self.assertFalse(app.exception)
+            self.assertTrue(any('101.100 mAOD' in item.value for item in app.markdown))
+            self.assertTrue(any(item.label == 'Download selected observations' for item in app.get('download_button')))
+            next(item for item in app.button if item.label == 'Integrate selected data').click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(app.session_state['data_handoff']['measure_uri'], second)
+            bundle['water_levels'] = bundle['water_levels'].loc[bundle['water_levels']['measure_uri'].eq(first)]
+            app.run()
+            self.assertFalse(app.exception)
+            self.assertTrue(any('requested measurement reference' in item.value.lower() for item in app.info))
+            self.assertFalse(any(item.label == 'Download selected observations' for item in app.get('download_button')))
+
     def test_data_roundtrip_from_both_sources_keeps_missing_reference_explicit(self):
         app=self.connected()
         next(x for x in app.selectbox if x.label=='Inspect an object').set_value('water:E70124').run()

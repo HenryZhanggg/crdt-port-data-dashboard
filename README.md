@@ -2,7 +2,7 @@
 
 The application has three workspaces: **Overview**, **Monitor**, and **Data & Integration**. The sidebar keeps the prototype partner selector and session lock. The previous Workspace/View trees and standalone technical/project pages are retired.
 
-[Open the Data integration workbench directly](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261118a). Authentication and the selected partner view still apply. Data & Integration opens **Integration** by default, followed by **Sources** and **Quality**. The direct workbench button remains available; partner products and dependencies are in a collapsed section within Integration. Build `2026-11-18.1` appears after login and inside the Data/integration views; mismatched imported workspace builds are reloaded before use, or explicitly reported as an incomplete deployment.
+[Open the Data integration workbench directly](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261119a). Authentication and the selected partner view still apply. Data & Integration opens **Integration** by default, followed by **Sources** and **Quality**. The direct workbench button remains available; partner products and dependencies are in a collapsed section within Integration. Build `2026-11-19.1` appears at login and in the Data workspace.
 
 ## Overview
 
@@ -58,6 +58,12 @@ The five-stage workbench connects source intake, common meaning, time/quality ch
 Declare **common object ID**, **common concept / URI** and **Confirm link** for each series. Only explicit complete declarations with matching units, datum and qualifier may share a common series. Confirmation also declares equivalent temporal support; that source meaning is not automatically verified. Unconfirmed records remain separate; incompatible measurement definitions are reported separately without conversion. These links are user declarations, not WP1 approval. Raw-record evidence retains original identities and source rows. The existing UTC cut-off and missing/stale/conflict rules then operate on this shared product; conflicting latest values remain missing.
 
 Integrated observations, a decision snapshot, record audit and model-input feature/contract outputs are available beside the results. `rules.json` includes versioned declarations and linkage decisions. The model table remains a candidate handover; it does not execute a partner model or establish scientific suitability. Session-only collection is not a historical database or an unattended real-time feed.
+
+### Source evidence and measurement selection — 19 November 2026
+
+In **Sources**, use **Use in Integration** to carry the EA water-level or WebTRIS traffic product and any selected preview period into the workbench. Integration shows the selected sources' dated C1 report findings before collection. After collection, it shows scoped observation-row counts, request outcomes and event-time bounds, with timezone assumptions identified separately. The collection check, integration report and model-input contract retain the applicable evidence.
+
+In **Monitor**, choose the provider measure when the same water measurement reference has several measure URIs. Data views carry that exact measure and request window. Switching to **Combine API + CSV** retains the selected API scope and keeps the uploaded CSV's own timestamps.
 
 ## Run and access
 
