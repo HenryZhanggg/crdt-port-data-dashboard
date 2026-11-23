@@ -77,6 +77,30 @@ class DailyRoutingTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['dashboard_page'],'Monitor')
 
+    def test_sources_link_opens_downloads_after_login_and_keeps_navigation(self):
+        app=AppTest.from_file('app.py',default_timeout=30)
+        app.session_state['dashboard_authorised']=True
+        app.query_params={'workspace':'data','tool':'sources'}
+        with patch('daily_service.load_daily_snapshot',return_value=daily_fixture()) as daily:
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['dashboard_page'],'Data')
+        self.assertEqual(app.session_state['data_workspace_tab'],'Sources')
+        self.assertTrue(any(item.label=='Data source' for item in app.selectbox))
+        daily.assert_not_called()
+        next(item for item in app.button if item.label=='Open integration workbench').click().run()
+        self.assertEqual(app.session_state['data_workspace_tab'],'Integration')
+
+    def test_download_shortcut_opens_real_archive_without_external_fetch(self):
+        app=self.app(dashboard_page='Data')
+        next(item for item in app.button if item.label=='Browse datasets & downloads').click().run()
+        next(item for item in app.button if item.label=='Preview Liverpool historical water levels').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['data_table_HS004'],'ea_liverpool_archive')
+        self.assertTrue(app.get('plotly_chart'))
+        self.assertTrue(any(item.label=='Download dataset CSV' for item in app.get('download_button')))
+        self.feeds.assert_not_called()
+
     def test_outdated_imported_data_renderer_is_reloaded_before_display(self):
         import data_views
         original=data_views.render_data_workspace
@@ -164,7 +188,7 @@ class DailyRoutingTests(unittest.TestCase):
     def test_data_catalogue_has_no_global_observation_dates_and_is_feed_free(self):
         app=self.app()
         next(item for item in app.button if item.label=='Data & Integration').click().run()
-        next(x for x in app.button if x.label=='View source validation').click().run()
+        app.button(key='data_open_sources').click().run()
         self.assertFalse(app.exception)
         self.assertFalse(app.date_input)
         self.feeds.assert_not_called()
@@ -173,7 +197,7 @@ class DailyRoutingTests(unittest.TestCase):
     def test_water_refresh_keeps_unrelated_port_statistics_cache(self):
         app=self.app()
         next(x for x in app.button if x.label=='Data & Integration').click().run()
-        next(x for x in app.button if x.label=='View source validation').click().run()
+        app.button(key='data_open_sources').click().run()
         next(x for x in app.selectbox if x.label=='Data source').set_value('HS001').run()
         next(x for x in app.checkbox if x.label=='Browse connected records').check().run()
         next(x for x in app.button if x.label=='Monitor').click().run()
@@ -194,7 +218,7 @@ class DailyRoutingTests(unittest.TestCase):
             'https://example.org','Not requested')])],ignore_index=True)
         self.feeds.return_value=bundle
         next(x for x in app.button if x.label=='Data & Integration').click().run()
-        next(x for x in app.button if x.label=='View source validation').click().run()
+        app.button(key='data_open_sources').click().run()
         next(x for x in app.selectbox if x.label=='Data source').set_value('HS004').run()
         next(x for x in app.checkbox if x.label=='Browse connected records').check().run()
         self.assertFalse(app.exception)

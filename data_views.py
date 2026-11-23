@@ -17,12 +17,18 @@ from workspace_links import clear_context, context_allowed, context_label, filte
 from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
 import integration_views
 
-DATA_WORKSPACE_BUILD='2026-11-23.1'
+DATA_WORKSPACE_BUILD='2026-11-23.2'
 DATA_DIR=Path(__file__).parent/'data'
 
 
 def _open_data_tool(tool):
     st.session_state['data_workspace_tab']=tool
+
+
+def _preview_liverpool_archive():
+    st.session_state['data_source_id']='HS004'
+    st.session_state['data_browse_HS004']=True
+    st.session_state['data_table_HS004']='ea_liverpool_archive'
 
 
 def _use_source_in_integration(source,dates,context):
@@ -197,8 +203,6 @@ def _catalogue(catalog,load_bundle,views):
     catalogue_sources=len(catalog)
     catalog=pd.concat([catalog,inventory],ignore_index=True).fillna('')
     report=load_validation_report()
-    render_validation_summary(catalog,report,SOURCE_PRODUCTS)
-    st.caption(f'{catalogue_sources} existing catalogue entries and {len(inventory)} additional project inventory references.')
     handoff=st.session_state.get('data_handoff')
     if handoff and handoff['source_id'] not in set(catalog['source_id']):
         st.info('The requested data source is not available in this catalogue. Clear the observation context to choose another source.')
@@ -226,35 +230,41 @@ def _catalogue(catalog,load_bundle,views):
     if frame.empty:
         st.info('No sources match this search.')
         return
-    st.dataframe(register,hide_index=True,width='stretch',height=300)
-    st.download_button('Download filtered source register',register.to_csv(index=False).encode(),
-        'CRDT_source_validation_register.csv','text/csv')
+    preview=st.container()
+    with st.expander('Source register and validation'):
+        render_validation_summary(catalog,report,SOURCE_PRODUCTS)
+        st.caption(f'{catalogue_sources} existing catalogue entries and {len(inventory)} additional project inventory references.')
+        st.dataframe(register,hide_index=True,width='stretch',height=300)
+        st.download_button('Download filtered source register',register.to_csv(index=False).encode(),
+            'CRDT_source_validation_register.csv','text/csv')
     labels=frame.set_index('source_id')['title'].to_dict()
     if st.session_state.get('data_source_id') not in labels:
         st.session_state['data_source_id']=None
-    selected=st.selectbox('Data source',list(labels),format_func=labels.get,index=None,
-        placeholder='Choose a source to inspect',key='data_source_id',on_change=clear_context,args=('data_handoff',))
-    if selected is None:
-        st.caption('Select a source for access conditions, available records and downloads. The catalogue itself does not request feeds.')
-        return
-    row=frame[frame['source_id'].eq(selected)].iloc[0]
-    st.markdown('**'+str(row['title'])+'**')
-    assessment = next((item for item in report['sources'] if item['source_id'] == selected
-                       and item['evidence_status'] == 'report_assessment'), None)
-    from_inventory=selected in set(inventory['source_id'])
-    timing = ('C1 data role: ' + assessment['temporal_role'] if assessment
-              else 'Project source inventory' if from_inventory else 'Catalogue period: ' + str(row.get('period','')))
-    render_provider_notice(selected)
-    if selected=='HS007':
-        st.caption('Traffic counts are historical; [WebTRIS is usually published about one month after collection](https://webtris.highwaysengland.co.uk/Home/Faqs).')
-    _source_dataset(row,load_bundle,views,handoff,timing)
-    if from_inventory:
-        st.caption('Source discovered in the project inventory. Use the provider link for current access and reuse terms.')
-    else:
-        render_source_validation(report,selected)
-    with st.expander('Catalogue metadata'):
-        st.caption('Original source assessment, suggested use and access notes; catalogue entries do not establish current availability.')
-        st.json(row.to_json())
+    with preview:
+        selected=st.selectbox('Data source',list(labels),format_func=labels.get,index=None,
+            placeholder='Choose a source to preview or download',key='data_source_id',on_change=clear_context,args=('data_handoff',))
+        if selected is None:
+            if 'HS004' in labels and {'raw_data','weather'} <= views:
+                st.button('Preview Liverpool historical water levels',on_click=_preview_liverpool_archive)
+            return
+        row=frame[frame['source_id'].eq(selected)].iloc[0]
+        st.markdown('**'+str(row['title'])+'**')
+        assessment = next((item for item in report['sources'] if item['source_id'] == selected
+                           and item['evidence_status'] == 'report_assessment'), None)
+        from_inventory=selected in set(inventory['source_id'])
+        timing = ('C1 data role: ' + assessment['temporal_role'] if assessment
+                  else 'Project source inventory' if from_inventory else 'Catalogue period: ' + str(row.get('period','')))
+        render_provider_notice(selected)
+        if selected=='HS007':
+            st.caption('Traffic counts are historical; [WebTRIS is usually published about one month after collection](https://webtris.highwaysengland.co.uk/Home/Faqs).')
+        _source_dataset(row,load_bundle,views,handoff,timing)
+        if from_inventory:
+            st.caption('Source discovered in the project inventory. Use the provider link for current access and reuse terms.')
+        else:
+            render_source_validation(report,selected)
+        with st.expander('Catalogue metadata'):
+            st.caption('Original source assessment, suggested use and access notes; catalogue entries do not establish current availability.')
+            st.json(row.to_json())
 
 
 def _validation(water):
@@ -351,7 +361,8 @@ def render_data_workspace(catalog,load_bundle,views,refresh=None):
         left,right=st.columns(2)
         left.button('Open integration workbench',type='secondary' if st.session_state.get('data_workspace_tab','Integration')=='Integration' else 'primary',width='stretch',
             key='data_open_integration',on_click=_open_data_tool,args=('Integration',))
-        right.button('View source validation',width='stretch',key='data_open_sources',
+        right.button('Browse datasets & downloads',type='secondary' if st.session_state.get('data_workspace_tab')=='Sources' else 'primary',
+            width='stretch',key='data_open_sources',
             on_click=_open_data_tool,args=('Sources',))
     legacy_partner=st.session_state.get('data_workspace_tab')=='Partner packages'
     if legacy_partner or st.session_state.get('data_workspace_tab') not in {'Integration','Sources','Quality'}:

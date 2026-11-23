@@ -19,7 +19,7 @@ LABELS = {'water_level': 'Water levels · EA', 'webtris': 'Road traffic · WebTR
 REPORT_IDS = {'water_level': 'HS004', 'webtris': 'HS007'}
 TIME_ASSUMPTIONS = {'Unverified — keep blocked': None, 'Assume UTC': 'UTC',
                     'Assume Europe/London': 'Europe/London'}
-INTEGRATION_WORKSPACE_BUILD='2026-11-23.1'
+INTEGRATION_WORKSPACE_BUILD='2026-11-23.2'
 
 
 def _reset_cutoff():

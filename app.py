@@ -20,7 +20,7 @@ from workspace_links import workspace_context_summary, context_allowed
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
-WORKSPACE_BUILD='2026-11-23.1'
+WORKSPACE_BUILD='2026-11-23.2'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -43,7 +43,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 23 November 2026 · Dataset previews and downloads · build "+WORKSPACE_BUILD)
+        st.caption("Interface update: 23 November 2026 · Direct access to dataset previews and downloads · build "+WORKSPACE_BUILD)
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -156,9 +156,9 @@ def _navigate(page):
 
 def _apply_workspace_link():
     route=(st.query_params.get('workspace','').casefold(),st.query_params.get('tool','').casefold())
-    if route==('data','integration') and st.session_state.get('applied_workspace_link')!=route:
+    if route[0]=='data' and route[1] in {'integration','sources'} and st.session_state.get('applied_workspace_link')!=route:
         st.session_state['dashboard_page']='Data'
-        st.session_state['data_workspace_tab']='Integration'
+        st.session_state['data_workspace_tab']=route[1].capitalize()
         st.session_state['applied_workspace_link']=route
 
 
