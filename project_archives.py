@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
+import pandas as pd
 import streamlit as st
 
 
@@ -62,7 +63,23 @@ def research_archive():
 
 def render_archives():
     with st.expander('Project documents and research archive'):
-        st.caption('WP handovers, draft demonstrator/governance records and archived scientific evidence.')
-        left,right=st.columns(2)
-        left.download_button('Download project documents',project_archive(),'CRDT_project_documents.zip','application/zip')
-        right.download_button('Download research archive',research_archive(),'CRDT_research_archive.zip','application/zip')
+        preview,downloads=st.columns([1.8,1])
+        with preview:
+            st.markdown('**Project document preview**')
+            modules=pd.read_json(ROOT/'data/wp_modules.json')
+            st.dataframe(modules[['module_id','title']].rename(columns={'module_id':'Module','title':'Work package'}),
+                         hide_index=True,width='stretch')
+        with downloads:
+            st.caption('Work-package handovers and draft demonstrator and governance records.')
+            st.download_button('Download project documents',project_archive(),'CRDT_project_documents.zip','application/zip')
+
+        preview,downloads=st.columns([1.8,1])
+        with preview:
+            st.markdown('**Archived research preview**')
+            summary=pd.read_csv(ROOT/'data/research_signature_summary.csv',usecols=['feature_group','test_ap_mean'],nrows=5)
+            st.dataframe(summary.rename(columns={'feature_group':'Feature group','test_ap_mean':'Mean test average precision'}),
+                         hide_index=True,width='stretch')
+            st.caption('Sample from the Liverpool offline study. Four incident-cluster folds.')
+        with downloads:
+            st.caption('Includes the full summary, per-fold metrics and provenance. The archive describes offline results.')
+            st.download_button('Download research archive',research_archive(),'CRDT_research_archive.zip','application/zip')

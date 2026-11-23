@@ -7,7 +7,7 @@ import plotly.express as px
 import streamlit as st
 
 from data_integration import collection_coverage, integration_archive, integration_snapshot, normalise_observations
-from integration_product import integration_bindings, apply_integration_bindings
+from integration_product import PROFILE_VERSION, integration_bindings, apply_integration_bindings
 from monitoring_views import chart_style
 from workspace_links import clear_context, context_allowed, filter_context_bundle
 from validation_views import load_validation_report, render_provider_notice, render_source_validation
@@ -19,7 +19,7 @@ LABELS = {'water_level': 'Water levels · EA', 'webtris': 'Road traffic · WebTR
 REPORT_IDS = {'water_level': 'HS004', 'webtris': 'HS007'}
 TIME_ASSUMPTIONS = {'Unverified — keep blocked': None, 'Assume UTC': 'UTC',
                     'Assume Europe/London': 'Europe/London'}
-INTEGRATION_WORKSPACE_BUILD='2026-11-19.1'
+INTEGRATION_WORKSPACE_BUILD='2026-11-23.1'
 
 
 def _reset_cutoff():
@@ -59,13 +59,12 @@ def _show_outputs(records, snapshot, audit, rules):
     cards[1].metric('Available at cut-off', int(available.sum()))
     cards[2].metric('Need attention', int((~available).sum()))
     st.caption('Available means these configured data checks passed. Model suitability and scientific acceptance remain with the receiving team.')
-    product, results, evidence, mapping = st.tabs(['Integrated records', 'Input snapshot', 'Record decisions', 'Technical details'])
+    preview, downloads = st.columns([5, 3])
+    results, product, evidence, mapping = preview.tabs(['Input snapshot', 'Integrated records', 'Record decisions', 'Technical details'])
     with product:
         columns=['source_id','entity_id','metric','value','unit','datum_uri','qualifier','event_time','available_at','time_basis']
         st.dataframe(records.reindex(columns=columns).head(200),hide_index=True,width='stretch')
         st.caption('A common long-form observation product; exact UTC observation times remain intact. Different variables are linked by declared objects, not flattened into interchangeable measurements. Preview:200rows; exports:all selected rows.')
-        st.download_button('Download integrated observations CSV',records.to_csv(index=False).encode(),
-            'CRDT_integrated_observations.csv','text/csv',key='integration_product_download',on_click='ignore')
     with results:
         columns = ['entity_id', 'reference', 'metric', 'value', 'unit', 'status', 'age_minutes', 'event_time', 'measure_uri', 'datum_uri']
         display=snapshot.assign(reference=snapshot['series_id'].str.rsplit(':',n=1).str[-1].str[:6])
@@ -92,8 +91,6 @@ def _show_outputs(records, snapshot, audit, rules):
                      hide_index=True, width='stretch')
         st.dataframe(audit.drop(columns=['raw_record'], errors='ignore').head(200), hide_index=True, width='stretch')
         st.caption('Preview shows up to 200 rows; the audit CSV includes every selected source record.')
-        st.download_button('Download record audit CSV', audit.to_csv(index=False).encode(),
-                           'CRDT_integration_audit.csv', 'text/csv', key='integration_audit_download')
     with mapping:
         st.caption('Draft common observation fields preserve source identities and measurement meanings. This is a workbench profile, pending WP1 terminology agreement.')
         fields = ['source_id', 'entity_id', 'series_id', 'metric', 'unit', 'datum_uri', 'parameter',
@@ -103,11 +100,24 @@ def _show_outputs(records, snapshot, audit, rules):
         st.json(rules)
         st.markdown('**To agree with the receiving WP:** required variables and objects; accepted units and references; '
                     'time window and valid age; missing-data policy; model trigger; independent checking reference.')
-    left, right = st.columns(2)
-    left.download_button('Download input snapshot CSV', snapshot.to_csv(index=False).encode(),
-                         'CRDT_input_snapshot.csv', 'text/csv', key='integration_snapshot_download')
-    right.download_button('Download integration report ZIP', integration_archive(records, snapshot, audit, rules),
-                          'CRDT_integration_report.zip', 'application/zip', key='integration_report_download')
+    with downloads:
+        st.markdown('**Downloads**')
+        basis = 'Simulated replay' if rules['availability_mode'] == 'replay' else 'Collected snapshot'
+        cutoff = pd.Timestamp(rules['cutoff']).strftime('%d %b %Y, %H:%M UTC')
+        st.caption(f'{basis} · {cutoff} · {len(records):,} selected observation rows')
+        st.download_button('Download integration report ZIP', integration_archive(records, snapshot, audit, rules),
+                           'CRDT_integration_report.zip', 'application/zip', key='integration_report_download',
+                           type='primary', width='stretch', on_click='ignore')
+        st.caption('The ZIP includes observations, input snapshot, audit and processing rules.')
+        st.download_button('Download integrated observations CSV', records.to_csv(index=False).encode(),
+                           'CRDT_integrated_observations.csv', 'text/csv', key='integration_product_download',
+                           width='stretch', on_click='ignore')
+        st.download_button('Download input snapshot CSV', snapshot.to_csv(index=False).encode(),
+                           'CRDT_input_snapshot.csv', 'text/csv', key='integration_snapshot_download',
+                           width='stretch', on_click='ignore')
+        st.download_button('Download record audit CSV', audit.to_csv(index=False).encode(),
+                           'CRDT_integration_audit.csv', 'text/csv', key='integration_audit_download',
+                           width='stretch', on_click='ignore')
 
 
 def render_integration_workspace(load_bundle, views, refresh=None, handoff=None):
@@ -333,7 +343,7 @@ def _render_linkage_mapping(records):
     if st.session_state.get('integration_product_signature')!=signature:
         st.session_state.pop('integration_series',None)
         st.session_state['integration_product_signature']=signature
-    product={'profile_version':INTEGRATION_WORKSPACE_BUILD,
+    product={'profile_version':PROFILE_VERSION,
              'bindings':json.loads(bindings.to_json(orient='records')),
              'linkage':json.loads(linkage.to_json(orient='records')),
              'identity_basis':'Explicit user declarations; not approved canonical ontology identities',

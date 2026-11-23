@@ -218,6 +218,70 @@ render_data_workspace(catalog,load,st.session_state.get('allowed_views',{'weathe
         self.assertNotIn('requested_sources',app.session_state.filtered_state)
         self.assertTrue(any('partner' in str(x.value).lower() for x in app.caption))
 
+    def test_all_catalogued_sources_have_a_preview_and_download_panel(self):
+        app=self.app()
+        picker=next(item for item in app.selectbox if item.label=='Data source')
+        self.assertEqual(len(picker.options),37)
+        source_ids=[source for name in ('high_score_dataset_catalog.csv','source_inventory_references.csv')
+                    for source in pd.read_csv(Path('data')/name)['source_id']]
+        for source in source_ids:
+            with self.subTest(source=source):
+                app=next(item for item in app.selectbox if item.label=='Data source').set_value(source).run()
+                self.assertFalse(app.exception)
+                self.assertTrue(any('Data preview' in item.value for item in app.markdown))
+                self.assertTrue(any('Access and downloads' in item.value for item in app.markdown))
+                self.assertNotIn('requested_sources',app.session_state)
+                self.assertNotIn('Download dataset CSV',{button.label for button in app.get('download_button')})
+
+    def test_local_liverpool_archive_uses_exact_native_measurements_without_api_calls(self):
+        with patch('streamlit.download_button') as download:
+            app=self.app(data_source_id='HS004',data_browse_HS004=True,data_table_HS004='ea_liverpool_archive')
+        self.assertNotIn('requested_sources',app.session_state)
+        archive=next(call for call in download.call_args_list if call.args[0]=='Download dataset CSV')
+        self.assertEqual(archive.args[1],Path('data/ea_liverpool_archive.csv').read_bytes())
+        manifest=next(call for call in download.call_args_list if call.args[0]=='Download archive provenance JSON')
+        self.assertEqual(json.loads(manifest.args[1])['record_count'],4896)
+        spec=json.loads(app.get('plotly_chart')[0].proto.spec)
+        self.assertEqual({trace['yaxis'] for trace in spec['data']},{'y','y2'})
+        self.assertEqual(len(spec['data']),3)
+
+    def test_flood_warnings_preview_uses_existing_provider_feed_without_date_filter(self):
+        warning={'title':'Estuary warning','published_at':'2026-11-20T13:00:00Z','severity':'Flood alert'}
+        section={'status':'available','items':[warning],'source_name':'Environment Agency','checked_at':'2026-11-20T13:15:00Z',
+                 'message':'Liverpool area search','source_url':'https://example.org/warnings'}
+        with patch('daily_service.load_flood_warnings',return_value=section), patch('streamlit.download_button') as download:
+            app=self.app(data_source_id='HS004',data_browse_HS004=True,data_table_HS004='ea_floods')
+        self.assertNotIn('requested_sources',app.session_state)
+        self.assertFalse(app.date_input)
+        exported=next(call for call in download.call_args_list if call.args[0]=='Download dataset CSV')
+        record=pd.read_csv(io.BytesIO(exported.args[1])).iloc[0]
+        self.assertEqual(record['title'],warning['title'])
+        self.assertEqual(record['retrieved_at_utc'],section['checked_at'])
+        self.assertEqual(record['source_url'],section['source_url'])
+
+    def test_traffic_location_preview_is_not_an_observation_export(self):
+        bundle=observation_fixture()
+        bundle['webtris_daily']=pd.DataFrame()
+        app=self.app(test_bundle=bundle,data_source_id='HS007',data_browse_HS007=True)
+        self.assertNotIn('Download dataset CSV',{button.label for button in app.get('download_button')})
+        next(item for item in app.selectbox if item.label=='Dataset').set_value('webtris_sites').run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Reference locations' in item.value for item in app.caption))
+        self.assertTrue(app.get('deck_gl_json_chart'))
+        self.assertIn('Download dataset CSV',{button.label for button in app.get('download_button')})
+
+    def test_weekly_shipping_preview_and_csv_use_the_same_loaded_table(self):
+        bundle=observation_fixture()
+        bundle['weekly_shipping']=pd.DataFrame({'metric':['all_ship_visits','cargo_and_tanker_visits'],
+            'week_ending':pd.to_datetime(['2026-08-23','2026-08-23']),
+            'uk_total_visits':[320,155],'liverpool_visits':[32,15]})
+        with patch('streamlit.download_button') as download:
+            app=self.app(test_bundle=bundle,data_source_id='HS014',data_browse_HS014=True)
+        self.assertEqual(app.session_state['requested_sources'],['ons'])
+        self.assertTrue(app.get('plotly_chart'))
+        exported=next(call for call in download.call_args_list if call.args[0]=='Download dataset CSV')
+        self.assertEqual(pd.read_csv(io.BytesIO(exported.args[1]))['liverpool_visits'].tolist(),[32,15])
+
     def test_water_source_keeps_reference_metadata_and_raw_csv(self):
         app=self.app(data_source_id='HS004',data_browse_HS004=True)
         self.assertEqual(set(app.session_state['requested_sources']),{'water_level','ea'})

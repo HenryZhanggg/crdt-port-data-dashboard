@@ -64,6 +64,25 @@ render_integration_workspace(load,st.session_state.get('test_views',{'weather','
         self.assertEqual(app.session_state['test_requested_sources'], ['water_level'])
         self.assertTrue(any(widget.label == 'Download input snapshot CSV' for widget in app.get('download_button')))
 
+    def test_selected_product_previews_and_downloads_share_a_two_column_panel(self):
+        app = self.load(self.app())
+        columns = app.get('column')
+        preview = next((column for column in columns
+                        if any(tab.label == 'Integrated records' for tab in column.get('tab'))), None)
+        self.assertIsNotNone(preview)
+        self.assertTrue(preview.get('dataframe'))
+        self.assertTrue(preview.get('plotly_chart'))
+        self.assertFalse(preview.get('download_button'))
+        exports = next(column for column in columns
+                       if any(widget.label == 'Download integration report ZIP'
+                              for widget in column.get('download_button')))
+        self.assertEqual([widget.label for widget in exports.get('download_button')], [
+            'Download integration report ZIP',
+            'Download integrated observations CSV',
+            'Download input snapshot CSV',
+            'Download record audit CSV',
+        ])
+
     def test_rule_changes_reuse_loaded_records_and_expose_stale_state(self):
         app = self.load(self.app())
         next(widget for widget in app.number_input if widget.label == 'Maximum observation age (minutes)').set_value(5).run()

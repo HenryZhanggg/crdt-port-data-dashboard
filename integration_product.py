@@ -10,7 +10,7 @@ BINDING_COLUMNS = ['source_id','series_id','source_entity_id','source_metric','u
 LINKAGE_COLUMNS = BINDING_COLUMNS + ['joint_series_id','group_series_count','group_source_count','status','reason']
 _DESCRIPTORS = {'source_entity_id':'entity_id','source_metric':'metric','unit':'unit',
                 'datum_uri':'datum_uri','qualifier':'qualifier'}
-_PROFILE_VERSION = '2026-11-19.1'
+PROFILE_VERSION = '2026-11-19.1'
 
 
 def _text(value):
@@ -105,7 +105,7 @@ def apply_integration_bindings(records,bindings):
             for field,value in [('entity_id',declaration['common_entity_id']),('metric',declaration['common_concept']),
                                 ('series_id',declaration['joint_series_id'])]:
                 mapped.iat[position,mapped.columns.get_loc(field)] = value
-            evidence = {'integration_product':{'profile_version':_PROFILE_VERSION,'source_id':original['source_id'],
+            evidence = {'integration_product':{'profile_version':PROFILE_VERSION,'source_id':original['source_id'],
                 'source_entity_id':original['entity_id'],'source_series_id':original['series_id'],
                 'source_metric':original['metric'],'common_entity_id':declaration['common_entity_id'],
                 'common_concept':declaration['common_concept']},'original_raw_record':original.get('raw_record')}

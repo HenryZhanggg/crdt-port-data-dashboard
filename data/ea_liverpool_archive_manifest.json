@@ -1,0 +1,153 @@
+{
+  "dataset_id": "ea_liverpool_archive",
+  "catalogue_source_id": "HS004",
+  "title": "Liverpool tide gauge archive",
+  "provider": "Environment Agency",
+  "source_url": "https://environment.data.gov.uk/flood-monitoring/archive",
+  "api_reference": "https://environment.data.gov.uk/flood-monitoring/doc/reference",
+  "licence": "Open Government Licence v3.0",
+  "licence_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+  "attribution": "this uses Environment Agency flood and river level data from the real-time data API (Beta)",
+  "measure_identity_evidence": "Provider observation sample captured by CRDT on 17 November 2026.",
+  "notes": [
+    "Historical subset of project-held daily Environment Agency CSVs for exact Liverpool tide measures.",
+    "Original dateTime, measure URI and value are preserved and the archive filename is appended.",
+    "Series remain separate. No unit or datum conversion, metadata inference, deduplication or interpolation was applied.",
+    "Archive dates describe observation coverage. Original publication and receipt times are unavailable."
+  ],
+  "csv_sha256": "5c516669ec7136e5abb2947574a40b0e2f5a4c44938509620d0bb5155bb4dee5",
+  "record_count": 4896,
+  "first_observed_at": "2025-09-05T00:00:00Z",
+  "last_observed_at": "2025-11-17T23:45:00Z",
+  "coverage": [
+    {
+      "start_date": "2025-09-05",
+      "end_date": "2025-09-13"
+    },
+    {
+      "start_date": "2025-11-10",
+      "end_date": "2025-11-17"
+    }
+  ],
+  "measures": [
+    {
+      "measure": "http://environment.data.gov.uk/flood-monitoring/id/measures/E70124-level-tidal_level-Mean-15_min-m",
+      "station_reference": "E70124",
+      "record_count": 1632
+    },
+    {
+      "measure": "http://environment.data.gov.uk/flood-monitoring/id/measures/E70139-anglian-level-tidal_level-Mean-15_min-mAOD",
+      "station_reference": "E70139",
+      "record_count": 1632
+    },
+    {
+      "measure": "http://environment.data.gov.uk/flood-monitoring/id/measures/E70139-north_west-level-tidal_level-Mean-15_min-mAOD",
+      "station_reference": "E70139",
+      "record_count": 1632
+    }
+  ],
+  "files": [
+    {
+      "filename": "readings-2025-09-05.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-05.csv",
+      "sha256": "83ec345615fae95e5f593d89ac7d2643743c4359f616171c9f86217ce78f01eb",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-06.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-06.csv",
+      "sha256": "e2a0ce2bdf30807ad0988aa4ac8896da5ebe82aad95119599897fcd2850c6550",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-07.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-07.csv",
+      "sha256": "b9cd8859769bc653f49b022da988266a39d5176c0e2264c79856bd935f78889a",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-08.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-08.csv",
+      "sha256": "a32a36021fe823ec6649be1ed5383d1c7c0fc3c0490b2dba19fd79b8a95709e6",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-09.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-09.csv",
+      "sha256": "86b94ae633a14c2662a69bf09d0e9ce83486eb32a1fc86f502b229f380f447a6",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-10.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-10.csv",
+      "sha256": "b6a017dcf1f8d00b5f562525f6e64c3f233a608dbc2eb97d74eb49c202e77c23",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-11.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-11.csv",
+      "sha256": "2d0fddf0a85602a6c26e446449ff1583ded3576bb42a134dfc1b49005543f120",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-12.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-12.csv",
+      "sha256": "3464c1530544b7bd87ffc4f799adaf5fd39a56f4feb3096883aba05ef6e2edc9",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-09-13.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-09-13.csv",
+      "sha256": "7fedbd702d6f509ad8470c6a5cfe9410c2193ee4057bbc1ef6aa1407c934ec1c",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-10.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-10.csv",
+      "sha256": "838246e1ed28ee49471f00a397678505af197add8c6245024ae662713c9d48fa",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-11.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-11.csv",
+      "sha256": "b5c0f9b61fdab5534a60cf7076b3ddf5e10c43a8d0a4949ca42420591efddb7f",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-12.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-12.csv",
+      "sha256": "8ca2910177cf51cc29ecb32e255883465eb9617aa50ad906672da8cbbda4b207",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-13.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-13.csv",
+      "sha256": "8dd8790bbbb45f28a960f80d6b3c082eb0ceb73d81797852ee88ad78ab856bf1",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-14.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-14.csv",
+      "sha256": "9eec1141571c4db0619b7043fe718b025410873a6c4e5200af2814c3a0e23535",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-15.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-15.csv",
+      "sha256": "a60ecad7eb7568f4806f53daf78553f1923e87f7175d19f2023d87b10e2c0b35",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-16.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-16.csv",
+      "sha256": "9935b75a8962b278b47a207b2040ed85c0084ad7a03694949d08227e375cd16a",
+      "record_count": 288
+    },
+    {
+      "filename": "readings-2025-11-17.csv",
+      "source_url": "https://environment.data.gov.uk/flood-monitoring/archive/readings-2025-11-17.csv",
+      "sha256": "001fd5c4e8211afd9f9e4dd164c025cf7fc050e5fcafed37d8562750b3e66692",
+      "record_count": 288
+    }
+  ]
+}

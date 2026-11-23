@@ -4,11 +4,13 @@ The Data workspace implements an inspectable WP2 data workflow. It prepares cand
 
 ## Open the workbench
 
-Open **Data & Integration**, which defaults to Integration, or use the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261119a). The query route is applied once after authentication. The login page and Data workspace display build `2026-11-19.1`.
+Open **Data & Integration**, which defaults to Integration, or use the [direct workbench link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration&release=20261123a). The query route is applied once after authentication. The login page and Data workspace display build `2026-11-23.1`.
 
 ## 1. Establish source suitability
 
-Sources joins the existing catalogue with curated findings from P0940-REP-103 C1, issued 4 November 2026. Fifteen catalogue entries have a report mapping; HS011 does not. Each mapped entry keeps PDF page references, temporal role, access assessment, useful tasks, limitations and proposed follow-up checks. Download the filtered register or report evidence JSON. Connector presence is not a successful current retrieval, and report ratings do not validate a model.
+Sources joins the existing 16-entry catalogue with curated findings from P0940-REP-103 C1, issued 4 November 2026. Fifteen original entries have a report mapping. The additional 21 reference entries cover the remaining families in the earlier project source inventory. Each source card shows its preview on the left and access or download on the right. Turn on **Browse connected records** to request a supported dataset. Reference entries link to their providers when available. Select a dataset to see a chart, location map or sample records. A CSV contains all returned records for that selection, including rows beyond the sample.
+
+Under **Environment Agency**, select **Liverpool water levels · historical archive** for the project-held public extract. The CSV preserves 4,896 original records from three provider measurements across 5–13 September and 10–17 November 2025. Separate native axes distinguish measurements in m and mAOD. The provenance JSON includes the 17 input files, exact times and measures, licence and checksums. The archive provides observation times. Its original publication and receipt times are unknown. **Flood warnings** uses the existing current Liverpool-area provider snapshot and shows the provider response when there are no downloadable rows.
 
 The separate provider notice for WebTRIS was checked on 17 November 2026. National Highways announced a pause in new monthly updates on 17 September 2026, with historical data remaining available in principle. The normal one-month publication lag and this pause are separate conditions. Selected counters and dates must still be requested and checked. An HTTP 204 report preserves retrieved counter metadata and an explicit `api_no_data` status; an API error remains an error.
 
