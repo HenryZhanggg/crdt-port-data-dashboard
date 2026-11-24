@@ -65,7 +65,7 @@ class DailyViewTests(unittest.TestCase):
             return [str(node.value)] if node.type in {'caption','markdown','info','warning'} else []
         return '\n'.join(values(app.main))
 
-    def test_mixed_source_times_and_failures_are_visible_without_opening_details(self):
+    def test_provider_times_are_in_details_and_public_status_stays_visible(self):
         snapshot=daily_fixture()
         now=pd.Timestamp.now(tz='UTC').floor('min')
         snapshot['weather'].update(checked_at=(now-pd.Timedelta(hours=2)).isoformat(),
@@ -76,24 +76,21 @@ class DailyViewTests(unittest.TestCase):
         snapshot['port_news']['checked_at']=(now-pd.Timedelta(hours=1)).isoformat()
         app=self.app(snapshot)
         text=self.visible_text(app)
-        self.assertNotIn('Last checked',text)
-        self.assertIn('Sources checked separately',text)
-        self.assertIn('Forecast valid',text)
-        self.assertIn('Forecast issued '+(now-pd.Timedelta(hours=4)).strftime('%d %b, %H:%M UTC'),text)
-        self.assertIn('MET Norway · Checked '+(now-pd.Timedelta(hours=2)).strftime('%d %b, %H:%M UTC'),text)
-        self.assertIn('Observed '+(now-pd.Timedelta(hours=3)).strftime('%d %b, %H:%M UTC')+' · 3h',text)
-        self.assertIn('Late · older than one hour',text)
-        self.assertIn('Met Office · Not checked',text)
-        self.assertIn('Environment Agency · Unavailable',text)
-        self.assertIn('Peel Ports · Link only · Not checked',text)
-        self.assertIn('National Highways · Link only · Not checked',text)
-        self.assertIn('Peel Ports Group · Checked '+(now-pd.Timedelta(hours=1)).strftime('%d %b, %H:%M UTC'),text)
+        self.assertNotRegex(text,r'Forecast (valid|issued)|· Checked|Feed published|expected readings|forecast wind')
+        self.assertIn('Delayed reading',text)
+        self.assertIn('Check official source',text)
+        details='\n'.join(item.value for item in app.caption)
+        self.assertIn('Forecast issued '+(now-pd.Timedelta(hours=4)).strftime('%d %b, %H:%M UTC'),details)
+        self.assertIn('MET Norway · Checked '+(now-pd.Timedelta(hours=2)).strftime('%d %b, %H:%M UTC'),details)
+        self.assertIn('Observed '+(now-pd.Timedelta(hours=3)).strftime('%d %b, %H:%M UTC'),details)
+        self.assertIn('Peel Ports Group · Checked '+(now-pd.Timedelta(hours=1)).strftime('%d %b, %H:%M UTC'),details)
         self.assertEqual(self.metric(app,'Weather & flood').value,'Check sources')
 
     def test_old_feed_publication_is_shown_without_invalidating_a_fresh_check(self):
         app=self.app()
         text=self.visible_text(app)
-        self.assertIn('Feed published',text)
+        self.assertNotIn('Feed published',text)
+        self.assertTrue(any('Feed published' in item.value for item in app.caption))
         self.assertNotIn('feed is stale',text.lower())
         self.assertEqual(self.metric(app,'Weather & flood').value,'None listed')
 
@@ -109,8 +106,9 @@ class DailyViewTests(unittest.TestCase):
         self.assertLess(text.index('Check regional wind notice'),text.index('Group story 0'))
         self.assertIn('Validity unconfirmed',text)
         self.assertNotIn('Active',text)
-        self.assertLess(text.index('Open Peel Ports · port notices'),text.index('Check regional wind notice'))
-        self.assertLess(text.index('Open National Highways · travel'),text.index('Check regional wind notice'))
+        self.assertIn('Port notices',text)
+        self.assertIn('Road updates',text)
+        self.assertEqual(text.count('Group story'),3)
 
     def test_expired_official_item_is_labelled_historical(self):
         snapshot=daily_fixture()
@@ -121,8 +119,20 @@ class DailyViewTests(unittest.TestCase):
             'valid_to':(now-pd.Timedelta(hours=1)).isoformat(),'status':'Actual'}]
         app=self.app(snapshot)
         text=self.visible_text(app)
-        self.assertIn('Historical / expired',text)
+        self.assertNotIn('Earlier rain notice',text)
+        self.assertIn('Met Office · No current advisories listed',text)
+        self.assertTrue(any('Earlier rain notice' in str(item.value) for item in app.markdown))
         self.assertNotIn('Active',text)
+
+    def test_local_flood_headline_has_space_alongside_regional_weather(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC')
+        snapshot['weather_warnings']['items']=[{'title':f'Regional weather notice {index}',
+            'valid_from':now-pd.Timedelta(hours=1),'valid_to':now+pd.Timedelta(hours=1)} for index in range(3)]
+        snapshot['flood_warnings']['items']=[{'title':'Liverpool flood bulletin'}]
+        text=self.visible_text(self.app(snapshot))
+        self.assertIn('Liverpool flood bulletin',text)
+        self.assertEqual(text.count('Regional weather notice'),2)
 
     def test_news_source_dates_remain_visible_when_official_reminders_fill_feed(self):
         snapshot=daily_fixture()
@@ -131,8 +141,10 @@ class DailyViewTests(unittest.TestCase):
         snapshot['weather_warnings']['items']=[{'title':'Official reminder '+str(i)} for i in range(6)]
         app=self.app(snapshot)
         text=self.visible_text(app)
-        self.assertIn('Peel Ports Group · Checked '+now.strftime('%d %b, %H:%M UTC'),text)
-        self.assertIn('Latest publication 10 Nov 2026',text)
+        self.assertNotIn('Peel Ports Group · Checked',text)
+        self.assertIn('Port services update',text)
+        self.assertIn('Published 10 Nov 2026',text)
+        self.assertEqual(text.count('Official reminder'),3)
 
     def test_explore_readings_is_enabled_only_for_an_exact_water_reference(self):
         app=self.app()
@@ -168,7 +180,9 @@ class DailyViewTests(unittest.TestCase):
             'temp_c':600,'wind_m_s':5,'rain_mm':0,'description':'Outside window'})
         app=self.app(snapshot)
         self.assertEqual(self.metric(app,'Weather outlook').value,'12.0–17.0 °C')
-        self.assertIn('6 of 12 hourly temperature points',self.visible_text(app))
+        self.assertIn('Partial forecast',self.visible_text(app))
+        self.assertNotIn('hourly temperature points',self.visible_text(app))
+        self.assertTrue(any('6 of 12 hourly temperature points' in item.value for item in app.caption))
 
     def test_water_change_requires_complete_same_series_hour(self):
         snapshot=daily_fixture()
@@ -176,10 +190,11 @@ class DailyViewTests(unittest.TestCase):
         series=snapshot['tide']['series'][0]
         series['rows']=[{'time':(last-pd.Timedelta(minutes=60-i*15)).isoformat(),'value':1+i/10} for i in range(5)]
         app=self.app(snapshot)
-        self.assertIn('1-hour change +0.40 mAOD',self.visible_text(app))
-        self.assertIn('5 of 48 expected readings',self.visible_text(app))
+        self.assertIn('Rising',self.visible_text(app))
+        self.assertNotIn('expected readings',self.visible_text(app))
+        self.assertTrue(any('5 of 48 expected readings' in item.value for item in app.caption))
         series['rows'].pop(2)
-        self.assertNotIn('1-hour change +0.40 mAOD',self.visible_text(self.app(snapshot)))
+        self.assertNotIn('Rising',self.visible_text(self.app(snapshot)))
 
     def test_advisories_report_per_feed_availability(self):
         snapshot=daily_fixture()
@@ -193,7 +208,7 @@ class DailyViewTests(unittest.TestCase):
         app=self.app()
         self.assertEqual(self.metric(app,'Weather & flood').value,'None listed')
         text=' '.join(str(x.value) for kind in (app.caption,app.markdown,app.info) for x in kind)
-        self.assertIn('No items returned',text)
+        self.assertIn('No advisories returned',text)
         self.assertNotIn('all clear',text.lower())
         self.assertNotIn('No warnings',text)
 
@@ -202,7 +217,7 @@ class DailyViewTests(unittest.TestCase):
         snapshot['weather_warnings'].update(status='unavailable',message='Source temporarily unavailable.')
         app=self.app(snapshot)
         self.assertEqual(self.metric(app,'Weather & flood').value,'Check sources')
-        self.assertTrue(any('temporarily unavailable' in str(x.value) for x in app.info))
+        self.assertIn('Met Office · Check official source',self.visible_text(app))
 
     def test_reference_choice_keeps_units_and_values_separate(self):
         app=self.app()
@@ -274,7 +289,7 @@ class DailyViewTests(unittest.TestCase):
         app=self.app()
         text=' '.join(x.value for x in app.markdown)
         self.assertEqual(text.count('Port services update'),1)
-        self.assertTrue(any(x.label=='Open Peel Ports · port notices' for x in app.get('link_button')))
+        self.assertTrue(any(x.label=='Port notices' for x in app.get('link_button')))
         self.assertTrue(any('Automatic notice feed not connected' in x.value for x in app.caption))
 
     def test_only_two_trends_preserve_water_gaps_and_stale_reading(self):
@@ -290,7 +305,7 @@ class DailyViewTests(unittest.TestCase):
         water=chart.call_args_list[0].args[0].data[0]
         self.assertFalse(water.connectgaps)
         self.assertTrue(pd.isna(water.y[1]))
-        self.assertTrue(any('older than one hour' in x.value for x in app.info))
+        self.assertIn('Delayed reading',self.visible_text(app))
 
     def test_record_details_keep_forecast_fields_and_observation_reference(self):
         app=self.app()
@@ -342,11 +357,20 @@ class DailyViewTests(unittest.TestCase):
                          ['Weather bulletin','No timestamp','Port services update'])
         self.assertEqual([x['title'] for x in update_items(snapshot,'Port')],['Port services update'])
 
-    def test_update_filter_keeps_unconnected_travel_visible(self):
+    def test_official_road_link_is_visible_and_connection_details_are_collapsed(self):
         app=self.app()
-        next(x for x in app.radio if x.label=='Latest updates').set_value('Travel').run()
-        self.assertFalse(app.exception)
+        self.assertIn('Road updates',self.visible_text(app))
+        self.assertNotIn('Live road incident feed not connected',self.visible_text(app))
         self.assertTrue(any('Live road incident feed not connected' in x.value for x in app.caption))
+
+    def test_weather_chart_changes_variable_without_adding_more_plots(self):
+        app=self.app()
+        choices=next(item for item in app.radio if item.label=='Weather variable')
+        self.assertEqual(choices.value,'Temperature')
+        self.assertEqual(choices.options,['Temperature','Wind','Rain'])
+        choices.set_value('Wind').run()
+        self.assertFalse(app.exception)
+        self.assertEqual(len(app.get('plotly_chart')),2)
 
 
 if __name__=='__main__':

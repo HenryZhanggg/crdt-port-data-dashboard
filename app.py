@@ -21,7 +21,7 @@ from workspace_links import workspace_context_summary, context_allowed
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
-WORKSPACE_BUILD='2026-11-24.2'
+WORKSPACE_BUILD='2026-11-24.3'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -44,7 +44,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 24 November 2026 · Liverpool Overview and source coverage · build "+WORKSPACE_BUILD)
+        st.caption("Interface update: 24 November 2026 · Liverpool daily briefing · build "+WORKSPACE_BUILD)
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -187,7 +187,7 @@ def _render_current_overview():
 
 
 def _preserve_workspace_widgets():
-    keys={'daily_place_id','daily_update_category','monitor_data_mode','monitor_mode',
+    keys={'daily_place_id','daily_weather_variable','monitor_data_mode','monitor_mode',
           'monitor_source_choice','workbench_reference','workbench_layer_water','workbench_layer_traffic',
           'data_workspace_tab','data_source_id','data_source_search','data_quality_scope','data_role_filter','data_route_filter',
           'data_preview_mode','data_quality_mode',

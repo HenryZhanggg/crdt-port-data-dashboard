@@ -160,7 +160,6 @@ def apply_dashboard_theme() -> None:
     .daily-update-title {font-size:.9rem; line-height:1.5; font-weight:600; color:var(--port-ink);}
     .daily-update {padding:.8rem 0; border-bottom:1px solid var(--port-divider);}
     .daily-update:last-child {border-bottom:0;}
-    .daily-category {font-size:.64rem; font-weight:600; letter-spacing:.08em; line-height:1.6; color:var(--port-muted); margin-bottom:.25rem; text-transform:uppercase;}
     .daily-update-title a {color:#B0B5FF; text-decoration:none;}
     .daily-update-title a:hover {color:#CFD2FF; text-decoration:underline;}
     .daily-source {font-size:.75rem; color:var(--port-muted); line-height:1.6;}
@@ -264,10 +263,21 @@ def apply_overview_theme() -> None:
     [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stAlert"] p {color:#294B70;}
     [data-testid="stMain"]:has(.overview-theme-marker) .daily-update-title a {color:#3056A5;}
     [data-testid="stMain"]:has(.overview-theme-marker) .daily-update-title a:hover {color:#1D3E80;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .st-key-daily_advisories {
+        background:#FFFFFF; border-color:#D9E2EC; border-radius:12px;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) .daily-update {
+        padding:.5rem 0 .15rem; border-top:1px solid var(--port-divider);
+    }
     [data-testid="stMain"]:has(.overview-theme-marker) .quality-note {background:#F1F5FA;}
     [data-testid="stMain"]:has(.overview-theme-marker) .state-pill {background:#EAF0F7; color:#50637B;}
     [data-testid="stMain"]:has(.overview-theme-marker) :is(.port-map-context,.port-map-legend) {color:#AAB7C7;}
     body:has(.overview-theme-marker) :is([data-baseweb="menu"],[role="listbox"]) {background:#FFFFFF; color:#203247;}
     body:has(.overview-theme-marker) [role="option"] {color:#203247;}
     body:has(.overview-theme-marker) [role="option"]:is(:hover,[aria-selected="true"]) {background:#EAF0F8;}
+    @media(max-width:600px) {
+        [data-testid="stMain"]:has(.overview-theme-marker) .st-key-daily_summary [data-testid="stHorizontalBlock"] {
+            grid-template-columns:minmax(0,1fr);
+        }
+    }
     </style>''', unsafe_allow_html=True)
