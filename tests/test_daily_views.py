@@ -18,6 +18,7 @@ def daily_fixture():
     tide = section('Environment Agency', 'https://environment.data.gov.uk/flood-monitoring')
     tide['series'] = [{'id':sid, 'name':name, 'lat':53.44967, 'lon':-3.01815,
         'unit':unit, 'datum':datum, 'source_url':tide['source_url'],
+        'period_seconds':900,
         'station_reference':'E70139' if sid=='gauge:a' else 'E70124',
         'datum_uri':'http://environment.data.gov.uk/flood-monitoring/def/core/datumAOD' if sid=='gauge:a' else 'https://example.org/test/local-datum',
         'rows':[{'time':(now-pd.Timedelta(minutes=15*(2-i))).isoformat(), 'value':base+i/10}
@@ -160,6 +161,34 @@ class DailyViewTests(unittest.TestCase):
         self.assertNotIn('999',self.metric(app,'Weather outlook').value)
         self.assertTrue(any('Forecast' in x.value for x in app.caption))
 
+    def test_weather_summary_uses_only_actual_points_in_the_next_12_hours(self):
+        snapshot=daily_fixture()
+        now=pd.Timestamp.now(tz='UTC').floor('min')
+        snapshot['weather']['rows'].append({'time':(now+pd.Timedelta(hours=18)).isoformat(),
+            'temp_c':600,'wind_m_s':5,'rain_mm':0,'description':'Outside window'})
+        app=self.app(snapshot)
+        self.assertEqual(self.metric(app,'Weather outlook').value,'12.0–17.0 °C')
+        self.assertIn('6 of 12 hourly temperature points',self.visible_text(app))
+
+    def test_water_change_requires_complete_same_series_hour(self):
+        snapshot=daily_fixture()
+        last=pd.Timestamp.now(tz='UTC').floor('min')
+        series=snapshot['tide']['series'][0]
+        series['rows']=[{'time':(last-pd.Timedelta(minutes=60-i*15)).isoformat(),'value':1+i/10} for i in range(5)]
+        app=self.app(snapshot)
+        self.assertIn('1-hour change +0.40 mAOD',self.visible_text(app))
+        self.assertIn('5 of 48 expected readings',self.visible_text(app))
+        series['rows'].pop(2)
+        self.assertNotIn('1-hour change +0.40 mAOD',self.visible_text(self.app(snapshot)))
+
+    def test_advisories_report_per_feed_availability(self):
+        snapshot=daily_fixture()
+        snapshot['flood_warnings'].update(status='unavailable',items=[])
+        app=self.app(snapshot)
+        text=self.visible_text(app)
+        self.assertIn('Met Office · No advisories returned',text)
+        self.assertIn('Environment Agency · Check official source',text)
+
     def test_empty_warning_response_does_not_claim_all_clear(self):
         app=self.app()
         self.assertEqual(self.metric(app,'Weather & flood').value,'None listed')
@@ -206,11 +235,14 @@ class DailyViewTests(unittest.TestCase):
         self.assertEqual(app.session_state['semantic_entity_id'],'demo:terminal_a')
         self.assertEqual(app.session_state['workbench_entity_id'],'water:old')
 
-    def test_unavailable_tide_has_location_reference_without_fake_reading(self):
+    def test_unavailable_tide_displays_separate_observed_archive(self):
         snapshot=daily_fixture()
         snapshot['tide'].update(status='unavailable',series=[],message='Water readings temporarily unavailable.')
         app=self.app(snapshot)
-        self.assertEqual(self.metric(app,'Latest water level').value,'Not available')
+        self.assertNotIn('Latest water level',{x.label for x in app.metric})
+        self.assertNotEqual(self.metric(app,'Archived water level').value,'Not available')
+        self.assertIn('Environment Agency archive',self.visible_text(app))
+        self.assertIn('2025',self.visible_text(app))
         self.assertTrue(any('Location reference' in x.value for x in app.caption))
 
     def test_untrusted_news_markup_and_non_official_link_are_not_rendered(self):
@@ -225,7 +257,10 @@ class DailyViewTests(unittest.TestCase):
         snapshot=daily_fixture()
         snapshot['weather'].update(status='unavailable',rows=[],message='Forecast unavailable.')
         app=self.app(snapshot)
-        self.assertEqual(self.metric(app,'Weather outlook').value,'Not available')
+        self.assertNotIn('Weather outlook',{x.label for x in app.metric})
+        self.assertIn('Crosby climate normals',self.visible_text(app))
+        self.assertIn('1991–2020',self.visible_text(app))
+        self.assertTrue(any(x.label=='Open Met Office forecast' for x in app.get('link_button')))
 
     def test_date_only_news_does_not_invent_midnight_or_timezone(self):
         snapshot=daily_fixture()
@@ -251,8 +286,8 @@ class DailyViewTests(unittest.TestCase):
         with patch('streamlit.plotly_chart',return_value={}) as chart:
             app=self.app(snapshot)
         self.assertEqual([call.kwargs['key'] for call in chart.call_args_list],
-                         ['daily_weather_mini','daily_water_mini'])
-        water=chart.call_args_list[1].args[0].data[0]
+                         ['daily_water_mini','daily_weather_mini'])
+        water=chart.call_args_list[0].args[0].data[0]
         self.assertFalse(water.connectgaps)
         self.assertTrue(pd.isna(water.y[1]))
         self.assertTrue(any('older than one hour' in x.value for x in app.info))

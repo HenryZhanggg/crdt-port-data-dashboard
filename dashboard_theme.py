@@ -190,3 +190,84 @@ def apply_dashboard_theme() -> None:
     }
     @media (pointer:coarse) {[data-testid="stButton"] button, [data-testid="stPopover"] button {min-height:44px;}}
     </style>''', unsafe_allow_html=True)
+
+
+def apply_overview_theme() -> None:
+    """Use light Overview surfaces without changing the other workspaces."""
+    st.markdown('''<span class="overview-theme-marker" hidden aria-hidden="true"></span>
+    <style>
+    [data-testid="stAppViewContainer"]:has(.overview-theme-marker) {background:#F4F7FA;}
+    [data-testid="stMain"]:has(.overview-theme-marker) {
+        --port-bg:#F4F7FA; --port-panel:#FFFFFF; --port-divider:#D9E2EC;
+        --port-ink:#203247; --port-muted:#5E7188; --port-accent:#3657A7;
+        --port-teal:#247D8D;
+        background:var(--port-bg); color:var(--port-ink);
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) :is(h1,h2,h3,h4,p,li,label) {color:var(--port-ink);}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stCaptionContainer"] p,
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stWidgetLabel"] p,
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stMetricLabel"] p {color:var(--port-muted);}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stCaptionContainer"] {opacity:1;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .workbench-header {
+        background:#111722; border-color:#30364B; color:#F2F5F9;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) .workbench-brand {color:#F2F5F9;}
+    [data-testid="stMain"]:has(.overview-theme-marker) :is(.workbench-subtitle,.workbench-region) {color:#AAB7C7;}
+    [data-testid="stMain"]:has(.overview-theme-marker) [class*="st-key-daily_"] {
+        --port-panel:#FFFFFF; --port-ink:#203247; --port-muted:#5E7188;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stMetric"] {
+        background:#FFFFFF; border-color:#D9E2EC;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stMetricValue"] {color:#203247;}
+    [data-testid="stMain"]:has(.overview-theme-marker)
+    :is(.st-key-daily_weather_summary,.st-key-daily_water_summary,.st-key-daily_advisory_summary) {
+        background:#FFFFFF; border-color:#D9E2EC; height:100%;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) .st-key-daily_summary [data-testid="stColumn"]
+    > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"] {height:100%;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .st-key-daily_summary [data-testid="stVerticalBlock"] {gap:.24rem;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .st-key-daily_summary [data-testid="stMetric"] {
+        padding:0; border:0; min-height:0; background:transparent;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) :is([data-testid="stButton"],[data-testid="stDownloadButton"],[data-testid="stPopover"]) button,
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stLinkButton"] a {
+        background:#FFFFFF; border-color:#CCD7E4; color:#294B79;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) :is([data-testid="stButton"],[data-testid="stDownloadButton"],[data-testid="stPopover"]) button p,
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stLinkButton"] a p {color:inherit;}
+    [data-testid="stMain"]:has(.overview-theme-marker) :is([data-testid="stButton"],[data-testid="stDownloadButton"],[data-testid="stPopover"]) button:hover,
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stLinkButton"] a:hover {
+        background:#EDF3FA; border-color:#8EA8CB;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stButton"] button[kind="primary"] {
+        background:#3657A7; border-color:#3657A7; color:#FFFFFF; box-shadow:none;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stButton"] button[kind="primary"]:hover {background:#294985;}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    [data-testid="stMain"]:has(.overview-theme-marker) :is([data-testid="stTextInput"],[data-testid="stDateInput"]) [data-baseweb="input"] {
+        background:#FFFFFF; border-color:#CCD7E4; color:#203247;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) :is([data-baseweb="select"], [data-baseweb="input"]) input {
+        color:#203247; -webkit-text-fill-color:#203247;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stExpander"] {
+        background:#FFFFFF; border-color:#D9E2EC;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stExpander"] summary {color:#203247;}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stExpander"] summary:hover {background:#EDF3FA;}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stTabs"] [role="tab"] {color:#5E7188;}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stTabs"] [role="tab"][aria-selected="true"] {color:#3657A7;}
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stAlert"] {
+        background:#EAF2FB; border:1px solid #CFDFF0; color:#294B70;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stAlert"] p {color:#294B70;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .daily-update-title a {color:#3056A5;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .daily-update-title a:hover {color:#1D3E80;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .quality-note {background:#F1F5FA;}
+    [data-testid="stMain"]:has(.overview-theme-marker) .state-pill {background:#EAF0F7; color:#50637B;}
+    [data-testid="stMain"]:has(.overview-theme-marker) :is(.port-map-context,.port-map-legend) {color:#AAB7C7;}
+    body:has(.overview-theme-marker) :is([data-baseweb="menu"],[role="listbox"]) {background:#FFFFFF; color:#203247;}
+    body:has(.overview-theme-marker) [role="option"] {color:#203247;}
+    body:has(.overview-theme-marker) [role="option"]:is(:hover,[aria-selected="true"]) {background:#EAF0F8;}
+    </style>''', unsafe_allow_html=True)

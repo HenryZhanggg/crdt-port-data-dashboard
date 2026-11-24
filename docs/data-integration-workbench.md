@@ -4,7 +4,7 @@ The Data workspace implements an inspectable WP2 data workflow. It prepares cand
 
 ## Open the workbench
 
-Open **Data & Integration**, then choose **Browse datasets & downloads** or **Open integration workbench**. Both the [datasets link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=sources) and the [integration link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration) open their tab after authentication. The login page and Data workspace display build `2026-11-23.2`.
+Open **Data & Integration**, then choose **Browse datasets & downloads** or **Open integration workbench**. Both the [datasets link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=sources) and the [integration link](https://crdt-port-data-dashboard.streamlit.app/?workspace=data&tool=integration) open their tab after authentication. The login page and Data workspace display the current build.
 
 ## 1. Establish source suitability
 

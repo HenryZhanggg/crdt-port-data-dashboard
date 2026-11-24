@@ -197,18 +197,26 @@ def normalise_tide(frame):
     if frame.empty:
         return []
     frame = frame.copy()
-    for field in ('station_reference','unit','datum','datum_uri'):
+    reference_fields = ['station_reference','unit','datum','datum_uri','measure_uri']
+    for field in reference_fields:
         frame[field] = frame.get(field,pd.Series('',index=frame.index)).fillna('').astype(str)
     frame['date_time'] = pd.to_datetime(frame.get('date_time'), utc=True, errors='coerce')
     frame = frame.dropna(subset=['date_time'])
     series = []
-    for (station,unit,datum,datum_uri), rows in frame.groupby(['station_reference','unit','datum','datum_uri'],dropna=False):
+    for (station,unit,datum,datum_uri,measure_uri), rows in frame.groupby(reference_fields,dropna=False):
+        declared = rows.get('period_seconds',pd.Series(dtype=float)).dropna().map(_number).unique()
+        period = _number(declared[0]) if len(declared)==1 else None
+        period_seconds = int(period) if period is not None and period>0 and period.is_integer() else None
         rows = clean_water_series(rows)
         first = rows.iloc[0]
-        series.append({'id':f'water:{station}|{unit}|{datum_uri}', 'station_reference':station,
+        identity = f'water:{station}|{unit}|{datum_uri}'
+        if measure_uri:
+            identity += '|'+measure_uri
+        series.append({'id':identity, 'station_reference':station,
             'name':str(first.get('station_label','Liverpool'))+' · '+station+' · '+(datum or 'Unknown reference'),
             'lat':_number(first.get('lat')), 'lon':_number(first.get('lon')), 'unit':unit,
-            'datum':datum or 'Unknown datum', 'datum_uri':datum_uri,
+            'datum':datum or 'Unknown datum', 'datum_uri':datum_uri, 'measure_uri':measure_uri,
+            'period_seconds':period_seconds,
             'source_url':str(first.get('api_endpoint',TIDE_SOURCE)),
             'rows':[{'time':row['date_time'].isoformat(),'value':_number(row.get('value')),
                      'duplicate_conflict':bool(row.get('duplicate_conflict',False))} for _,row in rows.iterrows()]})

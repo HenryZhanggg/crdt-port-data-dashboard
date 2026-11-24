@@ -339,6 +339,7 @@ def fetch_liverpool_tide_water_levels(session: requests.Session, start_date=None
                     "date_time": reading.get("dateTime", ""),
                     "parameter": measure.get("parameter", ""),
                     "qualifier": measure.get("qualifier", ""),
+                    "period_seconds": measure.get("period"),
                     "unit": unit,
                     "datum": datum,
                     "datum_uri": datum_uri,

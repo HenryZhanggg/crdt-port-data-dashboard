@@ -105,7 +105,50 @@ class DailyServiceTests(unittest.TestCase):
         self.assertEqual(local['rows'][0]['value'],0)
         self.assertIsNone(local['rows'][1]['value'])
         self.assertEqual(local.get('station_reference'),'A')
+        self.assertEqual(local['id'],'water:A|m|local:A')
+        self.assertIsNone(local['period_seconds'])
         self.assertNotEqual(series[0]['id'],series[1]['id'])
+
+    def test_tide_load_keeps_provider_measures_and_declared_periods_separate(self):
+        service = self.service()
+        first = 'http://environment.data.gov.uk/flood-monitoring/id/measures/E70139-anglian'
+        second = 'http://environment.data.gov.uk/flood-monitoring/id/measures/E70139-north_west'
+        reference = {'datumType':'http://environment.data.gov.uk/flood-monitoring/def/core/datumAOD',
+                     'unitName':'mAOD'}
+        station = {'stationReference':'E70139','lat':53.448,'long':-3.015,'measures':[
+            {**reference,'@id':first,'period':900}, {**reference,'@id':second}]}
+        reading = {'dateTime':'2026-11-14T12:00:00Z'}
+        observations = [{**reading,'measure':first,'value':4.2}, {**reading,'measure':second,'value':5.2},
+            {'dateTime':'2026-11-14T12:30:00Z','measure':second,'value':5.5}]
+        context = Mock()
+        session = Mock()
+        context.__enter__ = Mock(return_value=session)
+        context.__exit__ = Mock(return_value=False)
+        session.get.side_effect = [Mock(**{'json.return_value':{'items':[station]}}),
+                                   Mock(**{'json.return_value':{'items':observations}})]
+        service.load_tide.clear()
+        self.addCleanup(service.load_tide.clear)
+        with patch('daily_service.request_session',return_value=context):
+            tide = service.load_tide()
+        self.assertEqual(tide['status'],'available')
+        self.assertEqual(len(tide['series']),2)
+        series = {row['measure_uri']:row for row in tide['series']}
+        self.assertEqual(set(series),{first,second})
+        self.assertNotEqual(series[first]['id'],series[second]['id'])
+        self.assertEqual([row['value'] for row in series[first]['rows']],[4.2])
+        self.assertEqual([row['value'] for row in series[second]['rows']],[5.2,5.5])
+        self.assertEqual(series[first]['period_seconds'],900)
+        self.assertIsNone(series[second]['period_seconds'])
+
+    def test_tide_conflicting_or_invalid_periods_are_unverified(self):
+        service = self.service()
+        common = {'station_reference':'A','unit':'m','datum_uri':'datum:local',
+                  'measure_uri':'http://example.org/measure/a','value':1}
+        for periods in ((900,1800),(0,0),(2.5,2.5)):
+            with self.subTest(periods=periods):
+                frame = pd.DataFrame([{**common,'period_seconds':period,'date_time':instant}
+                    for period,instant in zip(periods,('2026-11-14T12:00:00Z','2026-11-14T12:15:00Z'))])
+                self.assertIsNone(service.normalise_tide(frame)[0]['period_seconds'])
 
     def test_http_failure_is_unavailable_not_empty_success(self):
         service = self.service()

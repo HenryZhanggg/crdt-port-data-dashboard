@@ -1,0 +1,26 @@
+{
+  "station": "Crosby",
+  "period_start": 1991,
+  "period_end": 2020,
+  "source": "Met Office",
+  "source_url": "https://www.metoffice.gov.uk/research/climate/maps-and-data/location-specific-long-term-averages/gcmzgftw6",
+  "terms_url": "https://www.metoffice.gov.uk/policies/tandc",
+  "licence": "Open Government Licence v3.0",
+  "licence_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+  "attribution": "Contains public sector information licensed under the Open Government Licence v3.0",
+  "verified_date": "2026-11-24",
+  "monthly": [
+    {"month": 1, "mean_daily_max_c": 7.49, "mean_daily_min_c": 2.82, "mean_monthly_rainfall_mm": 69.38},
+    {"month": 2, "mean_daily_max_c": 7.89, "mean_daily_min_c": 2.74, "mean_monthly_rainfall_mm": 57.07},
+    {"month": 3, "mean_daily_max_c": 9.88, "mean_daily_min_c": 3.90, "mean_monthly_rainfall_mm": 53.32},
+    {"month": 4, "mean_daily_max_c": 12.76, "mean_daily_min_c": 5.58, "mean_monthly_rainfall_mm": 49.83},
+    {"month": 5, "mean_daily_max_c": 15.93, "mean_daily_min_c": 8.32, "mean_monthly_rainfall_mm": 52.46},
+    {"month": 6, "mean_daily_max_c": 18.38, "mean_daily_min_c": 11.33, "mean_monthly_rainfall_mm": 64.42},
+    {"month": 7, "mean_daily_max_c": 19.99, "mean_daily_min_c": 13.46, "mean_monthly_rainfall_mm": 65.45},
+    {"month": 8, "mean_daily_max_c": 19.70, "mean_daily_min_c": 13.54, "mean_monthly_rainfall_mm": 72.08},
+    {"month": 9, "mean_daily_max_c": 17.68, "mean_daily_min_c": 11.22, "mean_monthly_rainfall_mm": 76.60},
+    {"month": 10, "mean_daily_max_c": 14.24, "mean_daily_min_c": 8.47, "mean_monthly_rainfall_mm": 89.70},
+    {"month": 11, "mean_daily_max_c": 10.54, "mean_daily_min_c": 5.68, "mean_monthly_rainfall_mm": 82.15},
+    {"month": 12, "mean_daily_max_c": 8.03, "mean_daily_min_c": 3.12, "mean_monthly_rainfall_mm": 91.86}
+  ]
+}

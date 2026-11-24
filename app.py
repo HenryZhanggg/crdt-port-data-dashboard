@@ -11,7 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from api_connectors import empty_bundle, fetch_raw_data_bundle
-from dashboard_theme import apply_dashboard_theme
+from dashboard_theme import apply_dashboard_theme, apply_overview_theme
 from daily_service import load_daily_snapshot
 from daily_views import render_daily_home
 import data_views
@@ -20,7 +20,7 @@ from workspace_links import workspace_context_summary, context_allowed
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
-WORKSPACE_BUILD='2026-11-23.2'
+WORKSPACE_BUILD='2026-11-24.1'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -43,7 +43,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 23 November 2026 · Direct access to dataset previews and downloads · build "+WORKSPACE_BUILD)
+        st.caption("Interface update: 24 November 2026 · Liverpool Overview and source coverage · build "+WORKSPACE_BUILD)
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -250,6 +250,7 @@ def main():
             column.button('Data & Integration' if name=='Data' else name,key='nav_'+name,width='stretch',type='primary' if name==page else 'secondary',on_click=_navigate,args=(name,))
     context_slot=st.empty()
     if page=='Overview':
+        apply_overview_theme()
         with st.spinner('Checking local weather, water levels and official updates'):
             snapshot=load_daily_snapshot()
         render_daily_home(snapshot)
@@ -257,7 +258,7 @@ def main():
         render_monitor_workspace(load_selected_api_bundle,load_csv('assets.csv'),load_service_area(),views,refresh=refresh_sources)
     else:
         _render_current_data_workspace(load_high_score_catalog(),load_selected_api_bundle,views,refresh=refresh_sources)
-    summary=workspace_context_summary()
+    summary=workspace_context_summary() if page!='Overview' else None
     context=st.session_state.get('data_handoff' if page=='Data' else 'monitor_handoff')
     if page=='Data' and 'raw_data' not in views or page!='Overview' and context and not context_allowed(context,views):
         summary=None
