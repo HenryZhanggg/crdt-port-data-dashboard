@@ -10,17 +10,18 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+import api_connectors
 from api_connectors import empty_bundle, fetch_raw_data_bundle
-from dashboard_theme import apply_dashboard_theme, apply_overview_theme
-from daily_service import load_daily_snapshot
-from daily_views import render_daily_home
+import dashboard_theme
+import daily_service
+import daily_views
 import data_views
 from monitor_workspace import render_monitor_workspace
 from workspace_links import workspace_context_summary, context_allowed
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
-WORKSPACE_BUILD='2026-11-24.1'
+WORKSPACE_BUILD='2026-11-24.2'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -171,6 +172,20 @@ def _render_current_data_workspace(*args,**kwargs):
     data_views.render_data_workspace(*args,**kwargs)
 
 
+def _render_current_overview():
+    if getattr(daily_views,'OVERVIEW_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD or not callable(getattr(dashboard_theme,'apply_overview_theme',None)):
+        for module in (api_connectors,daily_service,dashboard_theme,daily_views):
+            importlib.reload(module)
+        daily_service.load_tide.clear()
+    if getattr(daily_views,'OVERVIEW_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD or not callable(getattr(dashboard_theme,'apply_overview_theme',None)):
+        st.error('The Overview update has not loaded completely. Please reopen the dashboard after deployment finishes.')
+        return
+    dashboard_theme.apply_overview_theme()
+    with st.spinner('Checking local weather, water levels and official updates'):
+        snapshot=daily_service.load_daily_snapshot()
+    daily_views.render_daily_home(snapshot)
+
+
 def _preserve_workspace_widgets():
     keys={'daily_place_id','daily_update_category','monitor_data_mode','monitor_mode',
           'monitor_source_choice','workbench_reference','workbench_layer_water','workbench_layer_traffic',
@@ -215,7 +230,7 @@ def _migrate_navigation():
 
 
 def main():
-    apply_dashboard_theme()
+    dashboard_theme.apply_dashboard_theme()
     if not require_dashboard_authorisation():
         st.stop()
     _preserve_workspace_widgets()
@@ -250,10 +265,7 @@ def main():
             column.button('Data & Integration' if name=='Data' else name,key='nav_'+name,width='stretch',type='primary' if name==page else 'secondary',on_click=_navigate,args=(name,))
     context_slot=st.empty()
     if page=='Overview':
-        apply_overview_theme()
-        with st.spinner('Checking local weather, water levels and official updates'):
-            snapshot=load_daily_snapshot()
-        render_daily_home(snapshot)
+        _render_current_overview()
     elif page=='Monitor':
         render_monitor_workspace(load_selected_api_bundle,load_csv('assets.csv'),load_service_area(),views,refresh=refresh_sources)
     else:

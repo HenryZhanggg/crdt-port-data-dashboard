@@ -20,6 +20,7 @@ from workspace_links import water_handoff_context, open_water_observations
 from public_media import render_public_media
 
 
+OVERVIEW_WORKSPACE_BUILD='2026-11-24.2'
 _SOURCE_HOSTS = {'api.met.no','met.no','www.met.no','weather.metoffice.gov.uk','www.metoffice.gov.uk',
     'metoffice.gov.uk','environment.data.gov.uk','check-for-flooding.service.gov.uk',
     'nationalhighways.co.uk','www.nationalhighways.co.uk','www.peelports.com','peelports.com',

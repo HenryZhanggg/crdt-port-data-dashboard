@@ -36,6 +36,31 @@ class DailyRoutingTests(unittest.TestCase):
         self.daily.assert_called_once()
         self.feeds.assert_not_called()
 
+    def test_outdated_overview_module_is_reloaded_before_display(self):
+        import daily_views
+        import dashboard_theme
+        from app import WORKSPACE_BUILD
+
+        original = daily_views.render_daily_home
+        light_theme = dashboard_theme.apply_overview_theme
+        def reload_overview(module):
+            if module is dashboard_theme:
+                module.apply_overview_theme=light_theme
+            if module is daily_views:
+                module.OVERVIEW_WORKSPACE_BUILD=WORKSPACE_BUILD
+                module.render_daily_home=original
+            return module
+
+        with patch.object(daily_views,'OVERVIEW_WORKSPACE_BUILD','old',create=True), \
+             patch.object(daily_views,'render_daily_home',side_effect=RuntimeError('Old Overview renderer')), \
+             patch.object(dashboard_theme,'apply_overview_theme',None), \
+             patch('importlib.reload',side_effect=reload_overview) as reload_module:
+            app=self.app()
+        self.assertTrue(any(item.value=='Around Liverpool' for item in app.subheader))
+        self.assertIn(dashboard_theme,[call.args[0] for call in reload_module.call_args_list])
+        self.assertIn(daily_views,[call.args[0] for call in reload_module.call_args_list])
+        self.daily.assert_called_once()
+
     def test_monitor_opens_network_and_overview_returns_to_daily(self):
         app = self.app()
         next(item for item in app.button if item.label == 'Monitor').click().run()

@@ -17,7 +17,7 @@ from workspace_links import clear_context, context_allowed, context_label, filte
 from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
 import integration_views
 
-DATA_WORKSPACE_BUILD='2026-11-24.1'
+DATA_WORKSPACE_BUILD='2026-11-24.2'
 DATA_DIR=Path(__file__).parent/'data'
 
 
