@@ -200,7 +200,7 @@ class MonitorWorkspaceTests(unittest.TestCase):
         app = self.app()
         self.assertNotIn('load_count', app.session_state)
         self.assertEqual(next(x for x in app.radio if x.label == 'Data view').options,
-                         ['Example network', 'Connected observations'])
+                         ['Example network', 'Connected observations', 'Weather & flood'])
         self.assertFalse(any(x.label in {'Content mode', 'Spatial view', 'Network data'} for x in app.radio))
         self.assertFalse(app.date_input)
         self.assertFalse(any(x.label in {'Run model', 'View illustrative results'} for x in app.button))

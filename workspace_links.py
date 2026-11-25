@@ -144,6 +144,8 @@ def workspace_context_summary():
     if page=='Monitor':
         if state.get('monitor_data_mode','Example network')=='Example network':
             return result('Example network',basis='Illustrative scenario time',mode='Simulated demo')
+        if state.get('monitor_data_mode')=='Weather & flood':
+            return None
         context=dict(state.get('monitor_handoff') or {})
         identity=state.get('workbench_entity_id')
         if identity and context.get('entity_id')!=identity:

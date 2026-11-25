@@ -2,7 +2,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+import json
 import math
+import re
 from time import monotonic
 from urllib.parse import urljoin, urlparse
 import xml.etree.ElementTree as ET
@@ -22,6 +24,9 @@ WARNINGS_URL = 'https://weather.metoffice.gov.uk/public/data/PWSCache/WarningsRS
 WARNINGS_SOURCE = 'https://weather.metoffice.gov.uk/warnings-and-advice/uk-warnings'
 FLOODS_URL = 'https://environment.data.gov.uk/flood-monitoring/id/floods?min-severity=3&lat=53.448&long=-3.015&dist=30'
 TIDE_SOURCE = 'https://environment.data.gov.uk/flood-monitoring/doc/reference'
+MERSEY_FLOOD_AREA = {'id':'013WATMEWLW', 'title':'Mersey Estuary from Liverpool and Wirral to Widnes',
+    'area_uri':'https://environment.data.gov.uk/flood-monitoring/id/floodAreas/013WATMEWLW',
+    'polygon_uri':'https://environment.data.gov.uk/flood-monitoring/id/floodAreas/013WATMEWLW/polygon'}
 PORT_SOURCE = 'https://www.peelports.com/marine/our-ports/liverpool/'
 NEWS_SOURCE = 'https://www.peelports.com/news-articles/'
 TRAFFIC_SOURCE = 'https://nationalhighways.co.uk/roads-and-travel/live-travel-updates/'
@@ -182,6 +187,8 @@ def parse_flood_warnings(payload):
         area = item.get('floodArea', {})
         area = area if isinstance(area, dict) else {}
         items.append({'id':str(item.get('floodAreaID','')), 'title':str(item.get('description','Flood warning area')),
+            'flood_area_id':str(item.get('floodAreaID','')), 'flood_area_uri':str(area.get('@id') or ''),
+            'polygon_uri':str(area.get('polygon') or ''),
             'url':_safe_url(item.get('@id') or area.get('@id'),TIDE_SOURCE),
             'description':str(item.get('message','')), 'published_at':_time(item.get('timeRaised')),
             'updated_at':_time(item.get('timeMessageChanged') or item.get('timeSeverityChanged')),
@@ -191,6 +198,85 @@ def parse_flood_warnings(payload):
     return {**_section('Environment Agency',FLOODS_URL,
         message='Warnings returned for an approximately 30 km search around Liverpool; not confirmed impacts on individual assets.'),
         'items':items, 'feed_updated_at':_time(payload.get('meta',{}).get('dateTime'))}
+
+
+def _flood_geojson(payload, area_id):
+    if not isinstance(payload, dict) or payload.get('crs') not in (None,
+            {'type':'name','properties':{'name':'urn:ogc:def:crs:OGC:1.3:CRS84'}},
+            {'type':'name','properties':{'name':'EPSG:4326'}}):
+        raise ValueError('Expected WGS84 GeoJSON')
+    if payload.get('type') == 'FeatureCollection':
+        features = payload.get('features')
+    elif payload.get('type') == 'Feature':
+        features = [payload]
+    else:
+        features = [{'type':'Feature','properties':{},'geometry':payload}]
+    if not isinstance(features, list) or not 1 <= len(features) <= 64:
+        raise ValueError('Expected a bounded, nonempty feature collection')
+    count = 0
+    for feature in features:
+        if not isinstance(feature, dict) or feature.get('type') != 'Feature':
+            raise ValueError('Expected a GeoJSON feature')
+        properties = feature.get('properties')
+        if properties is not None and not isinstance(properties, dict):
+            raise ValueError('Invalid feature properties')
+        if (properties or {}).get('FWS_TACODE', area_id) != area_id:
+            raise ValueError('Returned geometry belongs to another area')
+        geometry = feature.get('geometry')
+        if not isinstance(geometry, dict) or geometry.get('type') not in ('Polygon','MultiPolygon'):
+            raise ValueError('Expected a Polygon or MultiPolygon')
+        polygons = [geometry.get('coordinates')] if geometry['type'] == 'Polygon' else geometry.get('coordinates')
+        if not isinstance(polygons, list) or not polygons:
+            raise ValueError('Empty polygon geometry')
+        for polygon in polygons:
+            if not isinstance(polygon, list) or not polygon:
+                raise ValueError('Empty polygon rings')
+            for ring in polygon:
+                if not isinstance(ring, list) or len(ring) < 4:
+                    raise ValueError('Invalid polygon ring')
+                count += len(ring)
+                if count > 100000:
+                    raise ValueError('Too many polygon positions')
+                for position in ring:
+                    if (not isinstance(position, list) or len(position) not in (2,3)
+                            or any(type(value) not in (int,float) or not math.isfinite(value) for value in position)
+                            or not -180 <= position[0] <= 180 or not -90 <= position[1] <= 90):
+                        raise ValueError('Invalid WGS84 polygon position')
+                if ring[0] != ring[-1] or len({tuple(point[:2]) for point in ring}) < 3:
+                    raise ValueError('Polygon rings must be closed and nondegenerate')
+                if not sum(a[0]*b[1]-b[0]*a[1] for a,b in zip(ring,ring[1:])):
+                    raise ValueError('Polygon ring has no area')
+    return {'type':'FeatureCollection','features':features}
+
+
+@st.cache_data(ttl=900, max_entries=16, show_spinner=False)
+def load_flood_area_geometry(area_id):
+    """Fetch one official area boundary; warning status comes from the warning feed."""
+    valid = isinstance(area_id, str) and re.fullmatch(r'[A-Za-z0-9_-]{1,64}', area_id)
+    area_uri = 'https://environment.data.gov.uk/flood-monitoring/id/floodAreas/' + area_id if valid else None
+    url = area_uri + '/polygon' if area_uri else TIDE_SOURCE
+    result = {**_section('Environment Agency', url, 'unavailable',
+        'Official area boundary could not be loaded. Open the source; no replacement boundary has been drawn.'),
+        'area_id':area_id, 'area_uri':area_uri, 'geojson':None, 'checked_at':_now()}
+    if not valid:
+        return result
+    try:
+        limit, deadline = 2*1024*1024, monotonic()+15
+        with requests.get(url, headers=HEADERS, timeout=(3.05,10), stream=True, allow_redirects=False) as response:
+            response.raise_for_status()
+            if response.status_code != 200 or int(response.headers.get('Content-Length',0)) > limit:
+                raise ValueError('Unexpected or oversized geometry response')
+            content = bytearray()
+            for chunk in response.iter_content(chunk_size=65536):
+                content.extend(chunk)
+                if len(content) > limit or monotonic() > deadline:
+                    raise ValueError('Geometry request budget exceeded')
+        geometry = _flood_geojson(json.loads(content), area_id)
+    except (requests.RequestException, ValueError, TypeError, OverflowError, RecursionError):
+        return result
+    result.update(status='available', geojson=geometry,
+        message='Official flood warning/alert area boundary. Geometry alone does not indicate a current warning or actual inundation.')
+    return result
 
 
 def normalise_tide(frame):

@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+import daily_service
 from data_quality import filter_dates, quality_table
 from monitoring_views import chart_style, utc_label, water_level_figure
 from semantic_views import render_semantic_demo
@@ -14,6 +15,8 @@ from workspace_data import quality_findings
 from data_relation_views import render_data_relations
 from workspace_links import (clear_context, context_allowed, context_label, filter_context_bundle,
                              open_data_context, reference_key)
+
+MONITOR_WORKSPACE_BUILD = '2026-11-25.1'
 
 
 def _remember_sources():
@@ -114,11 +117,20 @@ def render_monitor_workspace(load_bundle, assets, service_area, views=None, refr
         or (handoff['source'] == 'water_level' and st.session_state.get('workbench_reference') != reference_key(handoff))):
         clear_context('monitor_handoff')
         handoff = None
-    mode = st.radio('Data view', ['Example network', 'Connected observations'], horizontal=True, key='monitor_data_mode')
+    allowed = {'weather', 'transport', 'gis', 'raw_data'} if views is None else set(views)
+    modes = ['Example network', 'Connected observations']
+    if 'weather' in allowed:
+        modes.append('Weather & flood')
+    if st.session_state.get('monitor_data_mode') not in modes:
+        st.session_state['monitor_data_mode'] = modes[0]
+    mode = st.radio('Data view', modes, horizontal=True, key='monitor_data_mode')
     if mode == 'Example network':
         render_semantic_demo()
         return
-    allowed = {'weather', 'transport', 'gis', 'raw_data'} if views is None else set(views)
+    if mode == 'Weather & flood':
+        from weather_map_views import render_weather_map
+        render_weather_map(daily_service.load_daily_snapshot(),load_bundle,allowed)
+        return
     if handoff and not context_allowed(handoff, allowed):
         _context_notice(handoff, 'The requested observation source is outside this partner view. Clear the context to choose an enabled source.')
         return

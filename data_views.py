@@ -17,7 +17,7 @@ from workspace_links import clear_context, context_allowed, context_label, filte
 from validation_views import load_validation_report, validation_register, render_validation_summary, render_source_validation, render_provider_notice
 import integration_views
 
-DATA_WORKSPACE_BUILD='2026-11-24.3'
+DATA_WORKSPACE_BUILD='2026-11-25.1'
 DATA_DIR=Path(__file__).parent/'data'
 
 
@@ -117,7 +117,7 @@ def _source_dataset(row, load_bundle, views, handoff, timing):
                 warnings=daily_service.load_flood_warnings()
                 items=warnings['items']
                 if items:
-                    bundle[table_key]=pd.DataFrame(items).assign(
+                    bundle[table_key]=pd.DataFrame(items).rename(columns={'published_at':'reviewed_at'}).assign(
                         retrieved_at_utc=warnings['checked_at'],source_url=warnings['source_url'])
                 bundle['status']=pd.DataFrame([{'source':warnings['source_name'],
                     'status':'No warnings returned' if warnings['status']=='available' and not items else warnings['status'],

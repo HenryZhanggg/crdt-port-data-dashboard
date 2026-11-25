@@ -13,13 +13,14 @@ import plotly.graph_objects as go
 import pydeck as pdk
 import streamlit as st
 
+import daily_service
 from port_map import MARITIME_STYLE
 from workspace_data import clean_water_series
 from workspace_links import water_handoff_context, open_water_observations
 from public_media import render_public_media
 
 
-OVERVIEW_WORKSPACE_BUILD='2026-11-24.3'
+OVERVIEW_WORKSPACE_BUILD='2026-11-25.1'
 _SOURCE_HOSTS = {'api.met.no','met.no','www.met.no','weather.metoffice.gov.uk','www.metoffice.gov.uk',
     'metoffice.gov.uk','environment.data.gov.uk','check-for-flooding.service.gov.uk',
     'nationalhighways.co.uk','www.nationalhighways.co.uk','www.peelports.com','peelports.com',
@@ -172,7 +173,7 @@ def _recent_water_change(trace, period_seconds, now):
     return points.iloc[-1]-points.iloc[0] if points.notna().all() else None
 
 
-def _map(series, chosen, place):
+def _map(series, chosen, place, focus=None, *, key_prefix='daily_map', height=310):
     counts = {}
     points = []
     for entry in series:
@@ -203,12 +204,39 @@ def _map(series, chosen, place):
         layers = [pdk.Layer('ScatterplotLayer', [{'lat':place['lat'],'lon':place['lon']}],
             get_position='[lon, lat]', radius_units=pdk.types.String('pixels'), get_radius=6,
             get_fill_color=[150,183,202])]
+    lat, lon, zoom = place['lat'], place['lon'], 11.8
+    focus = focus or {}
+    if focus.get('geojson'):
+        geometry = focus['geojson']
+        colour = [191,204,220] if focus.get('reference') else [255,181,71]
+        layers.insert(0,pdk.Layer('GeoJsonLayer',geometry,id='selected-flood-area',
+            filled=not focus.get('reference'),stroked=True,get_line_color=colour,
+            get_fill_color=colour+[52],line_width_min_pixels=2,pickable=False))
+        positions = []
+        for feature in geometry['features']:
+            shape = feature['geometry']
+            polygons = shape['coordinates'] if shape['type']=='MultiPolygon' else [shape['coordinates']]
+            positions.extend(position for polygon in polygons for ring in polygon for position in ring)
+        xs,ys = zip(*[(point[0],point[1]) for point in positions])
+        lon,lat = (min(xs)+max(xs))/2,(min(ys)+max(ys))/2
+        spread = max(max(xs)-min(xs),1.7*(max(ys)-min(ys)),.02)
+        zoom = min(12,math.log2(145/spread))
+    if focus.get('rain'):
+        layers.append(pdk.Layer('ScatterplotLayer',[{'lat':lat,'lon':lon}],id='selected-forecast-point',
+            get_position='[lon, lat]',radius_units=pdk.types.String('pixels'),get_radius=11,filled=True,
+            stroked=True,get_fill_color=[61,183,245],get_line_color=[232,247,255],line_width_min_pixels=2,
+            pickable=False))
+    if focus.get('stops'):
+        layers.append(pdk.Layer('ScatterplotLayer',focus['stops'],id='transport-access-points',
+            get_position='[lon, lat]',radius_units=pdk.types.String('pixels'),get_radius=4,
+            get_fill_color=[228,225,255],stroked=True,get_line_color=[111,103,224],line_width_min_pixels=1,
+            pickable=False))
     deck = pdk.Deck(layers=layers, map_style=MARITIME_STYLE,
-        initial_view_state=pdk.ViewState(latitude=place['lat'], longitude=place['lon'], zoom=11.8),
+        initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=zoom),
         tooltip={'html':'<b>{name}</b><br>Water level reference'})
-    membership = sha1('|'.join(p['id'] for p in points).encode()).hexdigest()[:10]
-    event = st.pydeck_chart(deck, height=310, width='stretch', on_select='rerun',
-        selection_mode='single-object', key=f"daily_map_{membership}_{st.session_state.get('daily_map_revision',0)}")
+    membership = sha1('|'.join([str(focus.get('area_id','')),*[p['id'] for p in points]]).encode()).hexdigest()[:10]
+    event = st.pydeck_chart(deck, height=height, width='stretch', on_select='rerun',
+        selection_mode='single-object', key=f"{key_prefix}_{membership}_{st.session_state.get('daily_map_revision',0)}")
     for records in (event or {}).get('selection',{}).get('objects',{}).values():
         if records:
             return records[0].get('id')
@@ -240,6 +268,66 @@ def _validity(item, now):
     return 'Validity unconfirmed'
 
 
+def _choose_map_focus(kind, identifier):
+    focus = (kind,identifier)
+    if st.session_state.get('daily_map_focus') != focus:
+        st.session_state['daily_map_focus'] = focus
+        _change_place()
+
+
+def _clear_map_focus():
+    st.session_state.pop('daily_map_focus',None)
+    st.session_state.pop('daily_rain_hour',None)
+    _change_place()
+
+
+def _rain_hours(forecast):
+    if forecast.empty:
+        return {}
+    return {row['time'].isoformat():row for row in forecast.dropna(subset=['rain_mm']).to_dict('records')}
+
+
+def _rain_period(start):
+    moment = _time(start)
+    return f"{moment:%d %b, %H:%M}–{moment+pd.Timedelta(hours=1):%H:%M} UTC"
+
+
+def _choose_rain_hour():
+    hour = st.session_state.get('daily_rain_hour')
+    if hour:
+        _choose_map_focus('rain',hour)
+    elif st.session_state.get('daily_map_focus',(None,None))[0]=='rain':
+        _clear_map_focus()
+
+
+def _choose_rain_bar(valid_hours):
+    selection = st.session_state.get('daily_rain_chart',{}).get('selection',{}).get('points',[])
+    for point in selection:
+        data = point.get('customdata')
+        if isinstance(data,(list,tuple)) and data and data[0] in valid_hours:
+            st.session_state['daily_rain_hour'] = data[0]
+            _choose_map_focus('rain',data[0])
+            break
+
+
+def _current_flood_areas(section, now):
+    if section.get('status')!='available':
+        return {}
+    return {item['flood_area_id']:item for item in section.get('items',[])
+            if item.get('flood_area_id') and _validity(item,now)!='Historical / expired'}
+
+
+def _flood_map_focus(area_id, areas):
+    area = daily_service.load_flood_area_geometry(area_id)
+    return {'geojson':area.get('geojson'),'reference':area_id not in areas,'area_id':area_id}
+
+
+def _open_weather_monitor():
+    st.session_state['dashboard_page'] = 'Monitor'
+    st.session_state['monitor_data_mode'] = 'Weather & flood'
+    st.session_state.pop('weather_map_applied_focus',None)
+
+
 def _update_headline(item, source, context):
     title = escape(_plain(item.get('title')) or 'Source update')
     url = _safe_url(item.get('url'))
@@ -265,6 +353,10 @@ def _daily_updates(snapshot, advisories, complete):
             first = list(by_source.values())
             for item,state in (first+[entry for entry in ranked if entry not in first])[:3]:
                 _update_headline(item,snapshot[item['source_key']]['source_name'],state)
+                if item.get('flood_area_id') and item['source_key']=='flood_warnings':
+                    area_id = item['flood_area_id']
+                    st.button('Show on map',key=f'daily_flood_{area_id}',on_click=_choose_map_focus,
+                              args=('flood',area_id))
         elif complete:
             st.caption('No current advisories listed in the checked feeds.')
         else:
@@ -274,6 +366,12 @@ def _daily_updates(snapshot, advisories, complete):
             _link('Weather warnings',snapshot['weather_warnings'].get('source_url'))
         with flood:
             _link('Flood warnings',snapshot['flood_warnings'].get('source_url'))
+        areas = _current_flood_areas(snapshot['flood_warnings'],pd.Timestamp.now(tz='UTC'))
+        if daily_service.MERSEY_FLOOD_AREA['id'] not in areas:
+            st.button('Show Mersey flood alert area',key='daily_flood_reference',
+                      on_click=_choose_map_focus,args=('flood',daily_service.MERSEY_FLOOD_AREA['id']))
+        if st.session_state.get('daily_map_focus',(None,None))[0]=='flood':
+            st.markdown('[View selected area on map](#waterfront-map)')
     with news_column, st.container(border=True,key='daily_updates'):
         st.markdown('**Port news**')
         news = snapshot['port_news']
@@ -334,14 +432,31 @@ def _weather_chart(forecast, climate, month):
     grid = pd.date_range(times.min(),times.max(),freq='h')
     hourly = forecast.set_index('time').reindex(times.union(grid).sort_values())
     if field=='rain_mm':
+        labels = [[hour.isoformat(),_rain_period(hour)] for hour in hourly.index]
         data = go.Bar(x=hourly.index+pd.Timedelta(minutes=30),y=hourly[field],
-            width=45*60*1000,marker_color=_WEATHER_COLOR,name='Next-hour rain')
+            customdata=labels,width=45*60*1000,marker_color=_WATER_COLOR,name='Next-hour rain',
+            hovertemplate='%{customdata[1]}<br>%{y:.1f} mm<extra></extra>')
     else:
         data = go.Scatter(x=hourly.index,y=hourly[field],mode='lines+markers',connectgaps=False,
             line={'color':_WEATHER_COLOR,'width':2},marker={'size':5},name=unit)
     fig = go.Figure(data)
     fig.update_layout(xaxis_title='Forecast time (UTC)',yaxis_title=unit,showlegend=False)
-    st.plotly_chart(_overview_chart(fig,270),width='stretch',theme=None,key='daily_weather_mini')
+    _overview_chart(fig,270)
+    if chosen=='Rain':
+        hours = _rain_hours(forecast)
+        fig.update_layout(clickmode='event+select',hovermode='closest',dragmode=False)
+        fig.update_yaxes(rangemode='nonnegative')
+        st.plotly_chart(fig,width='stretch',theme=None,key='daily_rain_chart',
+            on_select=lambda: _choose_rain_bar(hours),selection_mode='points')
+        if st.session_state.get('daily_rain_hour') not in hours:
+            kind,identifier = st.session_state.get('daily_map_focus',(None,None))
+            st.session_state['daily_rain_hour'] = identifier if kind=='rain' and identifier in hours else None
+        st.selectbox('Rain hour on map',hours,index=None,placeholder='Click a bar or choose an hour',
+                     format_func=_rain_period,key='daily_rain_hour',on_change=_choose_rain_hour)
+        if st.session_state.get('daily_map_focus',(None,None))[0]=='rain':
+            st.markdown('[View selected hour on map](#waterfront-map)')
+    else:
+        st.plotly_chart(fig,width='stretch',theme=None,key='daily_weather_mini')
     st.caption('MET Norway forecast · CC BY 4.0'+(' · Each bar covers one hour' if chosen=='Rain' else ''))
 
 
@@ -367,7 +482,7 @@ def _water_chart(trace, slots, selected, archive):
         disabled=water_handoff_context(selected) is None,key='daily_explore_water')
 
 
-def render_daily_home(snapshot):
+def render_daily_home(snapshot, *, allow_weather_detail=True):
     now = pd.Timestamp.now(tz='UTC')
     place = snapshot['place']
     weather, tide = snapshot['weather'], snapshot['tide']
@@ -455,12 +570,47 @@ def render_daily_home(snapshot):
         _weather_chart(forecast,climate,month)
     _daily_updates(snapshot,advisories,complete)
     with st.container(border=True,key='daily_spatial'):
-        st.markdown('**Explore the waterfront**')
-        st.caption('Select a station to view its water level.' if lookup else 'Location reference: Liverpool waterfront.')
-        picked = _map(series, st.session_state.get('daily_place_id'), place)
+        st.markdown('<h3 id="waterfront-map">Explore the waterfront</h3>',unsafe_allow_html=True)
+        kind,identifier = st.session_state.get('daily_map_focus',(None,None))
+        focus = None
+        if kind=='rain':
+            rain = _rain_hours(forecast).get(identifier)
+            if rain is not None:
+                focus = {'rain':rain}
+                st.markdown(f"**Liverpool rain forecast · {_number(rain['rain_mm'])} mm**")
+                st.caption(_rain_period(identifier)+' · Forecast at the blue point')
+            else:
+                st.caption('The selected hour has passed or left the latest forecast.')
+        elif kind=='flood':
+            areas = _current_flood_areas(snapshot['flood_warnings'],now)
+            item = areas.get(identifier)
+            focus = _flood_map_focus(identifier,areas)
+            if item:
+                title = _plain(item.get('title')) or 'Environment Agency flood advisory'
+                severity = _plain(item.get('severity')) or 'Flood advisory'
+                st.markdown('**'+escape(title)+'**')
+                st.caption(severity+' · Official listing · Boundary shows the area covered by the alert service')
+            else:
+                st.markdown('**Flood alert reference area**')
+                name = daily_service.MERSEY_FLOOD_AREA['title'] if identifier==daily_service.MERSEY_FLOOD_AREA['id'] else identifier
+                st.caption(name+' · Area reference')
+            if focus.get('geojson') is None:
+                st.caption('Boundary could not be loaded. Check the Environment Agency source.')
+            else:
+                st.caption('Environment Agency flood-monitoring API · Open Government Licence')
+            _link('Open Environment Agency area', 'https://check-for-flooding.service.gov.uk/target-area/'+identifier)
+        else:
+            st.caption('Select a station to view its water level.' if lookup else 'Location reference: Liverpool waterfront.')
+        picked = _map(series, st.session_state.get('daily_place_id'), place, focus)
         if picked in lookup and picked!=st.session_state.get('daily_place_id'):
             st.session_state['daily_pending_place'] = picked
             st.rerun()
+        if kind:
+            controls = st.columns(2,gap='small')
+            if allow_weather_detail:
+                controls[0].button('Explore in Monitor',key='daily_open_weather_monitor',
+                                   on_click=_open_weather_monitor,width='stretch')
+            controls[1].button('Reset map focus',key='daily_clear_map_focus',on_click=_clear_map_focus,width='stretch')
         port,roads = st.columns(2,gap='small')
         with port:
             _link('Port notices',snapshot['port_notices'].get('source_url'))
@@ -522,7 +672,8 @@ def render_daily_home(snapshot):
                 st.caption(_plain(section['message']))
         for item,state in advisories:
             _update_headline(item,snapshot[item['source_key']]['source_name'],state)
-            for field,label in (('published_at','Published'),('updated_at','Updated')):
+            timestamp_label = 'Reviewed' if item['source_key']=='flood_warnings' else 'Published'
+            for field,label in (('published_at',timestamp_label),('updated_at','Updated')):
                 if pd.notna(_time(item.get(field))):
                     st.caption(label+' '+_when(item[field]))
             if item.get('valid_from') or item.get('valid_to'):

@@ -233,6 +233,57 @@ class DailyViewTests(unittest.TestCase):
         self.assertEqual(app.session_state['daily_place_id'],'gauge:b')
         self.assertEqual(self.metric(app,'Latest water level').value,'5.20 m')
 
+    def test_rain_chart_and_hour_control_use_exact_hour_including_zero(self):
+        snapshot=daily_fixture()
+        row=snapshot['weather']['rows'][1]
+        row['rain_mm']=0.0
+        with patch('streamlit.pydeck_chart',return_value={}) as maps, patch('streamlit.plotly_chart',return_value={}) as charts:
+            app=self.app(snapshot,daily_weather_variable='Rain')
+            first_bar=charts.call_args.args[0].data[0]
+            self.assertEqual(first_bar.customdata[0][0],row['time'])
+            self.assertEqual(first_bar.x[0]-pd.Timestamp(row['time']),pd.Timedelta(minutes=30))
+            app.selectbox(key='daily_rain_hour').set_value(row['time']).run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['daily_map_focus'],('rain',row['time']))
+        self.assertIn('0.0 mm',self.visible_text(app))
+        self.assertIn('selected-forecast-point',[layer.id for layer in maps.call_args.args[0].layers])
+
+    def test_native_rain_selection_uses_custom_interval_not_bar_centre(self):
+        import daily_views
+        hour='2026-11-25T15:00:00+00:00'
+        state={'daily_rain_chart':{'selection':{'points':[{'customdata':[hour,'15:00–16:00 UTC'],
+                                                           'x':'2026-11-25T15:30:00+00:00'}]}}}
+        with patch.object(daily_views.st,'session_state',state):
+            daily_views._choose_rain_bar({})
+            self.assertNotIn('daily_map_focus',state)
+            daily_views._choose_rain_bar({hour:{'rain_mm':0}})
+        self.assertEqual(state['daily_map_focus'],('rain',hour))
+
+    def test_flood_area_lookup_is_lazy_and_draws_the_exact_selected_area(self):
+        snapshot=daily_fixture()
+        snapshot['flood_warnings']['items']=[{'id':'013WATMEWLW','flood_area_id':'013WATMEWLW',
+            'title':'Mersey flood alert','severity':'Flood Alert','severity_level':3}]
+        geometry={'type':'FeatureCollection','features':[{'type':'Feature','properties':{},'geometry':{
+            'type':'Polygon','coordinates':[[[-3.02,53.44],[-3.01,53.44],[-3.01,53.45],[-3.02,53.44]]]}}]}
+        with patch('daily_views.daily_service.load_flood_area_geometry',return_value={'geojson':geometry}) as load, \
+             patch('streamlit.pydeck_chart',return_value={}) as maps:
+            app=self.app(snapshot)
+            load.assert_not_called()
+            app.button(key='daily_flood_013WATMEWLW').click().run()
+        self.assertFalse(app.exception)
+        load.assert_called_once_with('013WATMEWLW')
+        self.assertIn('Flood Alert',self.visible_text(app))
+        self.assertIn('selected-flood-area',[layer.id for layer in maps.call_args.args[0].layers])
+
+    def test_reference_boundary_remains_reference_when_no_warning_is_listed(self):
+        with patch('daily_views.daily_service.load_flood_area_geometry',return_value={'geojson':None}):
+            app=self.app()
+            app.button(key='daily_flood_reference').click().run()
+        self.assertFalse(app.exception)
+        self.assertIn('Flood alert reference area',self.visible_text(app))
+        self.assertIn('Boundary could not be loaded',self.visible_text(app))
+        self.assertNotIn('Flood Alert · Official listing',self.visible_text(app))
+
     def test_manual_choice_clears_retained_map_selection(self):
         event={'selection':{'objects':{'daily-water':[{'id':'gauge:a'}]}}}
         def chart(deck, **kwargs):

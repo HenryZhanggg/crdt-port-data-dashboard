@@ -16,12 +16,12 @@ import dashboard_theme
 import daily_service
 import daily_views
 import data_views
-from monitor_workspace import render_monitor_workspace
+import monitor_workspace
 from workspace_links import workspace_context_summary, context_allowed
 
 BASE_DIR=Path(__file__).parent
 DATA_DIR=BASE_DIR/'data'
-WORKSPACE_BUILD='2026-11-24.3'
+WORKSPACE_BUILD='2026-11-25.1'
 
 st.set_page_config(page_title='CRDT port dashboard version 1',layout='wide',initial_sidebar_state='collapsed')
 
@@ -44,7 +44,7 @@ def require_dashboard_authorisation() -> bool:
         st.title("CRDT port dashboard version 1")
         st.subheader("Authorised access")
         st.caption("Enter the dashboard password to continue.")
-        st.caption("Interface update: 24 November 2026 · Liverpool daily briefing · build "+WORKSPACE_BUILD)
+        st.caption("Interface update: 25 November 2026 · Weather and flood map · build "+WORKSPACE_BUILD)
 
         if not configured_password:
             st.error("Dashboard password is not configured. Set DASHBOARD_PASSWORD in Streamlit secrets.")
@@ -172,18 +172,22 @@ def _render_current_data_workspace(*args,**kwargs):
     data_views.render_data_workspace(*args,**kwargs)
 
 
-def _render_current_overview():
+def _reload_overview_modules():
+    for module in (api_connectors,daily_service,dashboard_theme,daily_views):
+        importlib.reload(module)
+    daily_service.load_tide.clear()
+
+
+def _render_current_overview(views):
     if getattr(daily_views,'OVERVIEW_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD or not callable(getattr(dashboard_theme,'apply_overview_theme',None)):
-        for module in (api_connectors,daily_service,dashboard_theme,daily_views):
-            importlib.reload(module)
-        daily_service.load_tide.clear()
+        _reload_overview_modules()
     if getattr(daily_views,'OVERVIEW_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD or not callable(getattr(dashboard_theme,'apply_overview_theme',None)):
         st.error('The Overview update has not loaded completely. Please reopen the dashboard after deployment finishes.')
         return
     dashboard_theme.apply_overview_theme()
     with st.spinner('Checking local weather, water levels and official updates'):
         snapshot=daily_service.load_daily_snapshot()
-    daily_views.render_daily_home(snapshot)
+    daily_views.render_daily_home(snapshot,allow_weather_detail='weather' in views)
 
 
 def _preserve_workspace_widgets():
@@ -265,9 +269,12 @@ def main():
             column.button('Data & Integration' if name=='Data' else name,key='nav_'+name,width='stretch',type='primary' if name==page else 'secondary',on_click=_navigate,args=(name,))
     context_slot=st.empty()
     if page=='Overview':
-        _render_current_overview()
+        _render_current_overview(views)
     elif page=='Monitor':
-        render_monitor_workspace(load_selected_api_bundle,load_csv('assets.csv'),load_service_area(),views,refresh=refresh_sources)
+        if getattr(monitor_workspace,'MONITOR_WORKSPACE_BUILD',None)!=WORKSPACE_BUILD:
+            _reload_overview_modules()
+            importlib.reload(monitor_workspace)
+        monitor_workspace.render_monitor_workspace(load_selected_api_bundle,load_csv('assets.csv'),load_service_area(),views,refresh=refresh_sources)
     else:
         _render_current_data_workspace(load_high_score_catalog(),load_selected_api_bundle,views,refresh=refresh_sources)
     summary=workspace_context_summary() if page!='Overview' else None
