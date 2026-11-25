@@ -176,6 +176,8 @@ def apply_dashboard_theme() -> None:
         [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {width:100% !important; flex:1 1 auto !important; min-width:0;}
         .st-key-workspace_shortcuts [data-testid="stHorizontalBlock"] {flex-direction:row; flex-wrap:wrap; gap:.4rem;}
         .st-key-workspace_shortcuts [data-testid="stColumn"] {width:auto !important; flex:1 1 135px !important; min-width:0;}
+        .st-key-overview_map_controls [data-testid="stHorizontalBlock"],
+        .st-key-monitor_map_controls [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem;}
         .st-key-workbench_summary [data-testid="stHorizontalBlock"],
         .st-key-daily_summary [data-testid="stHorizontalBlock"] {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.55rem;}
         .st-key-workbench_summary [data-testid="stColumn"], .st-key-daily_summary [data-testid="stColumn"] {width:auto; min-width:0;}
@@ -249,6 +251,9 @@ def apply_overview_theme() -> None:
     }
     [data-testid="stMain"]:has(.overview-theme-marker) :is([data-baseweb="select"], [data-baseweb="input"]) input {
         color:#203247; -webkit-text-fill-color:#203247;
+    }
+    [data-testid="stMain"]:has(.overview-theme-marker) .st-key-overview_map_controls [data-baseweb="select"] :is(span,svg) {
+        color:#5E7188; fill:currentColor;
     }
     [data-testid="stMain"]:has(.overview-theme-marker) [data-testid="stExpander"] {
         background:#FFFFFF; border-color:#D9E2EC;

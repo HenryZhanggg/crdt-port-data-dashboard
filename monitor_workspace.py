@@ -16,7 +16,7 @@ from data_relation_views import render_data_relations
 from workspace_links import (clear_context, context_allowed, context_label, filter_context_bundle,
                              open_data_context, reference_key)
 
-MONITOR_WORKSPACE_BUILD = '2026-11-25.1'
+MONITOR_WORKSPACE_BUILD = '2026-11-25.2'
 
 
 def _remember_sources():

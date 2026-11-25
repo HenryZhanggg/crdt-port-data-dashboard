@@ -8,7 +8,7 @@ from streamlit.testing.v1 import AppTest
 
 
 class WeatherMapViewTests(unittest.TestCase):
-    def app(self, views=('weather',), mode=None, focus=None):
+    def app(self, views=('weather',), mode=None):
         now = pd.Timestamp.now(tz='UTC').floor('h')
         app = AppTest.from_string('''
 import pandas as pd
@@ -35,28 +35,34 @@ render_weather_map(st.session_state['snapshot'], load_bundle, st.session_state['
                 'items': []},
         }
         if mode:
-            app.session_state['weather_map_mode'] = mode
-        if focus:
-            app.session_state['daily_map_focus'] = focus
+            app.session_state['monitor_map_layer'] = mode
         return app.run()
 
-    def test_live_rain_uses_selected_future_hour_at_forecast_point(self):
-        with patch('weather_map_views._archive_sample', return_value=None), patch('daily_views._map') as render_map:
+    def test_no_selection_starts_with_a_plain_map_and_no_provider_work(self):
+        with patch('streamlit.pydeck_chart', return_value={}) as chart, \
+                patch('daily_service.load_flood_area_geometry') as geometry:
             app = self.app()
             self.assertFalse(app.exception)
-            hour = next(widget for widget in app.selectbox if widget.label == 'Forecast hour (UTC)')
-            self.assertEqual(len(hour.options), 2)
-            self.assertEqual(render_map.call_args.kwargs['focus']['rain']['rain_mm'], 0.0)
-            next_hour = (pd.Timestamp(hour.value)+pd.Timedelta(hours=1)).isoformat()
-            hour.set_value(next_hour).run()
+            self.assertEqual(chart.call_args.args[0].layers, [])
+            self.assertFalse(app.selectbox)
+            self.assertTrue({'Wind','Rain','Flood areas','Water levels'} <= {btn.label for btn in app.button})
+            geometry.assert_not_called()
+
+    def test_reselecting_a_layer_clears_the_overlay(self):
+        with patch('streamlit.pydeck_chart', return_value={}) as chart:
+            app = self.app()
+            app.button(key='monitor_layer_Rain').click().run()
             self.assertFalse(app.exception)
-            self.assertEqual(render_map.call_args.kwargs['focus']['rain']['rain_mm'], 2.5)
+            self.assertIn('weather-grid',[layer.id for layer in chart.call_args.args[0].layers])
+            app.button(key='monitor_layer_Rain').click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(chart.call_args.args[0].layers, [])
 
     def test_reference_area_and_optional_transport_points_keep_scope_and_permissions(self):
         boundary = {'type': 'FeatureCollection', 'features': [{'type': 'Feature',
             'geometry': {'type': 'Polygon', 'coordinates': [[[-3.02, 53.44], [-3.00, 53.44],
                 [-3.00, 53.46], [-3.02, 53.46], [-3.02, 53.44]]]}, 'properties': {}}]}
-        with patch('weather_map_views._archive_sample', return_value=None), patch('daily_views._map') as render_map, \
+        with patch('daily_views._map') as render_map, \
                 patch('daily_service.load_flood_area_geometry', return_value={'geojson': boundary}) as geometry:
             app = self.app(mode='Flood areas')
             self.assertFalse(app.exception)
@@ -71,39 +77,44 @@ render_weather_map(st.session_state['snapshot'], load_bundle, st.session_state['
             self.assertEqual(app.session_state['requested_sources'], ['naptan'])
             self.assertEqual([stop['name'] for stop in render_map.call_args.kwargs['focus']['stops']], ['Inside'])
 
-    def test_overview_handoff_opens_the_selected_forecast_hour(self):
-        chosen = (pd.Timestamp.now(tz='UTC').floor('h')+pd.Timedelta(hours=2)).isoformat()
-        with patch('weather_map_views._archive_sample', return_value=None), patch('daily_views._map') as render_map:
-            app = self.app(mode='Flood areas',focus=('rain',chosen))
+    def test_switching_layers_replaces_the_grid_and_arrows(self):
+        with patch('streamlit.pydeck_chart', return_value={}) as chart:
+            app = self.app()
+            app.button(key='monitor_layer_Wind').click().run()
             self.assertFalse(app.exception)
-            self.assertEqual(app.radio[0].value,'Rain forecast')
-            self.assertEqual(render_map.call_args.kwargs['focus']['rain']['rain_mm'],2.5)
+            self.assertEqual([layer.id for layer in chart.call_args.args[0].layers],
+                             ['weather-grid', 'weather-wind-shafts', 'weather-wind-heads'])
+            self.assertTrue(any('10 m wind' in item.value for item in app.caption))
+            app.button(key='monitor_layer_Rain').click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual([layer.id for layer in chart.call_args.args[0].layers], ['weather-grid'])
 
-    def test_expired_overview_hour_requires_an_explicit_new_choice(self):
-        with patch('daily_views._map') as render_map:
-            app = self.app(focus=('rain','2025-11-14T17:00:00+00:00'))
-        self.assertFalse(app.exception)
-        self.assertTrue(any('selected hour is no longer' in item.value for item in app.info))
-        self.assertIsNone(render_map.call_args.kwargs['focus'])
-
-    def test_previous_warning_area_keeps_exact_boundary_as_reference(self):
-        with patch('daily_views._map'), patch('daily_service.load_flood_area_geometry',
-                return_value={'geojson':None}) as geometry:
-            app = self.app(focus=('flood','013FWBSEAFORTH'))
-        self.assertFalse(app.exception)
-        geometry.assert_called_once_with('013FWBSEAFORTH')
-        self.assertEqual(app.selectbox[0].value,'013FWBSEAFORTH')
+    def test_map_pick_updates_exact_cell_and_clear_removes_it(self):
+        import weather_layers
+        cell = weather_layers.grid_layers('Rain', weather_layers.load_grid('Rain'))[0][0].data[12]
+        selection = {'selection': {'objects': {'weather-grid': [{'id': cell['id']}]}}}
+        with patch('streamlit.pydeck_chart', return_value=selection):
+            app = self.app(mode='Rain')
+            self.assertFalse(app.exception)
+            self.assertEqual(app.selectbox[0].value, cell['id'])
+            self.assertEqual(app.metric[0].value, cell['value'])
+            app.button(key='monitor_layer_Rain').click().run()
+            self.assertFalse(app.exception)
+            self.assertFalse(app.selectbox)
+            self.assertFalse(app.metric)
 
     def test_archive_is_dated_and_exposes_a_keyboard_accessible_exact_cell_value(self):
-        app = self.app(mode='Archived rainfall grid')
+        app = self.app(mode='Rain')
         self.assertFalse(app.exception)
         self.assertTrue(any('14 Nov 2025' in item.value for item in app.caption))
         cells = app.selectbox[0]
-        self.assertEqual(len(cells.options),169)
-        cells.set_value(1).run()
-        self.assertFalse(app.exception)
+        self.assertEqual(len(cells.options), 169)
+        self.assertFalse(app.metric)
         sample = json.loads((Path(__file__).resolve().parent.parent/'data/ukv_liverpool_rain_sample.json').read_text(encoding='utf-8'))
-        self.assertEqual(app.metric[0].value,f"{sample['cells'][1]['mm']:.3f} mm")
+        cell = sample['cells'][1]
+        cells.set_value(f"rain:{cell['row']}:{cell['col']}").run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.metric[0].value, f"{cell['mm']:g} mm / 1h")
         self.assertEqual(len(app.get('deck_gl_json_chart')),1)
 
 

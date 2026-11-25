@@ -1,55 +1,18 @@
-"""Detailed Monitor map for forecast rainfall and official flood areas."""
-import json
-from pathlib import Path
-
+"""Selectable weather, flood and water overlays for the Liverpool map."""
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
 import daily_service
 import daily_views
+import weather_layers
 from port_map import MARITIME_STYLE
 
 
-_SAMPLE = Path(__file__).with_name('data') / 'ukv_liverpool_rain_sample.json'
+_OPTIONS = ('Wind', 'Rain', 'Flood areas', 'Water levels')
 _NAPTAN = 'https://www.gov.uk/government/publications/national-public-transport-access-node-schema'
 _OGL = 'https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/'
 
-
-def _archive_sample():
-    if _SAMPLE.is_file():
-        sample = json.loads(_SAMPLE.read_text(encoding='utf-8'))
-        if sample.get('cells'):
-            return sample
-    return None
-
-
-def _rain_forecast(snapshot):
-    weather = snapshot['weather']
-    now = pd.Timestamp.now(tz='UTC')
-    hours = daily_views._rain_hours(daily_views._forecast_frame(weather, now))
-    focus = None
-    if hours:
-        incoming = st.session_state.get('daily_map_focus',(None,None))
-        requested_unavailable = incoming[0]=='rain' and incoming[1] not in hours
-        if st.session_state.get('weather_map_rain_hour') not in hours:
-            st.session_state.pop('weather_map_rain_hour',None)
-        chosen = st.selectbox('Forecast hour (UTC)', list(hours), key='weather_map_rain_hour',
-            index=None if requested_unavailable else 0, format_func=daily_views._rain_period)
-        if chosen is None:
-            st.info('The selected hour is no longer in the forecast. Choose another hour to display it.')
-        else:
-            focus = {'rain': hours[chosen]}
-            st.metric('Forecast rainfall at the Liverpool point', f"{hours[chosen]['rain_mm']:g} mm")
-            st.caption('One-hour model forecast for the marked point · MET Norway · CC BY 4.0')
-    else:
-        st.info('No upcoming hourly rainfall values are available.')
-    daily_views._map([], None, snapshot['place'], focus=focus, key_prefix='weather_map_rain', height=425)
-    with st.expander('Rain forecast source'):
-        daily_views._source(weather)
-        st.caption('MET Norway forecast · CC BY 4.0')
-        daily_views._link('MET Norway Locationforecast', weather.get('source_url'))
-        daily_views._link('CC BY 4.0', weather.get('license_url', 'https://creativecommons.org/licenses/by/4.0/'))
 
 
 def _inside_ring(lon, lat, ring):
@@ -81,132 +44,138 @@ def _contained_stops(geometry, stops):
             points.append({'name': str(name), 'lat': float(lat), 'lon': float(lon)})
     return points
 
-
-def _flood_map(snapshot, load_bundle, views):
+def _flood_controls(snapshot, namespace, load_bundle, views):
     flood = snapshot['flood_warnings']
     reference = daily_service.MERSEY_FLOOD_AREA
-    warnings = daily_views._current_flood_areas(flood,pd.Timestamp.now(tz='UTC'))
+    warnings = daily_views._current_flood_areas(flood, pd.Timestamp.now(tz='UTC'))
     choices = {key: item['title'] for key, item in warnings.items()}
-    choices.setdefault(reference['id'], reference['title']+' (reference area)')
-    kind, requested = st.session_state.get('daily_map_focus',(None,None))
-    if kind=='flood':
-        choices.setdefault(requested, requested+' (reference area)')
-    if st.session_state.get('weather_map_flood_area') not in choices:
-        st.session_state.pop('weather_map_flood_area',None)
-    area = st.selectbox('Flood area', list(choices), format_func=choices.get, key='weather_map_flood_area')
-    focus = daily_views._flood_map_focus(area,warnings)
+    choices.setdefault(reference['id'], reference['title'] + ' (reference area)')
+    key = f'{namespace}_flood_area'
+    if st.session_state.get(key) not in choices:
+        st.session_state.pop(key, None)
+    area = st.selectbox('Flood area', list(choices), format_func=choices.get, key=key)
+    focus = daily_views._flood_map_focus(area, warnings)
     geometry = focus['geojson']
     warning = warnings.get(area)
-    if warning:
-        st.caption('Environment Agency · '+str(warning.get('severity') or 'Flood advisory in the retrieved feed'))
-    else:
-        st.caption('Environment Agency · Published flood reporting boundary')
+    label = (warning.get('severity') or 'Flood advisory in the retrieved feed') if warning else 'Published flood reporting boundary'
+    st.caption('Environment Agency · ' + str(label))
     if not geometry:
         st.info('The boundary is unavailable. Check the official Environment Agency source.')
-    if geometry and 'transport' in views and st.checkbox('Show public transport stops inside the boundary',
-            key='weather_map_transport_points'):
+    if geometry and load_bundle and 'transport' in views and st.checkbox(
+            'Show public transport stops within the boundary', key=f'{namespace}_flood_stops'):
         raw = load_bundle(None, None, ('naptan',)).get('naptan', pd.DataFrame())
-        points = _contained_stops(geometry, raw)
-        focus['stops'] = points
-        if points:
-            preview = ', '.join(point['name'] for point in points[:4])
-            st.caption(f'{len(points)} mapped stops inside the reporting boundary · {preview}'+(' …' if len(points)>4 else ''))
-        elif raw.empty:
+        focus['stops'] = _contained_stops(geometry, raw)
+        if raw.empty:
             st.caption('Public transport stop data are unavailable.')
         else:
-            st.caption('No returned public transport stops inside this boundary.')
-        st.caption('Source: Department for Transport NaPTAN · Open Government Licence v3.0.')
+            st.caption(f"{len(focus['stops'])} mapped stops within the reporting boundary")
         st.link_button('NaPTAN source', _NAPTAN)
-    daily_views._map([], None, snapshot['place'], focus=focus, key_prefix=f'weather_map_flood_{area}', height=425)
-    st.caption('This uses Environment Agency flood and river level data from the real-time data API (Beta).')
-    st.caption('Map outlines show official reporting boundaries. Check official sources for incident impacts and transport closures.')
+        st.caption('Department for Transport · Open Government Licence v3.0')
     with st.expander('Flood area source'):
-        daily_views._source(flood)
+        st.caption('This uses Environment Agency flood and river level data from the real-time data API (Beta).')
         if warning:
-            st.caption('Reviewed '+daily_views._when(warning.get('published_at'))+
-                       ' · Updated '+daily_views._when(warning.get('updated_at')))
             daily_views._link('Selected Environment Agency advisory', warning.get('url'))
-        daily_views._link('Official area information','https://check-for-flooding.service.gov.uk/target-area/'+area)
+        daily_views._link('Official area information', 'https://check-for-flooding.service.gov.uk/target-area/' + area)
         daily_views._link('Environment Agency flood warnings', flood.get('source_url'))
         daily_views._link('Open Government Licence v3.0', _OGL)
+    return focus
 
 
-def _archived_rain(sample):
-    st.caption('Historical UKV model forecast · One-hour rainfall accumulation')
-    issued, start, end = (f"{daily_views._time(sample[key]):%d %b %Y, %H:%M UTC}"
-                          for key in ('model_run_utc','valid_from_utc','valid_to_utc'))
-    st.caption(f'Model run {issued} · Valid {start} to {end}')
+def _toggle_layer(namespace, layer):
+    key = f'{namespace}_map_layer'
+    st.session_state[key] = None if st.session_state.get(key) == layer else layer
+    st.session_state.pop(f'{namespace}_grid_cell', None)
+    st.session_state.pop(f'{namespace}_last_cell', None)
+
+
+def _render_grid_map(sample, map_column, controls, layer, namespace, height):
+    layers, legend = weather_layers.grid_layers(layer, sample)
+    if not layers:
+        return False
     west, south, east, north = sample['bbox']
-    colours = [[162,211,241,145], [84,165,221,180], [49,119,206,200],
-               [58,83,194,220], [104,69,191,230]]
-    cells = []
-    labels = []
-    for i, cell in enumerate(sample['cells']):
-        rain = cell['mm']
-        ring = cell['corners']
-        x = sum(point[0] for point in ring[:-1]) / (len(ring)-1)
-        y = sum(point[1] for point in ring[:-1]) / (len(ring)-1)
-        labels.append(f'{y:.3f}°, {x:.3f}°')
-        cells.append({'id': i, 'corners': ring, 'value': f'{rain:.3f} mm',
-            'colour': colours[min(int(rain),len(colours)-1)]})
-    layer = pdk.Layer('PolygonLayer', cells, id='weather-archive-cells', get_polygon='corners',
-        get_fill_color='colour', get_line_color=[185,207,229,120], line_width_min_pixels=1,
-        stroked=True, filled=True, pickable=True, auto_highlight=True)
-    deck = pdk.Deck(layers=[layer], map_style=MARITIME_STYLE, tooltip={'text': 'Forecast rainfall: {value}'},
-        initial_view_state=pdk.ViewState(latitude=(north+south)/2, longitude=(east+west)/2, zoom=9.1))
-    map_column, details = st.columns([2.6,1],gap='small')
+    deck = pdk.Deck(layers=layers, map_style=MARITIME_STYLE,
+        tooltip={'text': '{name}\n{value}'}, initial_view_state=pdk.ViewState(
+            latitude=(north+south)/2, longitude=(east+west)/2, zoom=9.1))
     with map_column:
-        event = st.pydeck_chart(deck, height=425, width='stretch', on_select='rerun',
-            selection_mode='single-object', key='weather_map_ukv')
-    picked = (event or {}).get('selection', {}).get('objects', {}).get('weather-archive-cells', [])
-    if not picked:
-        st.session_state.pop('weather_map_last_cell',None)
-    elif picked[0].get('id') != st.session_state.get('weather_map_last_cell'):
-        selected = picked[0]['id']
-        if selected in range(len(cells)):
-            st.session_state['weather_map_last_cell'] = selected
-            st.session_state['weather_map_cell'] = selected
-    with details, st.container(border=True):
-        index = st.selectbox('Grid cell', range(len(cells)), format_func=labels.__getitem__, key='weather_map_cell')
-        st.metric('Forecast rainfall in selected cell', cells[index]['value'])
-        st.caption('Rainfall in one hour (mm)')
+        event = st.pydeck_chart(deck, height=height, width='stretch', on_select='rerun',
+            selection_mode='single-object', key=f'{namespace}_{layer}_grid')
+    cells = {cell['id']: cell for cell in layers[0].data}
+    picks = (event or {}).get('selection', {}).get('objects', {}).get('weather-grid', [])
+    picked = picks[0].get('id') if picks else None
+    cell_key, last_key = f'{namespace}_grid_cell', f'{namespace}_last_cell'
+    if picked in cells and picked != st.session_state.get(last_key):
+        st.session_state[cell_key] = picked
+    st.session_state[last_key] = picked
+    with controls:
+        if layer == 'Wind':
+            moment = daily_views._time(sample['valid_at_utc'])
+            st.caption(f'Archived UKV · 10 m wind at {moment:%d %b %Y, %H:%M UTC} · Arrows point downwind')
+        else:
+            start = daily_views._time(sample['valid_from_utc'])
+            end = daily_views._time(sample['valid_to_utc'])
+            st.caption(f'Archived UKV · One-hour rainfall · {start:%d %b %Y, %H:%M}–{end:%H:%M} UTC')
         st.markdown(' '.join(
             f'<span style="display:inline-block;margin-right:.55rem;white-space:nowrap">'
             f'<span style="background:rgb({red},{green},{blue});display:inline-block;width:.65em;'
             f'height:.65em;border-radius:2px"></span> {label}</span>'
-            for (red,green,blue,_),label in zip(colours,('0–<1','1–<2','2–<3','3–<4','4+'))
-        ),unsafe_allow_html=True)
-    st.caption(sample['attribution'])
-    st.link_button('UKV sample source', sample['source_url'])
-    st.link_button('Source licence', sample['licence_url'])
-    with st.expander('Sample provenance'):
-        st.code(sample['source_sha256'])
+            for label, (red, green, blue) in legend
+        ), unsafe_allow_html=True)
+        selected = st.selectbox('Grid cell', list(cells), index=None,
+            format_func=lambda cell: cells[cell]['name'], key=cell_key, placeholder='Select or click the map')
+        if selected:
+            st.metric(layer + ' in selected cell', cells[selected]['value'])
+        with st.expander('Weather layer source'):
+            st.caption('Archived UKV model forecast on the 2 km grid.')
+            st.caption(sample['attribution'])
+            st.link_button('Met Office UKV forecast archive', sample['source_catalogue_url'])
+            st.link_button('Original forecast file', sample['source_url'])
+            if layer == 'Wind':
+                st.link_button('Original wind direction file', sample['sources']['direction']['url'])
+            daily_views._link('Source licence', sample.get('licence_url'))
+    return True
+
+
+def render_layer_map(snapshot, namespace, *, series=(), selected=None, load_bundle=None, views=()):
+    controls_column, map_column = st.columns([1, 3], gap='small')
+    controls = controls_column.container(border=True, key=f'{namespace}_map_controls')
+    layer = st.session_state.get(f'{namespace}_map_layer')
+    height = 425 if namespace == 'monitor' else 360
+    focus = None
+    with controls:
+        st.markdown('**Map layers**')
+        for start in (0, 2):
+            for column, option in zip(st.columns(2, gap='small'), _OPTIONS[start:start+2]):
+                column.button(option, key=f'{namespace}_layer_{option}', width='stretch',
+                    type='primary' if option == layer else 'secondary',
+                    on_click=_toggle_layer, args=(namespace, option))
+        if layer == 'Flood areas':
+            focus = _flood_controls(snapshot, namespace, load_bundle, views)
+        elif layer == 'Water levels':
+            st.caption('Environment Agency monitoring stations' if series else 'No water level stations returned.')
+        elif layer is None:
+            st.caption('Select a layer to show it on the map.')
+    if layer in ('Wind', 'Rain'):
+        if _render_grid_map(weather_layers.load_grid(layer), map_column, controls, layer, namespace, height):
+            return None
+        controls.info('The model grid is unavailable.')
+    with map_column:
+        return daily_views._map(series if layer == 'Water levels' else (), selected, snapshot['place'],
+            focus=focus, key_prefix=f'{namespace}_{layer or "base"}', height=height)
 
 
 def render_weather_map(snapshot, load_bundle, views):
     if 'weather' not in views:
         return
     st.subheader('Weather & flood')
-    sample = _archive_sample()
-    modes = ['Rain forecast', 'Flood areas']
-    if sample:
-        modes.append('Archived rainfall grid')
-    incoming = st.session_state.get('daily_map_focus')
-    if incoming and incoming != st.session_state.get('weather_map_applied_focus'):
-        kind, identifier = incoming
-        if kind == 'rain':
-            st.session_state['weather_map_mode'] = 'Rain forecast'
-            st.session_state['weather_map_rain_hour'] = identifier
-        elif kind == 'flood':
-            st.session_state['weather_map_mode'] = 'Flood areas'
-            st.session_state['weather_map_flood_area'] = identifier
-        st.session_state['weather_map_applied_focus'] = incoming
-    if st.session_state.get('weather_map_mode') not in modes:
-        st.session_state.pop('weather_map_mode',None)
-    mode = st.radio('Map layer', modes, horizontal=True, key='weather_map_mode')
-    if mode == 'Rain forecast':
-        _rain_forecast(snapshot)
-    elif mode == 'Flood areas':
-        _flood_map(snapshot, load_bundle, views)
-    else:
-        _archived_rain(sample)
+    tide = snapshot.get('tide', {})
+    series = tide.get('series', [])
+    selected = st.session_state.get('monitor_water_station')
+    picked = render_layer_map(snapshot, 'monitor', series=series, selected=selected,
+        load_bundle=load_bundle, views=views)
+    if picked:
+        st.session_state['monitor_water_station'] = picked
+    if st.session_state.get('monitor_map_layer') == 'Water levels':
+        entry = next((entry for entry in series if entry['id'] == (picked or selected)), None)
+        if entry:
+            st.caption(daily_views._place_label(entry))
+            daily_views._link('Station data source', entry.get('source_url'))

@@ -229,11 +229,11 @@ class DailyViewTests(unittest.TestCase):
     def test_native_map_pick_changes_the_same_reference(self):
         event={'selection':{'objects':{'daily-water':[{'id':'gauge:b'}]}}}
         with patch('streamlit.pydeck_chart',return_value=event):
-            app=self.app()
+            app=self.app(overview_map_layer='Water levels')
         self.assertEqual(app.session_state['daily_place_id'],'gauge:b')
         self.assertEqual(self.metric(app,'Latest water level').value,'5.20 m')
 
-    def test_rain_chart_and_hour_control_use_exact_hour_including_zero(self):
+    def test_rain_chart_uses_exact_hour_and_leaves_map_clear(self):
         snapshot=daily_fixture()
         row=snapshot['weather']['rows'][1]
         row['rain_mm']=0.0
@@ -242,22 +242,9 @@ class DailyViewTests(unittest.TestCase):
             first_bar=charts.call_args.args[0].data[0]
             self.assertEqual(first_bar.customdata[0][0],row['time'])
             self.assertEqual(first_bar.x[0]-pd.Timestamp(row['time']),pd.Timedelta(minutes=30))
-            app.selectbox(key='daily_rain_hour').set_value(row['time']).run()
-        self.assertFalse(app.exception)
-        self.assertEqual(app.session_state['daily_map_focus'],('rain',row['time']))
-        self.assertIn('0.0 mm',self.visible_text(app))
-        self.assertIn('selected-forecast-point',[layer.id for layer in maps.call_args.args[0].layers])
-
-    def test_native_rain_selection_uses_custom_interval_not_bar_centre(self):
-        import daily_views
-        hour='2026-11-25T15:00:00+00:00'
-        state={'daily_rain_chart':{'selection':{'points':[{'customdata':[hour,'15:00–16:00 UTC'],
-                                                           'x':'2026-11-25T15:30:00+00:00'}]}}}
-        with patch.object(daily_views.st,'session_state',state):
-            daily_views._choose_rain_bar({})
-            self.assertNotIn('daily_map_focus',state)
-            daily_views._choose_rain_bar({hour:{'rain_mm':0}})
-        self.assertEqual(state['daily_map_focus'],('rain',hour))
+            self.assertEqual(first_bar.y[0],0.0)
+            self.assertEqual(maps.call_args.args[0].layers, [])
+            self.assertTrue(any(button.key=='overview_layer_Rain' for button in app.button))
 
     def test_flood_area_lookup_is_lazy_and_draws_the_exact_selected_area(self):
         snapshot=daily_fixture()
@@ -269,7 +256,7 @@ class DailyViewTests(unittest.TestCase):
              patch('streamlit.pydeck_chart',return_value={}) as maps:
             app=self.app(snapshot)
             load.assert_not_called()
-            app.button(key='daily_flood_013WATMEWLW').click().run()
+            app.button(key='overview_layer_Flood areas').click().run()
         self.assertFalse(app.exception)
         load.assert_called_once_with('013WATMEWLW')
         self.assertIn('Flood Alert',self.visible_text(app))
@@ -278,18 +265,18 @@ class DailyViewTests(unittest.TestCase):
     def test_reference_boundary_remains_reference_when_no_warning_is_listed(self):
         with patch('daily_views.daily_service.load_flood_area_geometry',return_value={'geojson':None}):
             app=self.app()
-            app.button(key='daily_flood_reference').click().run()
+            app.button(key='overview_layer_Flood areas').click().run()
         self.assertFalse(app.exception)
-        self.assertIn('Flood alert reference area',self.visible_text(app))
-        self.assertIn('Boundary could not be loaded',self.visible_text(app))
+        self.assertIn('reference area',app.selectbox(key='overview_flood_area').options[0])
+        self.assertIn('The boundary is unavailable',self.visible_text(app))
         self.assertNotIn('Flood Alert · Official listing',self.visible_text(app))
 
     def test_manual_choice_clears_retained_map_selection(self):
         event={'selection':{'objects':{'daily-water':[{'id':'gauge:a'}]}}}
         def chart(deck, **kwargs):
-            return event if kwargs['key'].endswith('_0') else {'selection':{'objects':{}}}
+            return event if 'Water levels' in kwargs['key'] and kwargs['key'].endswith('_0') else {'selection':{'objects':{}}}
         with patch('streamlit.pydeck_chart',side_effect=chart):
-            app=self.app()
+            app=self.app(overview_map_layer='Water levels')
             next(x for x in app.selectbox if x.label=='Water level').set_value('gauge:b').run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['daily_place_id'],'gauge:b')
@@ -309,7 +296,7 @@ class DailyViewTests(unittest.TestCase):
         self.assertNotEqual(self.metric(app,'Archived water level').value,'Not available')
         self.assertIn('Environment Agency archive',self.visible_text(app))
         self.assertIn('2025',self.visible_text(app))
-        self.assertTrue(any('Location reference' in x.value for x in app.caption))
+        self.assertTrue(any('Select a layer to show it on the map' in x.value for x in app.caption))
 
     def test_untrusted_news_markup_and_non_official_link_are_not_rendered(self):
         snapshot=daily_fixture()
